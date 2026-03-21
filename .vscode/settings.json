@@ -1,0 +1,21 @@
+{
+    "chat.restoreLastPanelSession": true,
+    "chat.mcp.gallery.enabled": true,
+    "files.watcherExclude": {
+        "**/node_modules/**": true,
+        "**/.git/**": true,
+        "**/dist/**": true
+    },
+    "search.exclude": {
+        "**/node_modules/**": true,
+        "**/dist/**": true
+    },
+    "git.enabled": false,
+    "dart.flutterAdbConnectOnChromeOs": false,
+    "editor.fontSize": 14,
+    "editor.fontWeight": "normal",
+    "workbench.statusBar.experimental.fontSize": 14,
+    "chat.editor.fontSize": 16,
+    "chat.fontSize": 16
+
+}

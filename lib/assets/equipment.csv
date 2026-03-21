@@ -1,0 +1,90 @@
+EquipID,Type,Name
+1,Tractor,Tractor
+2,Tractor,Tracked tractor
+3,Soil Cultivation,Cultipacker
+4,Soil Cultivation,Cultivator
+5,Soil Cultivation,Land imprinter
+6,Soil Cultivation,Roller
+7,Soil Cultivation,Subsoiler
+8,Soil Cultivation,Ridger
+9,Soil Cultivation,Mole plough
+10,Soil Cultivation,Dragged teeth
+11,Soil Cultivation,Rotary motion of disks or teeth
+12,Soil Cultivation,Harrow eg Spike harrow Drag harrow Disk harrow
+13,Soil Cultivation,Plow or plough
+14,Soil Cultivation,Stone Rock Debris
+15,Soil Cultivation,Strip till tolbar
+16,Planting,Seed drill
+17,Planting,Planter
+18,Planting,Potato planter
+19,Planting,Trowel
+20,Planting,Seed
+21,Fertilizers and pesticides dispenser,Liquid manure
+22,Fertilizers and pesticides dispenser,Dry Manure spreader
+23,Fertilizers and pesticides dispenser,Sprayer
+24,Irrigation,Drip irrigation
+25,Irrigation,Sprinkler system
+26,Irrigation,Center pivot irrigation
+27,Irrigation,Hydroponics
+28,Produce sorter,Blemish sorter
+29,Produce sorter,Colour sorter
+30,Produce sorter,Density sorter
+31,Produce sorter,Diameter sorter
+32,Produce sorter,Internal-taste sorter
+33,Produce sorter,Shape sorter
+34,Produce sorter,Weight sorter
+35,Harvesting-post-harvest processing,Buckrake
+36,Harvesting-post-harvest processing,Grain cart
+37,Harvesting-post-harvest processing,Conveyor belt
+38,Harvesting-post-harvest processing,Cotton picker
+39,Harvesting-post-harvest processing,Farm truck
+40,Harvesting-post-harvest processing,Harvestor Harvester
+41,Harvesting-post-harvest processing,Multi crop Harvester
+42,Harvesting-post-harvest processing,Haulm topper
+43,Harvesting-post-harvest processing,Mower
+44,Harvesting-post-harvest processing,Grain dryer
+45,Harvesting-post-harvest processing,Rake
+46,Harvesting-post-harvest processing,Swather
+47,Harvesting-post-harvest processing,Reaper
+48,Harvesting-post-harvest processing,Rice huller
+49,Harvesting-post-harvest processing,Trailer
+50,Hand harvesting,Flail
+51,Hand harvesting,Sickle
+52,Hand harvesting,Scythe
+53,Hand harvesting,Winnower
+54,Hay making,Bale lifter
+55,Hay making,Bale wrapper
+56,Hay making,Baler
+57,Hay making,Hay rake
+58,Hay making,Hay tedder
+59,Hay making,Loader wagon
+60,Hay making,Mower
+61,Hand hay tool,Hay fork
+62,Hand hay tool,Wooden rake
+63,Loading,Backhoe
+64,Loading,Front end loader
+65,Loading,Skid-steer loader
+66,Loading,Telescopic handler
+67,Loading,Tractor mounted forklift
+68,Milking-Animal Feeding,Bulk tank
+69,Milking-Animal Feeding,Milking machine
+70,Milking-Animal Feeding,Milking pipeline
+71,Milking-Animal Feeding,Grinder mixer
+72,Other,Agricultural robots
+73,Other,Feed grinder
+74,Other,Allen Scythe
+75,Other,Aquatic weed harvester
+76,Other,Bale splitter
+77,Other,Chillcuring
+78,Other,Conveyor analyzer
+79,Other,Hedge cutter
+80,Other,Hedge trimmer
+81,Other,Motor Bikes
+82,Other,Shear Grab
+83,Other,Livestock trailer
+84,Other,Mixer wagon diet feeder
+85,Other,Mulching machine
+86,Other,Post driver
+87,Other,Quad Bikes
+88,Other,Trailer
+89,Other,Yard scraper

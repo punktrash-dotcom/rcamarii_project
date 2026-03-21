@@ -1,0 +1,28 @@
+topic,question,answer,tags,lang
+Soil,What is the ideal soil pH for sugarcane?,"The ideal range is 6.0 to 6.5. If the pH is below 5.0, apply lime (apog) to neutralize acidity.","soil, ph, acidity, lime",en
+Lupa,Ano ang ideal na pH ng lupa para sa tubo?,"Ang tamang pH ay 6.0 hanggang 6.5. Kung mababa sa 5.0 ang pH, maglagay ng apog (lime) para mabawasan ang asidong lupa.","lupa, ph, asido, apog",tl
+Duta,Ano ang pinakamaayo nga pH sang duta para sa tubo?,"Ang pinakamaayo nga pH amo ang 6.0 tubtob 6.5. Kon manubo sa 5.0, kinahanglan mag-apply sang apog (lime) para mag-neutralize ang duta.","duta, ph, asido, apog",hil
+Planting,What is the recommended planting depth for setts?,"Plant sugarcane setts (cuttings) at a depth of 5-10 cm. Ensure 2-3 healthy buds per sett.","planting, depth, setts, cuttings",en
+Pagtatanim,Gaano dapat kalalim ang pagtatanim ng mga patubas (setts)?,"Ibaon ang mga patubas sa lalim na 5-10 cm. Siguraduhing may 2-3 malusog na 'mata' o buds ang bawat cuttings.","pagtatanim, lalim, patubas, cuttings",tl
+Pagtanom,Daw ano kadalom ang pagtanom sang mga patubas?,"Ilubong ang mga patubas sa kadalumon nga 5-10 cm. Siguraduhon nga may 2-3 ka maayo nga 'mata' ang kada patubas.","pagtanom, dalom, patubas, cuttings",hil
+Irrigation,How often should sugarcane be irrigated during the germination stage?,"Provide light but frequent irrigation (every 7-10 days) to keep the soil moist but not waterlogged.","water, irrigation, germination, drought",en
+Pagpapatubig,Gaano kadalas dapat diligan ang tubo habang tumutubo pa lamang?,"Diligan nang madalas pero katamtaman lang (tuwing 7-10 araw) para laging basa ang lupa pero hindi lubog sa tubig.","tubig, patubig, damo, baha",tl
+Pagbunyag,Daw ano kasunson ang pagbunyag sa tubo samtang nagaturok pa lang?,"Bunyagan sang masunson pero indi tuman kadamo (kada 7-10 ka adlaw) para magpabilin nga basa ang duta kag indi malunod sa tubig.","tubig, bunyag, turok, patubas",hil
+Fertilizer,What is the standard fertilizer (NPK) recommendation for sugarcane in the PH?,"Usually 200-200-600 kg/ha. Use 18-24 bags of Urea (46-0-0), 16-20-0, and Potash (0-0-60) per hectare.","npk, urea, potash, abono, bags",en
+Abono,Ano ang standard na abono (NPK) para sa tubo sa Pilipinas?,"Karaniwang 200-200-600 kg/ha. Gumagamit ng 18-24 na sako ng Urea (46-0-0), 16-20-0, at Potash (0-0-60) bawat ektarya.","npk, urea, potash, abono, sako",tl
+Abono,Ano ang standard nga abono (NPK) para sa tubo sa Pilipinas?,"Masunson 200-200-600 kg/ha. Gamit sang 18-24 ka sako sang Urea (46-0-0), 16-20-0, kag Potash (0-0-60) kada ektarya.","npk, urea, potash, abono, sako",hil
+Fertilizer,When should the first (basal) dose of fertilizer be applied?,"Apply during planting or within 7-14 days. Focus on phosphorus-rich fertilizers like 16-20-0.","basal, planting, timing, roots",en
+Abono,Kailan dapat ilagay ang unang dose (basal) ng abono?,"Ilagay habang nagtatanim o sa loob ng 7-14 araw. Gumamit ng 16-20-0 para sa mabilis na paglaki ng ugat.","basal, pagtatanim, ugat, abono",tl
+Abono,San-o dapat ibutang ang una nga dose (basal) sang abono?,"Ibutang sa tion sang pagtanom ukon sa sulod sang 7-14 ka adlaw. Gamit sang 16-20-0 para sa mabilis nga pag-ugat.","basal, pagtanom, ugat, abono",hil
+Herbicide,What are the best pre-emergence herbicides for sugarcane?,"Atrazine, Sencor, or Diuron. Apply 1-3 days after planting on moist soil.","pre-emergence, atrazine, sencor, weeds",en
+Herbisidyo,Ano ang pinakamagandang pamatay-damo bago tumubo ang tubo?,"Atrazine, Sencor, o Diuron. I-spray 1-3 araw pagkatanim sa basang lupa.","damo, atrazine, sencor, lason",tl
+Bulong sa Hilamon,Ano ang pinakamaayo nga pang-spray sa hilamon antes ini magtubo?,"Atrazine, Sencor, ukon Diuron. I-spray 1-3 ka adlaw pagkatapos tanom sa basa nga duta.","hilamon, atrazine, sencor, bulong",hil
+Pesticide,How do I control the Early Shoot Borer (Dead Heart)?,"Apply granular insecticides like Cartap (Padan) or Furadan at planting or first fertilization.","borer, dead heart, furadan, cartap",en
+Pestisidyo,Paano masusugpo ang Early Shoot Borer (Dead Heart)?,"Gumamit ng butil na lason gaya ng Cartap (Padan) o Furadan habang nagtatanim o sa unang pag-aabono.","kulisap, borer, patay na puso, lason",tl
+Bulong sa Tamasok,Paano tapnaon ang Early Shoot Borer ukon Tamasok?,"Mag-apply sang butil nga lason pareho sang Cartap (Padan) ukon Furadan samtang nagatanom.","tamasok, borer, dead heart, lason",hil
+Foliar,When should foliar fertilizers or ripeners be used?,"Apply 5-9 months after planting to boost sugar content (Brix) and weight.","foliar, brix, sugar, booster",en
+Foliar,Kailan dapat gamitin ang mga foliar fertilizer o pamatamis?,"I-spray 5-9 na buwan pagkatanim para tumaas ang tamis (Brix) at bigat.","foliar, pamatamis, brix, dagdag bigat",tl
+Foliar,San-o dapat gamiton ang mga foliar fertilizer ukon pamatamis?,"I-spray 5-9 ka bulan pagkatapos tanom para magtaas ang tamis (Brix) kag bug-at.","foliar, pamatamis, brix, bug-at",hil
+Harvesting,What is 'ratooning'?,"Ratooning is growing a new crop from the stubble left in the ground after harvest.","harvest, ratoon, stubble, costs",en
+Pag-aani,Ano ang ibig sabihin ng 'ratooning'?,"Ang ratooning ay ang pagpapatubo muli mula sa pinag-anihang tuod. Nakakatipid ito sa gastos.","ani, ratoon, tuod, tipid",tl
+Pag-ani,Ano ang buot silingon sang 'ratooning'?,"Ang ratooning amo ang pagpatubo liwat halin sa nabilin nga tuod pagkatapos sang ani.","ani, ratoon, tuod, tipid",hil
