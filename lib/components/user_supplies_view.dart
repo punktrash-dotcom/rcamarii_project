@@ -6,6 +6,7 @@ import '../screens/frm_add_sup_screen.dart';
 import '../screens/frm_add_def_sup_screen.dart';
 import '../models/supply_model.dart';
 import '../models/def_sup_model.dart';
+import '../themes/app_visuals.dart';
 
 class UserSuppliesView extends StatefulWidget {
   const UserSuppliesView({super.key});
@@ -225,7 +226,8 @@ class _UserSuppliesViewState extends State<UserSuppliesView>
               decoration: BoxDecoration(
                 color: theme.colorScheme.surface.withValues(alpha: 0.2),
                 borderRadius: BorderRadius.circular(32),
-                border: Border.all(color: Colors.white24),
+                border: Border.all(
+                    color: AppVisuals.textForest.withValues(alpha: 0.22)),
               ),
               child: TabBar(
                 controller: _tabController,
@@ -379,7 +381,8 @@ class _UserSuppliesViewState extends State<UserSuppliesView>
       decoration: BoxDecoration(
         color: theme.colorScheme.surface.withValues(alpha: 0.25),
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: Colors.white24),
+        border: Border.all(
+            color: AppVisuals.textForest.withValues(alpha: 0.22)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.35),
@@ -603,8 +606,9 @@ class _SupplyCard3D extends StatelessWidget {
                     width: 12,
                     height: 12,
                     decoration: BoxDecoration(
-                      color:
-                          selected ? theme.colorScheme.secondary : Colors.white,
+                      color: selected
+                          ? theme.colorScheme.secondary
+                          : AppVisuals.softWhite,
                       shape: BoxShape.circle,
                     ),
                   ),
@@ -613,11 +617,12 @@ class _SupplyCard3D extends StatelessWidget {
                     child: Text(
                       supply.name,
                       style: theme.textTheme.titleMedium?.copyWith(
-                          color: Colors.white, fontWeight: FontWeight.bold),
+                          color: AppVisuals.textForest,
+                          fontWeight: FontWeight.bold),
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.refresh, color: Colors.white),
+                    icon: const Icon(Icons.refresh, color: AppVisuals.textForest),
                     onPressed: onResupply,
                     tooltip: 'Resupply',
                   ),
@@ -628,30 +633,32 @@ class _SupplyCard3D extends StatelessWidget {
                 supply.description,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
-                style:
-                    theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: AppVisuals.textForestMuted),
               ),
               const SizedBox(height: 12),
               Row(
                 children: [
                   Chip(
                     label: Text('Qty ${supply.quantity}'),
-                    backgroundColor: Colors.white24,
-                    labelStyle: const TextStyle(color: Colors.white),
+                    backgroundColor:
+                        AppVisuals.textForest.withValues(alpha: 0.12),
+                    labelStyle: const TextStyle(color: AppVisuals.textForest),
                   ),
                   const SizedBox(width: 8),
                   Chip(
                     label: Text('\$${supply.total.toStringAsFixed(2)}'),
-                    backgroundColor: Colors.white24,
-                    labelStyle: const TextStyle(color: Colors.white),
+                    backgroundColor:
+                        AppVisuals.textForest.withValues(alpha: 0.12),
+                    labelStyle: const TextStyle(color: AppVisuals.textForest),
                   ),
                 ],
               ),
               const Spacer(),
               Text(
                 'Unit cost: \$${supply.cost.toStringAsFixed(2)}',
-                style:
-                    theme.textTheme.bodySmall?.copyWith(color: Colors.white70),
+                style: theme.textTheme.bodySmall
+                    ?.copyWith(color: AppVisuals.textForestMuted),
               ),
             ],
           ),
@@ -707,14 +714,14 @@ class _DefSupplyCard3D extends StatelessWidget {
             children: [
               Text(
                 defSup.type,
-                style:
-                    theme.textTheme.labelSmall?.copyWith(color: Colors.white70),
+                style: theme.textTheme.labelSmall
+                    ?.copyWith(color: AppVisuals.textForestMuted),
               ),
               const SizedBox(height: 6),
               Text(
                 defSup.name,
                 style: theme.textTheme.titleMedium?.copyWith(
-                    color: Colors.white, fontWeight: FontWeight.bold),
+                    color: AppVisuals.textForest, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
               Expanded(
@@ -723,7 +730,7 @@ class _DefSupplyCard3D extends StatelessWidget {
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodySmall
-                      ?.copyWith(color: Colors.white70),
+                      ?.copyWith(color: AppVisuals.textForestMuted),
                 ),
               ),
               const SizedBox(height: 8),
@@ -733,7 +740,8 @@ class _DefSupplyCard3D extends StatelessWidget {
                   Text(
                     '\$${defSup.cost.toStringAsFixed(2)}',
                     style: theme.textTheme.titleSmall?.copyWith(
-                        color: Colors.white, fontWeight: FontWeight.w600),
+                        color: AppVisuals.textForest,
+                        fontWeight: FontWeight.w600),
                   ),
                   ElevatedButton.icon(
                     onPressed: onAdd,
@@ -741,9 +749,11 @@ class _DefSupplyCard3D extends StatelessWidget {
                     label: const Text('Add'),
                     style: ElevatedButton.styleFrom(
                       elevation: 1,
+                      foregroundColor: AppVisuals.deepGreen,
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 6),
-                      backgroundColor: Colors.white24,
+                      backgroundColor:
+                          AppVisuals.textForest.withValues(alpha: 0.12),
                     ),
                   ),
                 ],

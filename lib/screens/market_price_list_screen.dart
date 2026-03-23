@@ -261,7 +261,7 @@ class _MarketPriceListScreenState extends State<MarketPriceListScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: scheme.surface,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: scheme.primary.withValues(alpha: 0.12)),
         boxShadow: [
@@ -339,7 +339,7 @@ class _MarketPriceListScreenState extends State<MarketPriceListScreen> {
         selectedColor: scheme.primary,
         backgroundColor: scheme.surfaceContainerHighest,
         labelStyle: TextStyle(
-          color: selected ? Colors.white : scheme.onSurface,
+          color: selected ? scheme.onPrimary : scheme.onSurface,
           fontWeight: FontWeight.w700,
         ),
         showCheckmark: false,
@@ -421,7 +421,7 @@ class _MarketPriceListScreenState extends State<MarketPriceListScreen> {
                   vertical: 10,
                 ),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: scheme.surface,
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
                     color: scheme.outline.withValues(alpha: 0.18),
@@ -470,7 +470,7 @@ class _MarketPriceListScreenState extends State<MarketPriceListScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: scheme.surface,
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: scheme.primary.withValues(alpha: 0.12)),
         boxShadow: [

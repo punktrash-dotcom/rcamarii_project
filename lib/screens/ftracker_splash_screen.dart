@@ -122,7 +122,7 @@ class _FtrackerSplashScreenState extends State<FtrackerSplashScreen>
                       textAlign: TextAlign.center,
                       style:
                           Theme.of(context).textTheme.displayMedium?.copyWith(
-                                color: Colors.white,
+                                color: AppVisuals.textForest,
                               ),
                     ),
                     const SizedBox(height: 8),
@@ -130,7 +130,7 @@ class _FtrackerSplashScreenState extends State<FtrackerSplashScreen>
                       'Cash flow, records, and recent transaction intelligence for your farm operations.',
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Colors.white.withValues(alpha: 0.72),
+                            color: AppVisuals.textForestMuted,
                           ),
                     ),
                     const SizedBox(height: 24),

@@ -5,6 +5,7 @@ import '../providers/farm_provider.dart';
 import '../providers/ftracker_provider.dart';
 import '../services/rice_knowledge_service.dart';
 import '../services/sugarcane_knowledge_service.dart';
+import '../themes/app_visuals.dart';
 import '../widgets/calculator_widget.dart';
 
 enum TransactionType { expense, revenue }
@@ -65,14 +66,14 @@ class _ScrNewTransactionState extends State<ScrNewTransaction> {
       builder: (context) {
         final noteController = TextEditingController(text: _note);
         return AlertDialog(
-          backgroundColor: Colors.grey[900],
-          title: const Text('Note:', style: TextStyle(color: Colors.white)),
+          backgroundColor: const Color(0xFFE8F0EC),
+          title: const Text('Note:', style: TextStyle(color: AppVisuals.textForest)),
           content: SingleChildScrollView(
             child: TextField(
               stylusHandwritingEnabled: false,
               controller: noteController,
               autofocus: true,
-              style: const TextStyle(color: Colors.white),
+              style: const TextStyle(color: AppVisuals.textForest),
               decoration: const InputDecoration(
                 enabledBorder: UnderlineInputBorder(
                     borderSide: BorderSide(color: Colors.grey)),
@@ -83,8 +84,9 @@ class _ScrNewTransactionState extends State<ScrNewTransaction> {
           ),
           actions: [
             TextButton(
-              child:
-                  const Text('Cancel', style: TextStyle(color: Colors.white70)),
+              child: Text('Cancel',
+                  style: TextStyle(
+                      color: AppVisuals.textForest.withValues(alpha: 0.55))),
               onPressed: () => Navigator.of(context).pop(),
             ),
             TextButton(
@@ -200,12 +202,12 @@ class _ScrNewTransactionState extends State<ScrNewTransaction> {
     };
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: const Color(0xFFD8E8E0),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close, color: Colors.white, size: 30),
+          icon: const Icon(Icons.close, color: AppVisuals.textForest, size: 30),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -234,8 +236,10 @@ class _ScrNewTransactionState extends State<ScrNewTransaction> {
                       Container(
                         margin: const EdgeInsets.symmetric(horizontal: 24),
                         decoration: BoxDecoration(
-                          color: Colors.grey[900],
+                          color: const Color(0xFFE8F0EC),
                           borderRadius: BorderRadius.circular(24),
+                          border: Border.all(
+                              color: AppVisuals.textForest.withValues(alpha: 0.12)),
                         ),
                         child: Row(
                           children: [
@@ -249,8 +253,10 @@ class _ScrNewTransactionState extends State<ScrNewTransaction> {
                       const SizedBox(height: 24),
 
                       // Amount display
-                      const Text('Enter Amount',
-                          style: TextStyle(color: Colors.grey, fontSize: 16)),
+                      Text('Enter Amount',
+                          style: TextStyle(
+                              color: AppVisuals.textForest.withValues(alpha: 0.55),
+                              fontSize: 16)),
                       const SizedBox(height: 8),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 24.0),
@@ -259,7 +265,7 @@ class _ScrNewTransactionState extends State<ScrNewTransaction> {
                           children: [
                             const Text('₱',
                                 style: TextStyle(
-                                    color: Colors.white,
+                                    color: AppVisuals.textForest,
                                     fontSize: 48,
                                     fontWeight: FontWeight.bold)),
                             const SizedBox(width: 8),
@@ -273,7 +279,7 @@ class _ScrNewTransactionState extends State<ScrNewTransaction> {
                                     _amountController.text,
                                     textAlign: TextAlign.center,
                                     style: const TextStyle(
-                                        color: Colors.white,
+                                        color: AppVisuals.textForest,
                                         fontSize: 48,
                                         fontWeight: FontWeight.bold),
                                   ),
@@ -399,14 +405,15 @@ class _ScrNewTransactionState extends State<ScrNewTransaction> {
                         child: TextField(
                           stylusHandwritingEnabled: false,
                           controller: _nameController,
-                          style: const TextStyle(color: Colors.white),
+                          style: const TextStyle(color: AppVisuals.textForest),
                           decoration: InputDecoration(
                             labelText: 'Name',
                             hintText: 'What is this transaction for?',
-                            labelStyle: const TextStyle(color: Colors.grey),
+                            labelStyle: TextStyle(
+                                color: AppVisuals.textForest.withValues(alpha: 0.55)),
                             hintStyle: TextStyle(color: Colors.grey[600]),
                             filled: true,
-                            fillColor: Colors.grey[900],
+                            fillColor: const Color(0xFFE8F0EC),
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
                               borderSide:
@@ -419,8 +426,8 @@ class _ScrNewTransactionState extends State<ScrNewTransaction> {
                             ),
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
-                              borderSide:
-                                  const BorderSide(color: Colors.white70),
+                              borderSide: BorderSide(
+                                  color: AppVisuals.textForest.withValues(alpha: 0.45)),
                             ),
                           ),
                         ),
@@ -482,7 +489,9 @@ class _ScrNewTransactionState extends State<ScrNewTransaction> {
           ),
           child: Center(
               child: Text(type.name[0].toUpperCase() + type.name.substring(1),
-                  style: const TextStyle(color: Colors.white, fontSize: 16))),
+                  style: TextStyle(
+                      color: isSelected ? Colors.white : AppVisuals.textForest,
+                      fontSize: 16))),
         ),
       ),
     );
@@ -497,15 +506,20 @@ class _ScrNewTransactionState extends State<ScrNewTransaction> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: Colors.grey[900],
+          color: const Color(0xFFE8F0EC),
           borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+              color: AppVisuals.textForest.withValues(alpha: 0.1)),
         ),
         child: Row(
           children: [
-            Icon(icon, color: Colors.grey, size: 20),
+            Icon(icon,
+                color: AppVisuals.textForest.withValues(alpha: 0.55),
+                size: 20),
             const SizedBox(width: 8),
             Text(label,
-                style: const TextStyle(color: Colors.white, fontSize: 14)),
+                style: const TextStyle(
+                    color: AppVisuals.textForest, fontSize: 14)),
           ],
         ),
       ),

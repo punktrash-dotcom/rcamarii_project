@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+
+import '../themes/app_visuals.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
@@ -90,7 +92,7 @@ class _ExitScreenState extends State<ExitScreen> with RouteAware {
             'lib/assets/splak_screen.jpg',
             fit: BoxFit.fill, // Stretches to fill the whole screen
           ),
-          Container(color: Colors.black.withValues(alpha: 0.5)),
+          Container(color: Colors.black.withValues(alpha: 0.28)),
           const Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -100,7 +102,7 @@ class _ExitScreenState extends State<ExitScreen> with RouteAware {
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.w900,
-                    color: Colors.white,
+                    color: AppVisuals.textForest,
                     letterSpacing: 2,
                   ),
                   textAlign: TextAlign.center,
@@ -110,7 +112,7 @@ class _ExitScreenState extends State<ExitScreen> with RouteAware {
                   'Securing your data and agricultural assets...',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.white70,
+                    color: AppVisuals.textForestMuted,
                     letterSpacing: 1,
                   ),
                   textAlign: TextAlign.center,
@@ -118,7 +120,8 @@ class _ExitScreenState extends State<ExitScreen> with RouteAware {
                 SizedBox(height: 60),
                 CircularProgressIndicator(
                   strokeWidth: 3,
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white54),
+                  valueColor:
+                      AlwaysStoppedAnimation<Color>(AppVisuals.textForest),
                 ),
               ],
             ),

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:speech_to_text/speech_recognition_error.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
@@ -65,7 +66,12 @@ class VoiceCommandProvider extends ChangeNotifier {
       await _tts.awaitSpeakCompletion(true);
       await _tts.setSpeechRate(0.46);
       await _tts.setPitch(1.0);
-      await _tts.setVolume(1.0);
+      
+      // Load and apply normalized volume from app settings
+      final prefs = await SharedPreferences.getInstance();
+      final volume = prefs.getDouble('app_settings.audio_sounds_volume') ?? 0.75;
+      await _tts.setVolume(volume);
+      
       await _tts.setLanguage('en-US');
     } catch (_) {
       _statusMessage =
@@ -228,6 +234,12 @@ class VoiceCommandProvider extends ChangeNotifier {
         await stopListening();
       }
       await _tts.stop();
+      
+      // Ensure volume is normalized to current platform settings
+      final prefs = await SharedPreferences.getInstance();
+      final volume = prefs.getDouble('app_settings.audio_sounds_volume') ?? 0.75;
+      await _tts.setVolume(volume);
+      
       await _tts.speak(message);
     } catch (_) {
       _statusMessage = 'Unable to speak on this device.';

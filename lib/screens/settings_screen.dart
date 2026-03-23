@@ -12,6 +12,7 @@ import '../providers/theme_provider.dart';
 import '../services/app_localization_service.dart';
 import '../services/app_route_observer.dart';
 import '../services/guideline_localization_service.dart';
+import '../themes/app_visuals.dart';
 import '../widgets/searchable_dropdown.dart';
 import 'about_screen.dart';
 import 'backup_screen.dart';
@@ -180,7 +181,7 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
     final isDark = themeProvider.darkTheme;
 
     return Scaffold(
-      backgroundColor: scheme.surface,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         leading: IconButton(
           icon: Icon(
@@ -201,7 +202,9 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
         elevation: 0,
         centerTitle: true,
       ),
-      body: SingleChildScrollView(
+      body: AppBackdrop(
+        isDark: isDark,
+        child: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -212,13 +215,15 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: isDark ? Colors.grey[900] : Colors.white,
-                borderRadius: BorderRadius.circular(16),
+                color: scheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: scheme.outline.withValues(alpha: 0.35)),
+                boxShadow: AppVisuals.neoShadows(scheme),
               ),
               child: Text(
                 context.tr('These preferences apply across RCAMARii.'),
                 style: TextStyle(
-                  color: isDark ? Colors.white70 : Colors.black54,
+                  color: scheme.onSurfaceVariant,
                   height: 1.5,
                 ),
               ),
@@ -235,7 +240,7 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
                 ),
                 _buildDropdownTile<LaunchDestination>(
                   icon: Icons.rocket_launch_rounded,
-                  iconColor: Colors.lightBlue,
+                  iconColor: AppVisuals.accentChartBlue,
                   title: context.tr('Launch Screen'),
                   value: appSettings.launchDestination,
                   isDark: isDark,
@@ -255,7 +260,7 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
                 ),
                 _buildSettingsTile(
                   icon: Icons.folder_open,
-                  iconColor: Colors.orange,
+                  iconColor: AppVisuals.primaryGoldDim,
                   title: context.tr('Manage Categories'),
                   isDark: isDark,
                   onTap: () => Navigator.push(
@@ -275,7 +280,7 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
               [
                 _buildDropdownTile<AppCurrency>(
                   icon: Icons.payments_rounded,
-                  iconColor: Colors.amber.shade700,
+                  iconColor: AppVisuals.primaryGold,
                   title: context.tr('Currency'),
                   value: appSettings.currency,
                   isDark: isDark,
@@ -305,7 +310,7 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
               [
                 _buildSwitchTile(
                   icon: Icons.dark_mode_outlined,
-                  iconColor: Colors.purple,
+                  iconColor: AppVisuals.primaryGoldDim,
                   title: context.tr('Dark Mode'),
                   value: themeProvider.darkTheme,
                   isDark: isDark,
@@ -313,7 +318,7 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
                 ),
                 _buildSwitchTile(
                   icon: Icons.motion_photos_off_rounded,
-                  iconColor: Colors.teal,
+                  iconColor: AppVisuals.mintAccent,
                   title: context.tr('Reduced Motion'),
                   value: appSettings.reducedMotion,
                   isDark: isDark,
@@ -329,7 +334,7 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
               [
                 _buildSwitchTile(
                   icon: Icons.mic_rounded,
-                  iconColor: Colors.redAccent,
+                  iconColor: scheme.error,
                   title: context.tr('Voice Assistant'),
                   value: appSettings.voiceAssistantEnabled,
                   isDark: isDark,
@@ -338,7 +343,7 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
                 ),
                 _buildSwitchTile(
                   icon: Icons.volume_up_rounded,
-                  iconColor: Colors.green,
+                  iconColor: AppVisuals.growthGreen,
                   title: context.tr('Spoken Responses'),
                   value: appSettings.voiceResponsesEnabled,
                   isDark: isDark,
@@ -348,7 +353,7 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
                 ),
                 _buildSwitchTile(
                   icon: Icons.music_note_rounded,
-                  iconColor: Colors.orangeAccent,
+                  iconColor: AppVisuals.primaryGold,
                   title: context.tr('Audio Sounds'),
                   value: appSettings.audioSoundsEnabled,
                   isDark: isDark,
@@ -356,6 +361,11 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
                       _handleAudioSoundsChanged(appSettings, value),
                 ),
                 _buildAudioStyleTile(
+                  context: context,
+                  appSettings: appSettings,
+                  isDark: isDark,
+                ),
+                _buildVolumeTile(
                   context: context,
                   appSettings: appSettings,
                   isDark: isDark,
@@ -370,7 +380,7 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
               [
                 _buildSwitchTile(
                   icon: Icons.cloud_sync_rounded,
-                  iconColor: Colors.lightBlueAccent,
+                  iconColor: AppVisuals.accentChartBlue,
                   title: context.tr('Auto Refresh Weather'),
                   value: appSettings.weatherAutoRefresh,
                   isDark: isDark,
@@ -387,7 +397,7 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
               [
                 _buildSettingsTile(
                   icon: Icons.download,
-                  iconColor: Colors.blue,
+                  iconColor: AppVisuals.accentChartBlue,
                   title: context.tr('Backup Data'),
                   isDark: isDark,
                   onTap: () => Navigator.push(
@@ -399,7 +409,7 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
                 ),
                 _buildSettingsTile(
                   icon: Icons.upload,
-                  iconColor: Colors.green,
+                  iconColor: AppVisuals.growthGreen,
                   title: context.tr('Restore Data'),
                   isDark: isDark,
                   onTap: () => Navigator.push(
@@ -419,7 +429,7 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
               [
                 _buildSettingsTile(
                   icon: Icons.info_outline_rounded,
-                  iconColor: Colors.teal,
+                  iconColor: AppVisuals.mintAccent,
                   title: context.tr('About RCAMARii'),
                   isDark: isDark,
                   onTap: () => Navigator.push(
@@ -434,38 +444,48 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
             ),
           ],
         ),
+        ),
       ),
     );
   }
 
   Widget _buildSectionLabel(String text) {
-    return Text(
-      text,
-      style: const TextStyle(
-        color: Colors.grey,
-        fontWeight: FontWeight.bold,
-        letterSpacing: 1.2,
-      ),
+    return Builder(
+      builder: (context) {
+        final scheme = Theme.of(context).colorScheme;
+        return Text(
+          text,
+          style: TextStyle(
+            color: scheme.primary,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 1.4,
+            fontSize: 12,
+          ),
+        );
+      },
     );
   }
 
   Widget _buildProfileCard(ProfileProvider profile, bool isDark) {
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isDark ? Colors.grey[900] : Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        color: scheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: scheme.outline.withValues(alpha: 0.35)),
+        boxShadow: AppVisuals.neoShadows(scheme),
       ),
       child: Row(
         children: [
           CircleAvatar(
             radius: 30,
-            backgroundColor: Colors.deepPurple,
+            backgroundColor: scheme.primary.withValues(alpha: 0.22),
             backgroundImage: profile.imagePath != null
                 ? FileImage(File(profile.imagePath!))
                 : null,
             child: profile.imagePath == null
-                ? const Icon(Icons.person, color: Colors.white, size: 30)
+                ? Icon(Icons.person, color: scheme.primary, size: 30)
                 : null,
           ),
           const SizedBox(width: 16),
@@ -477,12 +497,16 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : Colors.black,
+                  color: scheme.onSurface,
                 ),
               ),
-              const Text(
+              Text(
                 'premium_user',
-                style: TextStyle(color: Colors.deepPurple, fontSize: 14),
+                style: TextStyle(
+                  color: scheme.secondary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
             ],
           ),
@@ -498,17 +522,20 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
         items.add(
           Divider(
             height: 1,
-            color: isDark ? Colors.white10 : Colors.black12,
+            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.35),
           ),
         );
       }
       items.add(children[i]);
     }
 
+    final scheme = Theme.of(context).colorScheme;
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? Colors.grey[900] : Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        color: scheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: scheme.outline.withValues(alpha: 0.35)),
+        boxShadow: AppVisuals.neoShadows(scheme),
       ),
       child: Column(children: items),
     );
@@ -519,6 +546,7 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
     GuidelineLanguageProvider languageProvider,
     bool isDark,
   ) {
+    final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       child: Column(
@@ -526,14 +554,14 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
         children: [
           Row(
             children: [
-              const Icon(Icons.language_rounded, color: Colors.blueAccent),
+              Icon(Icons.language_rounded, color: scheme.primary),
               const SizedBox(width: 16),
               Expanded(
                 child: Text(
                   context.tr('Language'),
                   style: TextStyle(
-                    fontWeight: FontWeight.w500,
-                    color: isDark ? Colors.white : Colors.black,
+                    fontWeight: FontWeight.w600,
+                    color: scheme.onSurface,
                   ),
                 ),
               ),
@@ -569,6 +597,7 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
     required List<DropdownMenuItem<T>> items,
     required ValueChanged<T?> onChanged,
   }) {
+    final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
@@ -579,8 +608,8 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
             child: Text(
               title,
               style: TextStyle(
-                fontWeight: FontWeight.w500,
-                color: isDark ? Colors.white : Colors.black,
+                fontWeight: FontWeight.w600,
+                color: scheme.onSurface,
               ),
             ),
           ),
@@ -588,7 +617,7 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
             child: SearchableDropdownButton<T>(
               value: value,
               style: TextStyle(
-                color: isDark ? Colors.white : Colors.black,
+                color: scheme.onSurface,
               ),
               items: items,
               hintText: title,
@@ -609,6 +638,7 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
     required bool isDark,
     required ValueChanged<bool>? onChanged,
   }) {
+    final scheme = Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
@@ -619,15 +649,26 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
             child: Text(
               title,
               style: TextStyle(
-                fontWeight: FontWeight.w500,
-                color: isDark ? Colors.white : Colors.black,
+                fontWeight: FontWeight.w600,
+                color: scheme.onSurface,
               ),
             ),
           ),
           Switch(
             value: value,
             onChanged: onChanged,
-            activeThumbColor: Colors.deepPurple,
+            thumbColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.selected)) {
+                return scheme.primary;
+              }
+              return scheme.onSurfaceVariant;
+            }),
+            trackColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.selected)) {
+                return scheme.primary.withValues(alpha: 0.4);
+              }
+              return scheme.outline.withValues(alpha: 0.45);
+            }),
           ),
         ],
       ),
@@ -642,6 +683,7 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
     Widget? trailing,
     VoidCallback? onTap,
   }) {
+    final scheme = Theme.of(context).colorScheme;
     return GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
@@ -655,12 +697,77 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
               child: Text(
                 title,
                 style: TextStyle(
-                  fontWeight: FontWeight.w500,
-                  color: isDark ? Colors.white : Colors.black,
+                  fontWeight: FontWeight.w600,
+                  color: scheme.onSurface,
                 ),
               ),
             ),
             if (trailing != null) trailing,
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVolumeTile({
+    required BuildContext context,
+    required AppSettingsProvider appSettings,
+    required bool isDark,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    final enabled = appSettings.audioSoundsEnabled ||
+        (appSettings.voiceAssistantEnabled &&
+            appSettings.voiceResponsesEnabled);
+
+    return Opacity(
+      opacity: enabled ? 1.0 : 0.4,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.volume_down_rounded,
+                    size: 20, color: scheme.primary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    context.tr('Sound Level Normalization'),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: scheme.onSurface,
+                        ),
+                  ),
+                ),
+                Text(
+                  '${(appSettings.audioSoundsVolume * 100).toInt()}%',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        fontWeight: FontWeight.w900,
+                        color: AppVisuals.primaryGold,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
+            SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                trackHeight: 4,
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
+                overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
+                activeTrackColor: AppVisuals.primaryGold,
+                inactiveTrackColor: AppVisuals.primaryGold.withValues(alpha: 0.1),
+                thumbColor: AppVisuals.primaryGold,
+              ),
+              child: Slider(
+                value: appSettings.audioSoundsVolume,
+                onChanged: enabled
+                    ? (value) => appSettings.setAudioSoundsVolume(value)
+                    : null,
+                min: 0.1,
+                max: 1.0,
+              ),
+            ),
           ],
         ),
       ),
@@ -672,10 +779,11 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
     required AppSettingsProvider appSettings,
     required bool isDark,
   }) {
+    final scheme = Theme.of(context).colorScheme;
     final enabled = appSettings.audioSoundsEnabled;
     final textColor = enabled
-        ? (isDark ? Colors.white : Colors.black)
-        : (isDark ? Colors.white38 : Colors.black38);
+        ? scheme.onSurface
+        : scheme.onSurface.withValues(alpha: 0.38);
 
     Widget buildOption(AudioSoundStyle style) {
       return Expanded(

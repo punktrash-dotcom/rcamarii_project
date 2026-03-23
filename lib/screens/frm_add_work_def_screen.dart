@@ -18,12 +18,20 @@ class FrmAddWorkDefScreen extends StatefulWidget {
 class _FrmAddWorkDefScreenState extends State<FrmAddWorkDefScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  final _modeOfWorkController = TextEditingController();
   final _costController = TextEditingController();
   final Map<String, dynamic> _formData = {
-    'Type': 'Manual', // Default value
+    'Type': 'Manual',
+    'ModeOfWork': 'Per Hour',
   };
   bool _didLoadInitialData = false;
+
+  final List<String> _modes = [
+    'Per Hour',
+    'Per Day',
+    'Per Bag',
+    'Per Tank',
+    'Per Hectare (Pakyaw)',
+  ];
 
   bool get _isEditing => widget.workDefId != null;
 
@@ -36,13 +44,14 @@ class _FrmAddWorkDefScreenState extends State<FrmAddWorkDefScreen> {
     }
 
     final provider = Provider.of<DataProvider>(context, listen: false);
-    final existing = provider.workDefs.where((def) => def.id == widget.workDefId);
+    final existing =
+        provider.workDefs.where((def) => def.id == widget.workDefId);
     if (existing.isNotEmpty) {
       final workDef = existing.first;
       _nameController.text = workDef.name;
-      _modeOfWorkController.text = workDef.modeOfWork;
       _costController.text = workDef.cost.toString();
       _formData['Type'] = workDef.type;
+      _formData['ModeOfWork'] = workDef.modeOfWork;
     }
 
     _didLoadInitialData = true;
@@ -51,7 +60,6 @@ class _FrmAddWorkDefScreenState extends State<FrmAddWorkDefScreen> {
   @override
   void dispose() {
     _nameController.dispose();
-    _modeOfWorkController.dispose();
     _costController.dispose();
     super.dispose();
   }
@@ -138,13 +146,17 @@ class _FrmAddWorkDefScreenState extends State<FrmAddWorkDefScreen> {
                 onSaved: (value) => _formData['Type'] = value,
               ),
               const SizedBox(height: 16),
-              TextFormField(
-                controller: _modeOfWorkController,
-                stylusHandwritingEnabled: false,
-                decoration: const InputDecoration(
-                    labelText: 'Mode of Work (e.g., Per Hour, Per Hectare)'),
-                validator: (value) => ValidationUtils.checkData(
-                    value: value, fieldName: 'Mode of Work'),
+              SearchableDropdownFormField<String>(
+                initialValue: _formData['ModeOfWork'],
+                decoration: const InputDecoration(labelText: 'Mode of Work'),
+                items: _modes.map((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(value),
+                  );
+                }).toList(),
+                onChanged: (newValue) =>
+                    setState(() => _formData['ModeOfWork'] = newValue),
                 onSaved: (value) => _formData['ModeOfWork'] = value,
               ),
               const SizedBox(height: 16),

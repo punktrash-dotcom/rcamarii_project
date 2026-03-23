@@ -16,8 +16,8 @@ import '../providers/delivery_provider.dart';
 import '../providers/ftracker_provider.dart';
 import '../providers/sugarcane_profit_provider.dart';
 import '../services/app_route_observer.dart';
+import '../themes/app_visuals.dart';
 import '../widgets/searchable_dropdown.dart';
-import 'busco_report_viewer_screen.dart';
 
 enum ProfitSourceMode { manualTrial, recentDelivery, pendingDelivery }
 
@@ -33,12 +33,12 @@ class ProfitCalculatorScreen extends StatefulWidget {
 class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
     with RouteAware {
   static const _lastTransactionKey = 'profit_calculator_last_transaction_v1';
-  static const _screenBackground = Color(0xFF07131B);
-  static const _surfaceCard = Color(0xFF10202B);
-  static const _surfaceRaised = Color(0xFF16303D);
-  static const _accentPrimary = Color(0xFF39C6A2);
-  static const _accentSecondary = Color(0xFF5B9BFF);
-  static const _accentTertiary = Color(0xFFF7B85C);
+  static const _screenBackground = Color(0xFFD8E8E0);
+  static const _surfaceCard = Color(0xFFE8F0EC);
+  static const _surfaceRaised = Color(0xFFDDE8E3);
+  static const _accentPrimary = AppVisuals.growthGreen;
+  static const _accentSecondary = AppVisuals.accentChartBlue;
+  static const _accentTertiary = AppVisuals.primaryGold;
   static const _accentError = Color(0xFFFF6B6B);
   static final _numberInputFormatter =
       FilteringTextInputFormatter.allow(RegExp(r'[0-9,\.]'));
@@ -65,38 +65,6 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
   int? _selectedDeliveryId;
   bool _playedScreenOpenAudio = false;
   bool _isRouteObserverSubscribed = false;
-
-  Future<void> _promptOpenBuscoReport() async {
-    final shouldOpen = await showDialog<bool>(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('BUSCO report'),
-          content: const Text('Show the actual report from BUSCO?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('No'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Yes'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (!mounted || shouldOpen != true) {
-      return;
-    }
-
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => const BuscoReportViewerScreen(),
-      ),
-    );
-  }
 
   NumberFormat get _currency =>
       Provider.of<AppSettingsProvider?>(context, listen: false)
@@ -697,20 +665,20 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
 
   ThemeData _buildCalculatorTheme(ThemeData baseTheme) {
     final scheme = baseTheme.colorScheme.copyWith(
-      brightness: Brightness.dark,
+      brightness: Brightness.light,
       primary: _accentPrimary,
       secondary: _accentSecondary,
       tertiary: _accentTertiary,
       error: _accentError,
-      errorContainer: const Color(0xFF5C212A),
+      errorContainer: const Color(0xFFFFDAD6),
       surface: _surfaceCard,
       surfaceContainerHighest: _surfaceRaised,
-      onSurface: Colors.white,
-      onSurfaceVariant: Colors.white70,
-      onPrimary: Colors.white,
-      onSecondary: Colors.white,
-      onTertiary: Colors.white,
-      onErrorContainer: Colors.white,
+      onSurface: AppVisuals.textForest,
+      onSurfaceVariant: AppVisuals.textForestMuted,
+      onPrimary: AppVisuals.deepGreen,
+      onSecondary: AppVisuals.deepGreen,
+      onTertiary: AppVisuals.deepGreen,
+      onErrorContainer: AppVisuals.textForest,
     );
 
     return baseTheme.copyWith(
@@ -718,40 +686,45 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
       scaffoldBackgroundColor: _screenBackground,
       canvasColor: _screenBackground,
       cardColor: _surfaceRaised,
-      iconTheme: const IconThemeData(color: Colors.white),
-      textTheme: baseTheme.textTheme
-          .apply(bodyColor: Colors.white, displayColor: Colors.white),
+      iconTheme: const IconThemeData(color: AppVisuals.textForest),
+      textTheme: baseTheme.textTheme.apply(
+        bodyColor: AppVisuals.textForest,
+        displayColor: AppVisuals.textForest,
+      ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.82),
-        labelStyle: const TextStyle(color: Colors.white70),
+        labelStyle: TextStyle(color: AppVisuals.textForest.withValues(alpha: 0.65)),
         floatingLabelStyle: const TextStyle(
-          color: Colors.white,
+          color: AppVisuals.textForest,
           fontWeight: FontWeight.w700,
         ),
-        hintStyle: const TextStyle(color: Colors.white38),
-        prefixStyle: const TextStyle(color: Colors.white),
-        suffixStyle: const TextStyle(color: Colors.white70),
-        prefixIconColor: Colors.white70,
-        suffixIconColor: Colors.white70,
+        hintStyle: TextStyle(color: AppVisuals.textForest.withValues(alpha: 0.38)),
+        prefixStyle: const TextStyle(color: AppVisuals.textForest),
+        suffixStyle: TextStyle(color: AppVisuals.textForest.withValues(alpha: 0.72)),
+        prefixIconColor: AppVisuals.textForest.withValues(alpha: 0.72),
+        suffixIconColor: AppVisuals.textForest.withValues(alpha: 0.72),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
-          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.14)),
+          borderSide: BorderSide(
+              color: AppVisuals.textForest.withValues(alpha: 0.14)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
-          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.65)),
+          borderSide: BorderSide(
+              color: AppVisuals.textForest.withValues(alpha: 0.45)),
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
-          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.16)),
+          borderSide: BorderSide(
+              color: AppVisuals.textForest.withValues(alpha: 0.16)),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: Colors.white,
-          backgroundColor: Colors.white.withValues(alpha: 0.04),
-          side: BorderSide(color: Colors.white.withValues(alpha: 0.14)),
+          foregroundColor: AppVisuals.textForest,
+          backgroundColor: AppVisuals.textForest.withValues(alpha: 0.04),
+          side: BorderSide(color: AppVisuals.textForest.withValues(alpha: 0.14)),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
@@ -760,10 +733,10 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          foregroundColor: Colors.white,
+          foregroundColor: scheme.onPrimary,
           backgroundColor: scheme.primary.withValues(alpha: 0.92),
-          disabledForegroundColor: Colors.white38,
-          disabledBackgroundColor: Colors.white.withValues(alpha: 0.08),
+          disabledForegroundColor: AppVisuals.textForest.withValues(alpha: 0.38),
+          disabledBackgroundColor: AppVisuals.textForest.withValues(alpha: 0.08),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
@@ -772,7 +745,7 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
       ),
       snackBarTheme: const SnackBarThemeData(
         behavior: SnackBarBehavior.floating,
-        contentTextStyle: TextStyle(color: Colors.white),
+        contentTextStyle: TextStyle(color: AppVisuals.textForest),
       ),
     );
   }
@@ -994,14 +967,15 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.08),
+            color: AppVisuals.textForest.withValues(alpha: 0.06),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+            border: Border.all(
+                color: AppVisuals.textForest.withValues(alpha: 0.12)),
           ),
           child: Text(
             'Philippines',
             style: theme.textTheme.labelMedium?.copyWith(
-              color: Colors.white,
+              color: scheme.onSurface,
               fontWeight: FontWeight.w800,
             ),
           ),
@@ -1063,7 +1037,8 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+        border: Border.all(
+            color: AppVisuals.textForest.withValues(alpha: 0.14)),
         boxShadow: [
           BoxShadow(
             color: scheme.primary.withValues(alpha: 0.18),
@@ -1071,7 +1046,7 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
             offset: const Offset(0, 18),
           ),
           BoxShadow(
-            color: Colors.white.withValues(alpha: 0.08),
+            color: AppVisuals.textForest.withValues(alpha: 0.06),
             blurRadius: 6,
             offset: const Offset(0, -2),
           ),
@@ -1085,7 +1060,7 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
             child: Icon(
               Icons.stacked_line_chart_rounded,
               size: 132,
-              color: Colors.white.withValues(alpha: 0.08),
+              color: AppVisuals.textForest.withValues(alpha: 0.06),
             ),
           ),
           Column(
@@ -1095,7 +1070,7 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.14),
+                  color: AppVisuals.textForest.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Text(
@@ -1171,9 +1146,10 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.12),
+        color: AppVisuals.textForest.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+        border: Border.all(
+            color: AppVisuals.textForest.withValues(alpha: 0.12)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1581,12 +1557,6 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
       runSpacing: 10,
       alignment: WrapAlignment.end,
       children: [
-        OutlinedButton.icon(
-          key: const ValueKey('profitCalculator.buscoReport'),
-          onPressed: _promptOpenBuscoReport,
-          icon: const Icon(Icons.assessment_rounded),
-          label: const Text('BUSCO report'),
-        ),
         if (_savedEntry != null)
           OutlinedButton.icon(
             key: const ValueKey('profitCalculator.loadStoredEntry'),
@@ -1688,7 +1658,8 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
       decoration: BoxDecoration(
         color: scheme.surfaceContainerHighest.withValues(alpha: 0.46),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(
+            color: AppVisuals.textForest.withValues(alpha: 0.08)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1856,10 +1827,10 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
                 width: double.infinity,
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.04),
+                  color: AppVisuals.textForest.withValues(alpha: 0.04),
                   borderRadius: BorderRadius.circular(18),
-                  border:
-                      Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                  border: Border.all(
+                      color: AppVisuals.textForest.withValues(alpha: 0.08)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -2037,10 +2008,10 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
           inputFormatters: [_numberInputFormatter],
           style: const TextStyle(
-            color: Colors.white,
+            color: AppVisuals.textForest,
             fontWeight: FontWeight.w600,
           ),
-          cursorColor: Colors.white,
+          cursorColor: AppVisuals.textForest,
           decoration: InputDecoration(
             labelText: label,
             hintText: showSavedSuggestion ? savedHint : hint,

@@ -15,8 +15,8 @@ class AppAudioProvider with ChangeNotifier {
       seriousAssetPath: 'lib/assets/audio/serious_farm.mp3',
     ),
     'employees': (
-      funnyAssetPath: 'lib/assets/audio/funny_employees.mp3',
-      seriousAssetPath: 'lib/assets/audio/serious_settings.mp3',
+      funnyAssetPath: 'lib/assets/audio/funny_workers.mp3',
+      seriousAssetPath: 'lib/assets/audio/serious_workers.mp3',
     ),
     'about': (
       funnyAssetPath: 'lib/assets/audio/funny_about.mp3',
@@ -24,15 +24,11 @@ class AppAudioProvider with ChangeNotifier {
     ),
     'ftracker': (
       funnyAssetPath: 'lib/assets/audio/funny_ftracker.mp3',
-      seriousAssetPath: 'lib/assets/audio/serious_profit.mp3',
+      seriousAssetPath: 'lib/assets/audio/serious_ftracker.mp3',
     ),
     'exit': (
       funnyAssetPath: 'lib/assets/audio/funny_exit.mp3',
       seriousAssetPath: 'lib/assets/audio/serious_exit.mp3',
-    ),
-    'add_farm': (
-      funnyAssetPath: 'lib/assets/audio/funny_farm.wav',
-      seriousAssetPath: 'lib/assets/audio/serious_addfarm.mp3',
     ),
     'tab_supplies': (
       funnyAssetPath: 'lib/assets/audio/funny_supplies.mp3',
@@ -46,10 +42,6 @@ class AppAudioProvider with ChangeNotifier {
       funnyAssetPath: 'lib/assets/audio/funny_settings.mp3',
       seriousAssetPath: 'lib/assets/audio/serious_settings.mp3',
     ),
-    'add_job': (
-      funnyAssetPath: 'lib/assets/audio/funny_addjob.mp3',
-      seriousAssetPath: 'lib/assets/audio/serious_addjob.mp3',
-    ),
   };
   static const _errorAudioMap = (
     funnyAssetPath: 'lib/assets/audio/funny_error.mp3',
@@ -58,7 +50,14 @@ class AppAudioProvider with ChangeNotifier {
 
   AudioPlayer? _player;
   String? _currentAssetPath;
+  double _volumeMultiplier = 0.75;
   int _requestId = 0;
+
+  void updateVolume(double volume) {
+    if (_volumeMultiplier == volume) return;
+    _volumeMultiplier = volume;
+    _player?.setVolume(volume);
+  }
 
   String? assetPathForScreenOpenSound({
     required String screenKey,
@@ -102,9 +101,8 @@ class AppAudioProvider with ChangeNotifier {
       }
 
       await player.setLoopMode(loop ? LoopMode.one : LoopMode.off);
-      // Keep app audio at full stream volume so device/platform controls
-      // determine the actual loudness heard by the user.
-      await player.setVolume(1.0);
+      // Normalized volume level to match platform expectations
+      await player.setVolume(_volumeMultiplier);
       await player.seek(Duration.zero).timeout(_audioTimeout);
       if (requestId != _requestId) {
         return;

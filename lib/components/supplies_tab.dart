@@ -7,6 +7,7 @@ import '../providers/data_provider.dart';
 import '../providers/supplies_provider.dart';
 import '../screens/frm_add_def_sup_screen.dart';
 import '../screens/frm_add_sup_screen.dart';
+import '../themes/app_visuals.dart';
 
 class SuppliesTab extends StatefulWidget {
   final SuppliesTabController? controller;
@@ -21,13 +22,12 @@ class _SuppliesTabState extends State<SuppliesTab>
     with TickerProviderStateMixin {
   bool _showScr2 = false;
 
-  void _popScr1AndPushScr2() => setState(() => _showScr2 = true);
-  void _popScr2AndPushScr1() => setState(() => _showScr2 = false);
+  void _toggleScr(bool showScr2) => setState(() => _showScr2 = showScr2);
 
   @override
   void initState() {
     super.initState();
-    widget.controller?.bind(_popScr1AndPushScr2);
+    widget.controller?.bind(_toggleScr);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<SuppliesProvider>(context, listen: false).loadSupplies();
     });
@@ -38,7 +38,7 @@ class _SuppliesTabState extends State<SuppliesTab>
     super.didUpdateWidget(oldWidget);
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller?.bind(null);
-      widget.controller?.bind(_popScr1AndPushScr2);
+      widget.controller?.bind(_toggleScr);
     }
   }
 
@@ -211,7 +211,7 @@ class _SuppliesTabState extends State<SuppliesTab>
           title: const Text(
             'CATALOG BROWSER',
             style: TextStyle(
-              color: Color(0xFFEAC435),
+              color: AppVisuals.primaryGold,
               fontWeight: FontWeight.w900,
               fontSize: 14,
               letterSpacing: 1,
@@ -226,7 +226,7 @@ class _SuppliesTabState extends State<SuppliesTab>
               color: scheme.onSurface,
               size: 18,
             ),
-            onPressed: _popScr2AndPushScr1,
+            onPressed: () => _toggleScr(false),
           ),
           actions: [
             IconButton(
@@ -443,7 +443,7 @@ class _SuppliesTabState extends State<SuppliesTab>
         title: const Text(
           'CONFIRM DELETE',
           style: TextStyle(
-            color: Color(0xFFEAC435),
+            color: AppVisuals.primaryGold,
             fontWeight: FontWeight.w900,
             fontSize: 14,
           ),
@@ -499,14 +499,18 @@ class _SuppliesTabState extends State<SuppliesTab>
 }
 
 class SuppliesTabController {
-  VoidCallback? _handler;
+  void Function(bool)? _handler;
 
-  void bind(VoidCallback? handler) {
+  void bind(void Function(bool)? handler) {
     _handler = handler;
   }
 
   void showDatabase() {
-    _handler?.call();
+    _handler?.call(true);
+  }
+
+  void showInventory() {
+    _handler?.call(false);
   }
 }
 

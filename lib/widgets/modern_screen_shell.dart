@@ -59,8 +59,8 @@ class ModernScreenShell extends StatelessWidget {
               FrostedPanel(
                 radius: 30,
                 color: isDark
-                    ? AppVisuals.deepAnthracite.withValues(alpha: 0.94)
-                    : AppVisuals.forestEmerald.withValues(alpha: 0.92),
+                    ? scheme.surfaceContainerHighest.withValues(alpha: 0.97)
+                    : scheme.surface.withValues(alpha: 0.96),
                 padding: headerPadding,
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -80,8 +80,11 @@ class ModernScreenShell extends StatelessWidget {
                                 vertical: 6,
                               ),
                               decoration: BoxDecoration(
-                                color: scheme.secondary.withValues(alpha: 0.24),
+                                color: scheme.primary.withValues(alpha: 0.14),
                                 borderRadius: BorderRadius.circular(999),
+                                border: Border.all(
+                                  color: scheme.primary.withValues(alpha: 0.35),
+                                ),
                               ),
                               child: Text(
                                 subtitle.toUpperCase(),
@@ -165,7 +168,7 @@ class ModernScreenShell extends StatelessWidget {
   TextStyle? _buildTitleStyle(ThemeData theme) {
     final base = theme.textTheme.displayMedium?.copyWith(
       fontWeight: FontWeight.w900,
-      color: AppVisuals.warmOffWhite,
+      color: theme.colorScheme.onSurface,
     );
     if (titleStyleOverride != null) {
       return base?.merge(titleStyleOverride) ?? titleStyleOverride;

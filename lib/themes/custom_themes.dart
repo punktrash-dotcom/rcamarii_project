@@ -1,101 +1,111 @@
 import 'package:flutter/material.dart';
 
+import 'app_visuals.dart';
+
+/// Feature-specific overlays that stay on-brand with Ramari (forest + gold + mint).
 class CustomThemes {
   static ThemeData tracker(ThemeData base) {
-    const primary = Color(0xFF18F2FF);
-    const secondary = Color(0xFF67FFB8);
     final scheme = ColorScheme(
       brightness: Brightness.dark,
-      primary: primary,
-      onPrimary: Colors.black,
-      secondary: secondary,
-      onSecondary: Colors.black,
-      surface: const Color(0xFF040E1A),
-      onSurface: Colors.white,
-      surfaceContainerHighest: const Color(0xFF01070F),
-      onSurfaceVariant: Colors.white70,
-      error: Colors.redAccent,
-      onError: Colors.white,
+      primary: AppVisuals.primaryGold,
+      onPrimary: AppVisuals.softWhite,
+      secondary: AppVisuals.growthGreen,
+      onSecondary: AppVisuals.textForest,
+      tertiary: AppVisuals.mintAccent,
+      onTertiary: AppVisuals.softWhite,
+      surface: AppVisuals.surfaceGreen,
+      onSurface: AppVisuals.softWhite,
+      surfaceContainerHighest: AppVisuals.surfaceRaised,
+      onSurfaceVariant: const Color(0xFFC8D7CF),
+      error: const Color(0xFFFF8A80),
+      onError: AppVisuals.softWhite,
+      outline: AppVisuals.primaryGold.withValues(alpha: 0.28),
+      shadow: Colors.black,
     );
 
     return base.copyWith(
       colorScheme: scheme,
-      scaffoldBackgroundColor: scheme.surfaceContainerHighest,
-      canvasColor: scheme.surface,
+      scaffoldBackgroundColor: AppVisuals.deepGreen,
+      canvasColor: AppVisuals.surfaceGreen,
       shadowColor: Colors.black87,
-      appBarTheme: const AppBarTheme(
+      appBarTheme: base.appBarTheme.copyWith(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        iconTheme: IconThemeData(color: Colors.white),
-        foregroundColor: Colors.white,
+        iconTheme: IconThemeData(color: scheme.onSurface),
+        foregroundColor: scheme.onSurface,
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: scheme.secondary,
+        backgroundColor: scheme.primary,
+        foregroundColor: scheme.onPrimary,
       ),
       bottomNavigationBarTheme: BottomNavigationBarThemeData(
-        backgroundColor: const Color(0xFF020A16),
-        selectedItemColor: scheme.secondary,
-        unselectedItemColor: Colors.white60,
+        backgroundColor: AppVisuals.surfaceInset,
+        selectedItemColor: scheme.primary,
+        unselectedItemColor: scheme.onSurfaceVariant,
       ),
       cardTheme: base.cardTheme.copyWith(
-        color: scheme.surface,
+        color: scheme.surfaceContainerHighest,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        elevation: 14,
+        elevation: 10,
       ),
       textTheme: base.textTheme.apply(
-        bodyColor: Colors.white,
-        displayColor: Colors.white,
+        bodyColor: scheme.onSurface,
+        displayColor: scheme.onSurface,
       ),
     );
   }
 
   static ThemeData delivery(ThemeData base) {
-    const primary = Color(0xFFFC5C65);
-    const secondary = Color(0xFFFFC107);
+    const cream = Color(0xFFF4F1E8);
     final scheme = ColorScheme(
       brightness: Brightness.light,
-      primary: primary,
-      onPrimary: Colors.white,
-      secondary: secondary,
-      onSecondary: Colors.black,
-      surface: const Color(0xFFFDF5F0),
-      onSurface: Colors.black87,
-      surfaceContainerHighest: const Color(0xFFFEF7F1),
-      onSurfaceVariant: Colors.black87,
-      error: Colors.red.shade700,
+      primary: AppVisuals.primaryGoldDim,
+      onPrimary: AppVisuals.softWhite,
+      secondary: const Color(0xFF2D4A38),
+      onSecondary: cream,
+      tertiary: AppVisuals.mintAccent,
+      onTertiary: AppVisuals.softWhite,
+      surface: cream,
+      onSurface: AppVisuals.deepGreen,
+      surfaceContainerHighest: const Color(0xFFE8E4D9),
+      onSurfaceVariant: const Color(0xFF3D4A42),
+      error: const Color(0xFFC62828),
       onError: Colors.white,
+      outline: const Color(0xFFC4B9A4),
+      shadow: const Color(0x26141D16),
     );
 
     return base.copyWith(
       colorScheme: scheme,
       scaffoldBackgroundColor: scheme.surfaceContainerHighest,
       canvasColor: scheme.surface,
-      cardColor: Colors.white,
+      cardColor: scheme.surface,
       shadowColor: Colors.black26,
       inputDecorationTheme: base.inputDecorationTheme.copyWith(
         filled: true,
-        fillColor: const Color(0xFFFFF4E5),
+        fillColor: Colors.white,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: scheme.primary.withValues(alpha: 0.3)),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: scheme.primary.withValues(alpha: 0.35)),
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(14),
-          borderSide: BorderSide(color: scheme.primary, width: 1.5),
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide(color: scheme.primary, width: 1.8),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           backgroundColor: scheme.primary,
-          foregroundColor: Colors.white,
-          elevation: 8,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+          foregroundColor: scheme.onPrimary,
+          elevation: 6,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
         ),
       ),
       textTheme: base.textTheme.copyWith(
-        bodyLarge: const TextStyle(color: Colors.black87),
-        bodyMedium: const TextStyle(color: Colors.black87),
+        bodyLarge: TextStyle(color: scheme.onSurface),
+        bodyMedium: TextStyle(color: scheme.onSurfaceVariant),
       ),
     );
   }

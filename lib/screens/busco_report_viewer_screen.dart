@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 
+import '../themes/app_visuals.dart';
+
 class BuscoReportViewerScreen extends StatefulWidget {
   const BuscoReportViewerScreen({super.key});
 
   @override
-  State<BuscoReportViewerScreen> createState() => _BuscoReportViewerScreenState();
+  State<BuscoReportViewerScreen> createState() =>
+      _BuscoReportViewerScreenState();
 }
 
 class _BuscoReportViewerScreenState extends State<BuscoReportViewerScreen> {
-  static const _background = Color(0xFF07131B);
-  static const _surface = Color(0xFF10202B);
+  static const _background = AppVisuals.deepGreen;
+  static const _surface = AppVisuals.surfaceGreen;
+  static const _accent = AppVisuals.primaryGold;
 
   static const _reportAssetPath = 'lib/assets/images/report.png';
   static const _breakdownPages = <String>[
@@ -18,14 +22,12 @@ class _BuscoReportViewerScreenState extends State<BuscoReportViewerScreen> {
     'lib/assets/images/report3.png',
   ];
 
-  bool _showBreakdown = false;
-  final PageController _breakdownController = PageController();
-  int _breakdownPageIndex = 0;
-
-  @override
-  void dispose() {
-    _breakdownController.dispose();
-    super.dispose();
+  void _openFullScreen(String assetPath, String title) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _FullScreenViewer(assetPath: assetPath, title: title),
+      ),
+    );
   }
 
   @override
@@ -35,216 +37,246 @@ class _BuscoReportViewerScreenState extends State<BuscoReportViewerScreen> {
 
     return Scaffold(
       backgroundColor: _background,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text('BUSCO Report'),
-      ),
-      body: SafeArea(
-        top: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
-          children: [
-            _buildImageCard(
-              context,
-              assetPath: _reportAssetPath,
-              label: 'Actual report',
+      body: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          SliverAppBar(
+            expandedHeight: 120.0,
+            floating: false,
+            pinned: true,
+            backgroundColor: _surface,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new_rounded),
+              onPressed: () => Navigator.of(context).pop(),
             ),
-            const SizedBox(height: 14),
-            if (!_showBreakdown)
-              _buildBreakdownPrompt(theme, scheme)
-            else
-              _buildBreakdownSection(theme, scheme),
-          ],
-        ),
+            flexibleSpace: FlexibleSpaceBar(
+              title: Text(
+                'BUSCO REPORT ANALYSIS',
+                style: TextStyle(
+                  color: scheme.onSurface,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.2,
+                ),
+              ),
+              background: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [_accent.withValues(alpha: 0.2), _background],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                ),
+              ),
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(18, 20, 18, 40),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                _buildModernCard(
+                  title: 'Official BUSCO Report',
+                  subtitle: 'Tap to expand and zoom',
+                  assetPath: _reportAssetPath,
+                  onTap: () => _openFullScreen(_reportAssetPath, 'Actual Report'),
+                ),
+                const SizedBox(height: 32),
+                Row(
+                  children: [
+                    Expanded(
+                        child: Divider(
+                            color: AppVisuals.textForest.withValues(alpha: 0.1))),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        'STEP-BY-STEP BREAKDOWN',
+                        style: TextStyle(
+                          color: _accent.withValues(alpha: 0.7),
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 2,
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                        child: Divider(
+                            color: AppVisuals.textForest.withValues(alpha: 0.1))),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                ...List.generate(_breakdownPages.length, (index) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 24),
+                    child: _buildModernCard(
+                      title: 'Analysis Page ${index + 1}',
+                      subtitle: 'Breakdown and explanation',
+                      assetPath: _breakdownPages[index],
+                      onTap: () => _openFullScreen(
+                        _breakdownPages[index],
+                        'Analysis Page ${index + 1}',
+                      ),
+                    ),
+                  );
+                }),
+              ]),
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildImageCard(
-    BuildContext context, {
+  Widget _buildModernCard({
+    required String title,
+    required String subtitle,
     required String assetPath,
-    required String label,
+    required VoidCallback onTap,
   }) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-
     return Container(
       decoration: BoxDecoration(
         color: _surface,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(
-          color: scheme.onSurface.withValues(alpha: 0.10),
-        ),
+            color: AppVisuals.primaryGold.withValues(alpha: 0.15)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.30),
-            blurRadius: 18,
+            color: Colors.black.withValues(alpha: 0.4),
+            blurRadius: 20,
             offset: const Offset(0, 12),
+          ),
+          BoxShadow(
+            color: _accent.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, -2),
           ),
         ],
       ),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Container(
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    scheme.primary.withValues(alpha: 0.22),
-                    scheme.secondary.withValues(alpha: 0.14),
-                  ],
-                ),
-              ),
-              child: Text(
-                label,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ),
-            AspectRatio(
-              aspectRatio: 4 / 3,
-              child: InteractiveViewer(
-                minScale: 1,
-                maxScale: 4,
-                child: Image.asset(
-                  assetPath,
-                  fit: BoxFit.contain,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBreakdownPrompt(ThemeData theme, ColorScheme scheme) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: _surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: scheme.onSurface.withValues(alpha: 0.10),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Want a breakdown and explanation?',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'This opens an annotated, page-by-page walkthrough so you can understand what each part of the report means.',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: scheme.onSurface.withValues(alpha: 0.72),
-              height: 1.4,
-            ),
-          ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      _showBreakdown = true;
-                      _breakdownPageIndex = 0;
-                    });
-                  },
-                  icon: const Icon(Icons.auto_awesome_rounded),
-                  label: const Text('Yes, show breakdown'),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.done_rounded),
-                  label: const Text('No, I’m done'),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBreakdownSection(ThemeData theme, ColorScheme scheme) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: _surface,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: scheme.onSurface.withValues(alpha: 0.10),
-            ),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  'Breakdown & explanation',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
+        borderRadius: BorderRadius.circular(24),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(18),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              title,
+                              style: const TextStyle(
+                                color: AppVisuals.textForest,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              subtitle,
+                              style: TextStyle(
+                                color: AppVisuals.textMuted,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: _accent.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.fullscreen_rounded,
+                          color: _accent,
+                          size: 20,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-              Text(
-                'Page ${_breakdownPageIndex + 1} of ${_breakdownPages.length}',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurface.withValues(alpha: 0.65),
-                  fontWeight: FontWeight.w700,
+                AspectRatio(
+                  aspectRatio: 16 / 10,
+                  child: Stack(
+                    children: [
+                      Positioned.fill(
+                        child: Image.asset(
+                          assetPath,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                      Positioned.fill(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.transparent,
+                                Colors.black.withValues(alpha: 0.4),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 420,
-          child: PageView.builder(
-            controller: _breakdownController,
-            itemCount: _breakdownPages.length,
-            onPageChanged: (index) {
-              setState(() => _breakdownPageIndex = index);
-            },
-            itemBuilder: (context, index) {
-              return Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: _buildImageCard(
-                  context,
-                  assetPath: _breakdownPages[index],
-                  label: 'Page ${index + 1}',
-                ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 14),
-        FilledButton.icon(
+      ),
+    );
+  }
+}
+
+class _FullScreenViewer extends StatelessWidget {
+  final String assetPath;
+  final String title;
+
+  const _FullScreenViewer({required this.assetPath, required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: const Color(0xFFE8F0EC),
+        foregroundColor: AppVisuals.textForest,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close_rounded, color: AppVisuals.textForest),
           onPressed: () => Navigator.of(context).pop(),
-          icon: const Icon(Icons.arrow_back_rounded),
-          label: const Text('Back to Profit'),
         ),
-      ],
+        title: Text(
+          title,
+          style: const TextStyle(
+            color: AppVisuals.textForest,
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+      body: InteractiveViewer(
+        minScale: 1.0,
+        maxScale: 5.0,
+        child: Center(
+          child: Image.asset(
+            assetPath,
+            fit: BoxFit.contain,
+          ),
+        ),
+      ),
     );
   }
 }

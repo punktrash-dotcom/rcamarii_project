@@ -4,14 +4,20 @@ import 'package:provider/provider.dart';
 import '../providers/activity_provider.dart';
 import '../providers/app_settings_provider.dart';
 import '../providers/data_provider.dart';
+import '../providers/delivery_provider.dart';
+import '../providers/equipment_provider.dart';
 import '../providers/farm_provider.dart';
+import '../providers/ftracker_provider.dart';
 import '../providers/navigation_provider.dart';
 import '../providers/search_provider.dart';
+import '../providers/supplies_provider.dart';
 import '../providers/voice_command_provider.dart';
+import '../providers/worker_provider.dart';
+import '../providers/sugarcane_profit_provider.dart';
+import '../providers/theme_provider.dart';
 import '../services/app_localization_service.dart';
 import '../themes/app_visuals.dart';
 import 'scr_msoft.dart';
-import 'scr_weather.dart';
 import 'tab_activities.dart';
 import 'tab_farm.dart';
 import 'tab_knowledge.dart';
@@ -85,9 +91,44 @@ class _FrmMainState extends State<FrmMain> {
     setState(() => _selectedIndex = index);
   }
 
+  Future<void> _refreshAll() async {
+    final farm = Provider.of<FarmProvider>(context, listen: false);
+    final activity = Provider.of<ActivityProvider>(context, listen: false);
+    final equipment = Provider.of<EquipmentProvider>(context, listen: false);
+    final supplies = Provider.of<SuppliesProvider>(context, listen: false);
+    final deliveries = Provider.of<DeliveryProvider>(context, listen: false);
+    final workers = Provider.of<WorkerProvider>(context, listen: false);
+    final profits =
+        Provider.of<SugarcaneProfitProvider>(context, listen: false);
+    final ftracker = Provider.of<FtrackerProvider>(context, listen: false);
+    final data = Provider.of<DataProvider>(context, listen: false);
+
+    await Future.wait([
+      farm.refreshFarms(),
+      activity.loadActivities(),
+      equipment.loadEquipment(),
+      supplies.loadSupplies(),
+      deliveries.loadDeliveries(),
+      workers.loadWorkers(),
+      profits.loadProfitRecords(),
+      ftracker.loadFtrackerRecords(),
+      data.loadDefSupsFromDb(),
+    ]);
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(context.tr('Database refreshed')),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 1),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isDarkMode = Provider.of<ThemeProvider>(context).darkTheme;
     final navigationProvider = Provider.of<NavigationProvider>(context);
     final appSettings = Provider.of<AppSettingsProvider>(context);
     final reduceMotion = appSettings.reducedMotion;
@@ -100,45 +141,54 @@ class _FrmMainState extends State<FrmMain> {
     }
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
-      body: Column(
-        children: [
-          _buildHeader(theme),
-          Expanded(
-            child: AnimatedSwitcher(
-              duration: reduceMotion
-                  ? Duration.zero
-                  : const Duration(milliseconds: 360),
-              transitionBuilder: (child, animation) => FadeTransition(
-                opacity: animation,
-                child: SlideTransition(
-                  position: Tween<Offset>(
-                    begin: const Offset(0, 0.02),
-                    end: Offset.zero,
-                  ).animate(animation),
-                  child: child,
+      body: AppBackdrop(
+        isDark: isDarkMode,
+        child: Column(
+          children: [
+            _buildHeader(theme),
+            Expanded(
+              child: ClipRect(
+                child: AnimatedSwitcher(
+                  duration: reduceMotion
+                      ? Duration.zero
+                      : const Duration(milliseconds: 400),
+                  transitionBuilder: (child, animation) {
+                    return FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(
+                        position: Tween<Offset>(
+                          begin: const Offset(0, 0.05),
+                          end: Offset.zero,
+                        ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: SizedBox.expand(
+                    child: KeyedSubtree(
+                      key: ValueKey<int>(_selectedIndex),
+                      child: _tabs[_selectedIndex],
+                    ),
+                  ),
                 ),
               ),
-              child: KeyedSubtree(
-                key: ValueKey<int>(_selectedIndex),
-                child: _tabs[_selectedIndex],
-              ),
             ),
-          ),
-          _buildBottomDock(theme),
-        ],
+            _buildBottomDock(theme),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildHeader(ThemeData theme) {
+    final scheme = theme.colorScheme;
     final voiceProvider =
         Provider.of<VoiceCommandProvider>(context, listen: false);
     final appSettings = Provider.of<AppSettingsProvider>(context);
     final sections = [
-      (context.tr('Estate'), context.tr('Farm')),
-      (context.tr('Ledger'), context.tr('Activities')),
-      (context.tr('Assets'), context.tr('Supplies')),
+      (context.tr('Estate'), context.tr('Farm Hub')),
+      (context.tr('Ledger'), context.tr('Operations')),
+      (context.tr('Assets'), context.tr('Inventory')),
       (context.tr('Library'), context.tr('Knowledge')),
     ];
     final section = sections[_selectedIndex];
@@ -146,89 +196,85 @@ class _FrmMainState extends State<FrmMain> {
     return SafeArea(
       bottom: false,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 10, 16, 8),
-        child: FrostedPanel(
-          radius: 28,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          color: theme.colorScheme.surface.withValues(alpha: 0.92),
-          child: Column(
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          section.$1.toUpperCase(),
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            letterSpacing: 1.4,
-                            fontWeight: FontWeight.w800,
-                            color: theme.colorScheme.primary,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          section.$2,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: theme.textTheme.titleLarge,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _HeaderButton(
-                        icon: Icons.grid_view_rounded,
-                        tooltip: context.tr('Main Hub'),
-                        onTap: () => Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(builder: (_) => const ScrMSoft()),
+                      Text(
+                        section.$1.toUpperCase(),
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          letterSpacing: 1.5,
+                          fontWeight: FontWeight.w900,
+                          color: scheme.primary,
                         ),
                       ),
-                      const SizedBox(width: 4),
-                      _HeaderButton(
-                        icon: Icons.search_rounded,
-                        tooltip: context.tr('Search current database'),
-                        onTap: () {
-                          setState(() => _showSearch = !_showSearch);
-                          if (_showSearch) _searchFocusNode.requestFocus();
-                        },
-                      ),
-                      const SizedBox(width: 4),
-                      _HeaderButton(
-                        icon: Icons.cloud_queue_rounded,
-                        tooltip: context.tr('Weather forecast'),
-                        onTap: _openWeatherForecast,
-                      ),
-                      if (appSettings.voiceAssistantEnabled) ...[
-                        const SizedBox(width: 4),
-                        _HeaderButton(
-                          icon: Icons.mic_rounded,
-                          tooltip: context.tr('Voice command'),
-                          onTap: () => voiceProvider.requestCommand(context),
+                      const SizedBox(height: 2),
+                      Text(
+                        section.$2,
+                        style: theme.textTheme.displaySmall?.copyWith(
+                          color: scheme.onSurface,
+                          fontSize: 24,
                         ),
-                      ],
+                      ),
                     ],
                   ),
-                ],
-              ),
-              if (_showSearch) ...[
-                const SizedBox(height: 12),
-                _buildSearchAutocomplete(theme),
+                ),
+                Flexible(
+                  child: Wrap(
+                    alignment: WrapAlignment.end,
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                    _HeaderButton(
+                      icon: Icons.grid_view_rounded,
+                      tooltip: context.tr('Main Hub'),
+                      onTap: () => Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(builder: (_) => const ScrMSoft()),
+                      ),
+                    ),
+                    _HeaderButton(
+                      icon: Icons.search_rounded,
+                      tooltip: context.tr('Search'),
+                      onTap: () {
+                        setState(() => _showSearch = !_showSearch);
+                        if (_showSearch) _searchFocusNode.requestFocus();
+                      },
+                    ),
+                    _HeaderButton(
+                      icon: Icons.refresh_rounded,
+                      tooltip: context.tr('Refresh'),
+                      onTap: _refreshAll,
+                    ),
+                    if (appSettings.voiceAssistantEnabled) ...[
+                      _HeaderButton(
+                        icon: Icons.mic_rounded,
+                        tooltip: context.tr('Voice'),
+                        onTap: () => voiceProvider.requestCommand(context),
+                      ),
+                    ],
+                    ],
+                  ),
+                ),
               ],
+            ),
+            if (_showSearch) ...[
+              const SizedBox(height: 16),
+              _buildSearchAutocomplete(theme),
             ],
-          ),
+          ],
         ),
       ),
     );
   }
 
   Widget _buildSearchAutocomplete(ThemeData theme) {
+    final scheme = theme.colorScheme;
     final farmProvider = Provider.of<FarmProvider>(context, listen: false);
     final activityProvider =
         Provider.of<ActivityProvider>(context, listen: false);
@@ -276,24 +322,35 @@ class _FrmMainState extends State<FrmMain> {
         });
       },
       fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-        return TextField(
-          stylusHandwritingEnabled: false,
-          controller: controller,
-          focusNode: focusNode,
-          autofocus: true,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.w700,
-            color: theme.colorScheme.onSurface,
+        return Container(
+          decoration: BoxDecoration(
+            color: scheme.surfaceContainerHighest.withValues(alpha: 0.9),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: scheme.outline.withValues(alpha: 0.4),
+            ),
           ),
-          decoration: InputDecoration(
-            hintText: context.tr('Search this section'),
-            isDense: true,
-            fillColor: theme.colorScheme.surfaceContainerHighest,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(18),
-              borderSide: BorderSide.none,
+          child: TextField(
+            controller: controller,
+            focusNode: focusNode,
+            style: TextStyle(
+              color: scheme.onSurface,
+              fontWeight: FontWeight.w600,
+            ),
+            decoration: InputDecoration(
+              hintText: context.tr('Search in this section...'),
+              hintStyle: TextStyle(
+                color: scheme.onSurfaceVariant.withValues(alpha: 0.6),
+              ),
+              prefixIcon: Icon(
+                Icons.search_rounded,
+                color: scheme.primary,
+                size: 20,
+              ),
+              border: InputBorder.none,
+              enabledBorder: InputBorder.none,
+              focusedBorder: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(vertical: 14),
             ),
           ),
         );
@@ -301,56 +358,63 @@ class _FrmMainState extends State<FrmMain> {
     );
   }
 
-  void _openWeatherForecast() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const ScrWeather()),
-    );
-  }
-
   Widget _buildBottomDock(ThemeData theme) {
-    return Container(
-      margin: const EdgeInsets.fromLTRB(16, 0, 16, 22),
-      child: FrostedPanel(
-        radius: 28,
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-        color: theme.colorScheme.surface.withValues(alpha: 0.94),
+    final scheme = theme.colorScheme;
+    return SafeArea(
+      top: false,
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+        decoration: BoxDecoration(
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(32),
+        border: Border.all(
+          color: scheme.primary.withValues(alpha: 0.2),
+          width: 1.2,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.45),
+            blurRadius: 28,
+            offset: const Offset(0, 12),
+          ),
+          BoxShadow(
+            color: scheme.primary.withValues(alpha: 0.09),
+            blurRadius: 22,
+            offset: const Offset(0, -4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(8),
         child: Row(
           children: [
-            Expanded(
-              child: _NavButton(
-                icon: Icons.eco_rounded,
-                label: context.tr('Estate'),
-                selected: _selectedIndex == 0,
-                onTap: () => _onItemTapped(0),
-              ),
+            _NavButton(
+              icon: Icons.eco_rounded,
+              label: context.tr('Estate'),
+              selected: _selectedIndex == 0,
+              onTap: () => _onItemTapped(0),
             ),
-            Expanded(
-              child: _NavButton(
-                icon: Icons.analytics_rounded,
-                label: context.tr('Ledger'),
-                selected: _selectedIndex == 1,
-                onTap: () => _onItemTapped(1),
-              ),
+            _NavButton(
+              icon: Icons.analytics_rounded,
+              label: context.tr('Ledger'),
+              selected: _selectedIndex == 1,
+              onTap: () => _onItemTapped(1),
             ),
-            Expanded(
-              child: _NavButton(
-                icon: Icons.inventory_2_rounded,
-                label: context.tr('Assets'),
-                selected: _selectedIndex == 2,
-                onTap: () => _onItemTapped(2),
-              ),
+            _NavButton(
+              icon: Icons.inventory_2_rounded,
+              label: context.tr('Assets'),
+              selected: _selectedIndex == 2,
+              onTap: () => _onItemTapped(2),
             ),
-            Expanded(
-              child: _NavButton(
-                icon: Icons.auto_stories_rounded,
-                label: context.tr('Library'),
-                selected: _selectedIndex == 3,
-                onTap: () => _onItemTapped(3),
-              ),
+            _NavButton(
+              icon: Icons.auto_stories_rounded,
+              label: context.tr('Library'),
+              selected: _selectedIndex == 3,
+              onTap: () => _onItemTapped(3),
             ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -369,23 +433,20 @@ class _HeaderButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final scheme = Theme.of(context).colorScheme;
     return Tooltip(
       message: tooltip,
-      child: InkWell(
+      child: GestureDetector(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
         child: Container(
-          width: 42,
-          height: 42,
+          width: 44,
+          height: 44,
           decoration: BoxDecoration(
-            color: theme.colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: theme.colorScheme.outline.withValues(alpha: 0.42),
-            ),
+            color: scheme.surfaceContainerHighest.withValues(alpha: 0.9),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: scheme.outline.withValues(alpha: 0.35)),
           ),
-          child: Icon(icon, color: theme.colorScheme.primary, size: 20),
+          child: Icon(icon, color: scheme.primary, size: 22),
         ),
       ),
     );
@@ -408,39 +469,48 @@ class _NavButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(20),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-        decoration: BoxDecoration(
-          color: selected
-              ? theme.colorScheme.primary.withValues(alpha: 0.12)
-              : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 22,
-              color: selected
-                  ? theme.colorScheme.primary
-                  : theme.colorScheme.onSurfaceVariant,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              label,
-              style: theme.textTheme.bodySmall?.copyWith(
-                fontWeight: selected ? FontWeight.w900 : FontWeight.w700,
+    final scheme = theme.colorScheme;
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOutQuint,
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: selected ? scheme.primary : Colors.transparent,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: selected ? [
+              BoxShadow(
+                color: scheme.primary.withValues(alpha: 0.3),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
+              )
+            ] : null,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 24,
                 color: selected
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.onSurfaceVariant,
+                    ? scheme.onPrimary
+                    : scheme.onSurfaceVariant.withValues(alpha: 0.7),
               ),
-            ),
-          ],
+              if (selected) ...[
+                const SizedBox(height: 4),
+                Text(
+                  label,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    color: scheme.onPrimary,
+                    fontSize: 10,
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );

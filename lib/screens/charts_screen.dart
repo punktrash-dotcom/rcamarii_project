@@ -11,9 +11,11 @@ import 'package:provider/provider.dart';
 import '../models/ftracker_model.dart';
 import '../providers/app_settings_provider.dart';
 import '../providers/ftracker_provider.dart';
+import '../themes/app_visuals.dart';
 import '../themes/custom_themes.dart';
 import '../utils/transaction_report_utils.dart';
 import '../widgets/searchable_dropdown.dart';
+import 'busco_report_viewer_screen.dart';
 import 'scr_new_transaction.dart';
 
 class ChartsScreen extends StatefulWidget {
@@ -300,7 +302,8 @@ class _ChartsScreenState extends State<ChartsScreen> {
       data: trackerTheme,
       child: Builder(
         builder: (context) {
-          final scheme = Theme.of(context).colorScheme;
+          final theme = Theme.of(context);
+          final scheme = theme.colorScheme;
           final appSettings = Provider.of<AppSettingsProvider>(context);
           final currency = appSettings.currencyFormat;
           final currencySymbol = appSettings.currencySymbol;
@@ -392,6 +395,8 @@ class _ChartsScreenState extends State<ChartsScreen> {
                     padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
                     children: [
                       buildHeaderCard(context, report),
+                      const SizedBox(height: 16),
+                      buildBuscoAnalysisCard(context),
                       const SizedBox(height: 16),
                       buildFilterBar(
                         context: context,
@@ -485,44 +490,50 @@ class _ChartsScreenState extends State<ChartsScreen> {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
-        child: Container(
-          padding: const EdgeInsets.all(28),
-          decoration: reportCardDecoration(scheme),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.insights_rounded,
-                  size: 42, color: scheme.secondary.withValues(alpha: 0.9)),
-              const SizedBox(height: 14),
-              Text(
-                'No transactions yet',
-                style: TextStyle(
-                  color: scheme.onSurface,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 18,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Create a revenue or expense entry to unlock charts, printable reports, and category comparisons.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: scheme.onSurface.withValues(alpha: 0.72),
-                ),
-              ),
-              const SizedBox(height: 18),
-              ElevatedButton.icon(
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ScrNewTransaction(),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(28),
+              decoration: reportCardDecoration(scheme),
+              child: Column(
+                children: [
+                  Icon(Icons.insights_rounded,
+                      size: 42, color: scheme.secondary.withValues(alpha: 0.9)),
+                  const SizedBox(height: 14),
+                  Text(
+                    'No transactions yet',
+                    style: TextStyle(
+                      color: scheme.onSurface,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 18,
+                    ),
                   ),
-                ),
-                icon: const Icon(Icons.add_rounded),
-                label: const Text('Add transaction'),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Create a revenue or expense entry to unlock charts, printable reports, and category comparisons.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: scheme.onSurface.withValues(alpha: 0.72),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  ElevatedButton.icon(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ScrNewTransaction(),
+                      ),
+                    ),
+                    icon: const Icon(Icons.add_rounded),
+                    label: const Text('Add transaction'),
+                  ),
+                ],
               ),
-            ],
-          ),
+            ),
+            const SizedBox(height: 16),
+            buildBuscoAnalysisCard(context),
+          ],
         ),
       ),
     );
@@ -588,11 +599,13 @@ class _ChartsScreenState extends State<ChartsScreen> {
             runSpacing: 12,
             children: [
               buildHeaderStat(
+                scheme: scheme,
                 label: 'Visible entries',
                 value: report.transactionCount.toString(),
                 accent: scheme.secondary,
               ),
               buildHeaderStat(
+                scheme: scheme,
                 label: 'Report range',
                 value: selectedRange == null ? 'All dates' : 'Custom',
                 accent: scheme.primary,
@@ -604,7 +617,98 @@ class _ChartsScreenState extends State<ChartsScreen> {
     );
   }
 
+  Widget buildBuscoAnalysisCard(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      decoration: reportCardDecoration(scheme).copyWith(
+        gradient: LinearGradient(
+          colors: [
+            const Color(0xFF1A3A34),
+            scheme.surface,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(28),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const BuscoReportViewerScreen(),
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(22),
+            child: Row(
+              children: [
+                Container(
+                  width: 54,
+                  height: 54,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF39C6A2).withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: const Color(0xFF39C6A2).withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.assessment_rounded,
+                    color: Color(0xFF39C6A2),
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(width: 18),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'BUSCO REPORT ANALYSIS',
+                        style: TextStyle(
+                          color: const Color(0xFF39C6A2),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'View & explain actual BUSCO reports',
+                        style: TextStyle(
+                          color: scheme.onSurface,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Walkthrough of planter shares and proceeds',
+                        style: TextStyle(
+                          color: scheme.onSurface.withValues(alpha: 0.65),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  Icons.arrow_forward_ios_rounded,
+                  size: 16,
+                  color: scheme.onSurface.withValues(alpha: 0.38),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget buildHeaderStat({
+    required ColorScheme scheme,
     required String label,
     required String value,
     required Color accent,
@@ -613,9 +717,10 @@ class _ChartsScreenState extends State<ChartsScreen> {
       width: 160,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
+        color: scheme.onSurface.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        border: Border.all(
+            color: scheme.onSurface.withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -623,7 +728,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
           Text(
             label,
             style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.7),
+              color: scheme.onSurface.withValues(alpha: 0.72),
               fontSize: 11,
             ),
           ),
@@ -854,7 +959,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
                               return LineTooltipItem(
                                 '${point.label}\n$seriesLabel ${currency.format(spot.y)}',
                                 TextStyle(
-                                  color: spot.bar.color ?? Colors.white,
+                                  color: spot.bar.color ?? AppVisuals.textForest,
                                   fontWeight: FontWeight.w700,
                                 ),
                               );
@@ -867,7 +972,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
                         horizontalInterval:
                             safeAxisInterval(trendMaxY(report.trendPoints)),
                         getDrawingHorizontalLine: (_) => FlLine(
-                          color: Colors.white.withValues(alpha: 0.08),
+                          color: scheme.onSurface.withValues(alpha: 0.08),
                           strokeWidth: 1,
                         ),
                       ),
@@ -940,8 +1045,8 @@ class _ChartsScreenState extends State<ChartsScreen> {
             spacing: 18,
             runSpacing: 8,
             children: [
-              buildLegendItem('Revenue', revenueColor),
-              buildLegendItem('Expenses', expenseColor),
+              buildLegendItem('Revenue', revenueColor, scheme: scheme),
+              buildLegendItem('Expenses', expenseColor, scheme: scheme),
             ],
           ),
         ],
@@ -982,7 +1087,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
                         horizontalInterval:
                             safeAxisInterval(comparisonMaxY(categories)),
                         getDrawingHorizontalLine: (_) => FlLine(
-                          color: Colors.white.withValues(alpha: 0.08),
+                          color: scheme.onSurface.withValues(alpha: 0.08),
                           strokeWidth: 1,
                         ),
                       ),
@@ -995,8 +1100,8 @@ class _ChartsScreenState extends State<ChartsScreen> {
                                 rodIndex == 0 ? 'Revenue' : 'Expenses';
                             return BarTooltipItem(
                               '${category.category}\n$label ${currency.format(rod.toY)}',
-                              const TextStyle(
-                                color: Colors.white,
+                              TextStyle(
+                                color: scheme.onSurface,
                                 fontWeight: FontWeight.w700,
                               ),
                             );
@@ -1079,8 +1184,8 @@ class _ChartsScreenState extends State<ChartsScreen> {
             spacing: 18,
             runSpacing: 8,
             children: [
-              buildLegendItem('Revenue bars', revenueColor),
-              buildLegendItem('Expense bars', expenseColor),
+              buildLegendItem('Revenue bars', revenueColor, scheme: scheme),
+              buildLegendItem('Expense bars', expenseColor, scheme: scheme),
             ],
           ),
         ],
@@ -1134,8 +1239,8 @@ class _ChartsScreenState extends State<ChartsScreen> {
                           color: color,
                           radius: 56,
                           title: '${pct.toStringAsFixed(0)}%',
-                          titleStyle: const TextStyle(
-                            color: Colors.white,
+                          titleStyle: TextStyle(
+                            color: AppVisuals.textForest,
                             fontWeight: FontWeight.w800,
                             fontSize: 11,
                           ),
@@ -1155,6 +1260,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
               return buildLegendItem(
                 '${entry.category} • ${currency.format(entry.amount)}',
                 color,
+                scheme: scheme,
               );
             }),
           ),
@@ -1191,7 +1297,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
           Theme(
             data: Theme.of(context).copyWith(
               cardColor: Colors.transparent,
-              dividerColor: Colors.white.withValues(alpha: 0.08),
+              dividerColor: scheme.onSurface.withValues(alpha: 0.08),
             ),
             child: PaginatedDataTable(
               header: Text(
@@ -1267,7 +1373,8 @@ class _ChartsScreenState extends State<ChartsScreen> {
     );
   }
 
-  Widget buildLegendItem(String label, Color color) {
+  Widget buildLegendItem(String label, Color color, {ColorScheme? scheme}) {
+    final fg = scheme?.onSurface ?? AppVisuals.textForest;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -1283,7 +1390,8 @@ class _ChartsScreenState extends State<ChartsScreen> {
         Flexible(
           child: Text(
             label,
-            style: const TextStyle(color: Colors.white70, fontSize: 12),
+            style: TextStyle(
+                color: fg.withValues(alpha: 0.82), fontSize: 12),
             overflow: TextOverflow.ellipsis,
           ),
         ),
@@ -1325,7 +1433,8 @@ class _ChartsScreenState extends State<ChartsScreen> {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
-      border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+      border: Border.all(
+          color: scheme.primary.withValues(alpha: 0.14)),
       boxShadow: [
         BoxShadow(
           color: scheme.primary.withValues(alpha: 0.08),

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import '../themes/app_visuals.dart';
 import '../services/backup_service.dart';
 import 'package:file_picker/file_picker.dart';
 
@@ -131,17 +133,17 @@ class _BackupScreenState extends State<BackupScreen> {
                       padding: const EdgeInsets.symmetric(
                           vertical: 16, horizontal: 32),
                       decoration: BoxDecoration(
-                        color: Colors.blue,
+                        color: AppVisuals.primaryGold,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.save, color: Colors.white),
+                          Icon(Icons.save, color: AppVisuals.deepGreen),
                           SizedBox(width: 8),
                           Text('Create Backup Now',
                               style: TextStyle(
-                                  color: Colors.white,
+                                  color: AppVisuals.deepGreen,
                                   fontWeight: FontWeight.bold)),
                         ],
                       ),

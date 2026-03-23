@@ -32,7 +32,7 @@ import 'providers/voice_command_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  pdfrxFlutterInitialize();
+  await pdfrxFlutterInitialize(dismissPdfiumWasmWarnings: true);
 
   // Database initialization for Desktop
   if (Platform.isAndroid || Platform.isIOS) {

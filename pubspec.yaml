@@ -67,6 +67,7 @@ flutter:
     - lib/assets/background.png
     - lib/assets/equipment.csv
     - lib/assets/images/
+    - lib/assets/icons/iconic.png
     - lib/assets/rcamarii_logo.png
     - lib/assets/fonts/
     - lib/assets/rcamarii_logo.png

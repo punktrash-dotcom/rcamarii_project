@@ -56,7 +56,6 @@ class _AddFarmScreenState extends State<AddFarmScreen> with RouteAware {
   final List<String> _farmTypes = ['Sugarcane', 'Rice', 'Corn'];
   DateTime _selectedDate = DateTime.now();
   bool _isInit = true;
-  bool _playedScreenOpenAudio = false;
   bool _isRouteObserverSubscribed = false;
 
   @override
@@ -70,7 +69,6 @@ class _AddFarmScreenState extends State<AddFarmScreen> with RouteAware {
     }
     if (_isInit) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _playScreenOpenAudioIfNeeded();
       });
       if (widget.farmID != null) {
         final farm = Provider.of<FarmProvider>(context, listen: false)
@@ -89,19 +87,7 @@ class _AddFarmScreenState extends State<AddFarmScreen> with RouteAware {
     super.didChangeDependencies();
   }
 
-  Future<void> _playScreenOpenAudioIfNeeded() async {
-    if (!mounted || _playedScreenOpenAudio) {
-      return;
-    }
-    final appSettings =
-        Provider.of<AppSettingsProvider>(context, listen: false);
-    _playedScreenOpenAudio = true;
-    await context.read<AppAudioProvider>().playScreenOpenSound(
-          screenKey: 'add_farm',
-          style: appSettings.audioSoundStyle,
-          enabled: appSettings.audioSoundsEnabled,
-        );
-  }
+
 
   Future<void> _stopScreenOpenAudioIfNeeded() async {
     final appSettings =

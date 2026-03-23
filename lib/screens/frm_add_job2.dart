@@ -493,7 +493,7 @@ class _FrmAddJob2State extends State<FrmAddJob2> with RouteAware {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
       ),
@@ -637,7 +637,9 @@ class _FrmAddJob2State extends State<FrmAddJob2> with RouteAware {
         child: Text(label.toUpperCase(),
             textAlign: TextAlign.center,
             style: TextStyle(
-                color: isSelected ? Colors.white : theme.colorScheme.primary,
+                color: isSelected
+                    ? theme.colorScheme.onPrimary
+                    : theme.colorScheme.primary,
                 fontWeight: FontWeight.w900,
                 fontSize: 11)),
       ),

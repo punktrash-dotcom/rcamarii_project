@@ -9,11 +9,11 @@ import '../models/ftracker_model.dart';
 import '../providers/app_audio_provider.dart';
 import '../providers/app_settings_provider.dart';
 import '../providers/ftracker_provider.dart';
-import '../providers/theme_provider.dart';
 import '../providers/profile_provider.dart';
 import '../providers/voice_command_provider.dart';
 import '../services/app_localization_service.dart';
 import '../services/app_route_observer.dart';
+import '../themes/app_visuals.dart';
 import '../themes/custom_themes.dart';
 import 'scr_new_transaction.dart';
 import 'charts_screen.dart';
@@ -65,7 +65,6 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
   void _showEditProfileDialog() {
     final profileProvider =
         Provider.of<ProfileProvider>(context, listen: false);
-    final themeProvider = Provider.of<ThemeProvider>(context, listen: false);
     final nameController =
         TextEditingController(text: profileProvider.userName);
     String? tempImagePath = profileProvider.imagePath;
@@ -75,12 +74,11 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            final isDark = themeProvider.darkTheme;
+            final scheme = Theme.of(context).colorScheme;
             return AlertDialog(
-              backgroundColor: isDark ? Colors.grey[900] : Colors.white,
+              backgroundColor: const Color(0xFFE8F0EC),
               title: Text(context.tr('Edit Profile'),
-                  style:
-                      TextStyle(color: isDark ? Colors.white : Colors.black)),
+                  style: const TextStyle(color: AppVisuals.textForest)),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -97,13 +95,13 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
                       },
                       child: CircleAvatar(
                         radius: 40,
-                        backgroundColor: Colors.deepPurple,
+                        backgroundColor: scheme.primary,
                         backgroundImage: tempImagePath != null
                             ? FileImage(File(tempImagePath!))
                             : null,
                         child: tempImagePath == null
                             ? const Icon(Icons.camera_alt,
-                                color: Colors.white, size: 30)
+                                color: AppVisuals.softWhite, size: 30)
                             : null,
                       ),
                     ),
@@ -111,12 +109,12 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
                     TextField(
                       stylusHandwritingEnabled: false,
                       controller: nameController,
-                      style: TextStyle(
-                          color: isDark ? Colors.white : Colors.black),
+                      style: const TextStyle(color: AppVisuals.textForest),
                       decoration: InputDecoration(
                         labelText: context.tr('Wallet Name'),
                         labelStyle: TextStyle(
-                            color: isDark ? Colors.grey : Colors.grey[700]),
+                            color:
+                                AppVisuals.textForest.withValues(alpha: 0.55)),
                       ),
                     ),
                   ],
@@ -134,11 +132,11 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
                         nameController.text, tempImagePath);
                     Navigator.pop(context);
                   },
-                  style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.deepPurple),
+                  style:
+                      ElevatedButton.styleFrom(backgroundColor: scheme.primary),
                   child: Text(
                     context.tr('Save'),
-                    style: const TextStyle(color: Colors.white),
+                    style: const TextStyle(color: AppVisuals.softWhite),
                   ),
                 ),
               ],
@@ -241,7 +239,7 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
                       ? FileImage(File(profileProvider.imagePath!))
                       : null,
                   child: profileProvider.imagePath == null
-                      ? const Icon(Icons.person, color: Colors.white)
+                      ? Icon(Icons.person, color: colorScheme.onPrimary)
                       : null,
                 ),
                 const SizedBox(width: 12),
@@ -438,15 +436,17 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
           children: [
             Text(context.tr('Total Balance'),
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white70, fontSize: 16)),
+                style: TextStyle(
+                    color: colors.onSurface.withValues(alpha: 0.72),
+                    fontSize: 16)),
             Builder(builder: (context) {
               final balanceText = format.format(balance);
               final displayBalance = balanceText.endsWith('.00')
                   ? balanceText.substring(0, balanceText.length - 3)
                   : balanceText;
               return Text(displayBalance,
-                  style: const TextStyle(
-                      color: Colors.white,
+                  style: TextStyle(
+                      color: colors.onSurface,
                       fontSize: 36,
                       fontWeight: FontWeight.bold));
             }),
@@ -460,8 +460,10 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
                     _formatCurrency(format, income), Colors.greenAccent),
                 _buildTrendBadge(context.tr('Expenses'),
                     _formatCurrency(format, expense), Colors.redAccent),
-                _buildTrendBadge(context.tr('Net'),
-                    _formatCurrency(format, balance), Colors.white70,
+                _buildTrendBadge(
+                    context.tr('Net'),
+                    _formatCurrency(format, balance),
+                    colors.onSurface.withValues(alpha: 0.35),
                     highlight: false),
               ],
             ),
@@ -481,18 +483,24 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
             : bgColor.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-            color: highlight ? bgColor.withValues(alpha: 0.6) : Colors.white24),
+            color: highlight
+                ? bgColor.withValues(alpha: 0.6)
+                : AppVisuals.textForest.withValues(alpha: 0.18)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label,
               style: TextStyle(
-                  color: highlight ? Colors.white70 : Colors.white60,
+                  color: highlight
+                      ? AppVisuals.textForest.withValues(alpha: 0.75)
+                      : AppVisuals.textForest.withValues(alpha: 0.55),
                   fontSize: 10)),
           Text(amount,
               style: TextStyle(
-                  color: highlight ? Colors.white : Colors.white70,
+                  color: highlight
+                      ? AppVisuals.textForest
+                      : AppVisuals.textForest.withValues(alpha: 0.75),
                   fontWeight: FontWeight.w900)),
         ],
       ),

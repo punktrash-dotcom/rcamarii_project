@@ -114,8 +114,8 @@ class _AboutScreenState extends State<AboutScreen> with RouteAware {
                   FrostedPanel(
                     radius: 30,
                     color: isDark
-                        ? AppVisuals.deepAnthracite.withValues(alpha: 0.94)
-                        : AppVisuals.forestEmerald.withValues(alpha: 0.92),
+                        ? AppVisuals.surfaceGreen.withValues(alpha: 0.94)
+                        : AppVisuals.surfaceGreen.withValues(alpha: 0.92),
                     padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
                     child: Row(
                       children: [
@@ -239,14 +239,20 @@ class _AboutScreenState extends State<AboutScreen> with RouteAware {
         borderRadius: BorderRadius.circular(24),
         gradient: LinearGradient(
           colors: [
-            AppVisuals.forestEmerald.withValues(alpha: 0.96),
-            AppVisuals.deepSpaceBlue.withValues(alpha: 0.9),
-            AppVisuals.harvestGold.withValues(alpha: 0.78),
+            AppVisuals.surfaceGreen.withValues(alpha: 0.96),
+            AppVisuals.deepGreen.withValues(alpha: 0.9),
+            AppVisuals.primaryGold.withValues(alpha: 0.78),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        boxShadow: AppVisuals.softGlow(AppVisuals.forestEmerald),
+        boxShadow: [
+          BoxShadow(
+            color: AppVisuals.surfaceGreen.withValues(alpha: 0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          )
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -257,12 +263,12 @@ class _AboutScreenState extends State<AboutScreen> with RouteAware {
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.18),
+                  color: AppVisuals.textForest.withValues(alpha: 0.18),
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: const Icon(
                   Icons.landscape_rounded,
-                  color: Colors.white,
+                  color: AppVisuals.textForest,
                   size: 28,
                 ),
               ),
@@ -273,7 +279,7 @@ class _AboutScreenState extends State<AboutScreen> with RouteAware {
                     'RCAMARii grew out of real field work, real family decisions, and real farming needs.',
                   ),
                   style: theme.textTheme.titleLarge?.copyWith(
-                    color: Colors.white,
+                    color: AppVisuals.textForest,
                     fontWeight: FontWeight.w800,
                     height: 1.35,
                   ),
@@ -287,7 +293,7 @@ class _AboutScreenState extends State<AboutScreen> with RouteAware {
               'From its roots in Bukidnon, the app now aims to offer practical guidance for farmers who need a clearer way to manage operations and learn as they grow.',
             ),
             style: theme.textTheme.bodyLarge?.copyWith(
-              color: Colors.white.withValues(alpha: 0.9),
+              color: AppVisuals.textMuted,
               height: 1.55,
             ),
           ),
@@ -320,14 +326,15 @@ class _AboutScreenState extends State<AboutScreen> with RouteAware {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.14),
+        color: AppVisuals.textForest.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+        border: Border.all(
+            color: AppVisuals.primaryGold.withValues(alpha: 0.25)),
       ),
       child: Text(
         label,
         style: const TextStyle(
-          color: Colors.white,
+          color: AppVisuals.textForest,
           fontWeight: FontWeight.w700,
           fontSize: 11,
           letterSpacing: 0.3,
@@ -513,13 +520,14 @@ class _AboutScreenState extends State<AboutScreen> with RouteAware {
         borderRadius: BorderRadius.circular(24),
         gradient: LinearGradient(
           colors: [
-            AppVisuals.forestEmerald.withValues(alpha: 0.94),
-            AppVisuals.deepSpaceBlue.withValues(alpha: 0.82),
+            AppVisuals.surfaceGreen.withValues(alpha: 0.94),
+            AppVisuals.deepGreen.withValues(alpha: 0.82),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.16)),
+        border: Border.all(
+            color: AppVisuals.primaryGold.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -528,7 +536,7 @@ class _AboutScreenState extends State<AboutScreen> with RouteAware {
             context.tr('Mission'),
             style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w900,
-              color: Colors.white,
+              color: AppVisuals.primaryGold,
             ),
           ),
           const SizedBox(height: 10),
@@ -537,7 +545,7 @@ class _AboutScreenState extends State<AboutScreen> with RouteAware {
               'RCAMARii exists to turn lived farming experience into practical support. It reflects the discipline of a working family farm in Bukidnon and shares that experience to help newer farmers start with better guidance, better records, and better day-to-day decisions.',
             ),
             style: theme.textTheme.bodyLarge?.copyWith(
-              color: Colors.white.withValues(alpha: 0.9),
+              color: AppVisuals.textMuted,
               height: 1.6,
             ),
           ),

@@ -1,0 +1,10 @@
+{
+  "version": "0.2.1",
+  "tasks": [
+    {
+      "taskLabel": "task-rcamarii_project",
+      "appliesTo": "build/windows/x64/rcamarii_project.slnx",
+      "type": "launch"
+    }
+  ]
+}

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../themes/app_visuals.dart';
+
 class CalculatorWidget extends StatelessWidget {
   final Function(String) onResultChanged;
 
@@ -52,7 +54,7 @@ class CalculatorWidget extends StatelessWidget {
         child: Center(
             child: Text(text,
                 style: const TextStyle(
-                    color: Colors.white,
+                    color: AppVisuals.textForest,
                     fontSize: 24,
                     fontWeight: FontWeight.bold))),
       ),
@@ -65,7 +67,7 @@ class CalculatorWidget extends StatelessWidget {
         onPressed: () => onResultChanged(value),
         style: TextButton.styleFrom(padding: EdgeInsets.zero),
         child: Center(
-          child: Icon(icon, color: Colors.white, size: 24),
+          child: Icon(icon, color: AppVisuals.textForest, size: 24),
         ),
       ),
     );

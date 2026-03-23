@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/activity_provider.dart';
+import '../providers/app_audio_provider.dart';
 import '../providers/app_settings_provider.dart';
 import '../providers/delivery_provider.dart';
 import '../providers/equipment_provider.dart';
@@ -10,6 +11,7 @@ import '../providers/farm_provider.dart';
 import '../providers/guideline_language_provider.dart';
 import '../providers/supplies_provider.dart';
 import '../providers/voice_command_provider.dart';
+import '../providers/theme_provider.dart';
 import '../providers/weather_provider.dart';
 import '../services/app_localization_service.dart';
 import '../services/guideline_localization_service.dart';
@@ -25,6 +27,9 @@ import 'profit_calculator_screen.dart';
 import 'scr_workers.dart';
 import 'settings_screen.dart';
 
+/// Brand mark in the main hub top bar (`lib/assets/icons/iconic.png`).
+const String _kIconicPngAsset = 'lib/assets/icons/iconic.png';
+
 class ScrMSoft extends StatefulWidget {
   const ScrMSoft({super.key});
 
@@ -38,7 +43,6 @@ class _ScrMSoftState extends State<ScrMSoft> {
   final List<_AiMessage> _messages = [];
 
   bool _autopilotEnabled = true;
-  double _autopilotSensitivity = 0.66;
 
   @override
   void initState() {
@@ -223,28 +227,27 @@ class _ScrMSoftState extends State<ScrMSoft> {
     final screenWidth = mediaQuery.size.width;
     final isWide = screenWidth >= 1100;
     final bottomInset = mediaQuery.viewInsets.bottom;
+    final isDarkMode = Provider.of<ThemeProvider>(context).darkTheme;
 
     return Scaffold(
       body: AppBackdrop(
-        isDark: true,
+        isDark: isDarkMode,
         child: SafeArea(
           child: SingleChildScrollView(
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: EdgeInsets.fromLTRB(18, 16, 18, 28 + bottomInset),
+            padding: EdgeInsets.fromLTRB(20, 16, 20, 28 + bottomInset),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 _buildTopBar(theme, weather),
-                const SizedBox(height: 18),
-                _buildWorkspaceControls(theme),
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
                 _buildHeroPanel(
                   theme: theme,
                   selectedFarm: selectedFarm,
                   cropAge: cropAge,
                   deliveryProvider: deliveryProvider,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
                 _buildStatStrip(
                   theme: theme,
                   farmCount: farmProvider.farms.length,
@@ -252,7 +255,9 @@ class _ScrMSoftState extends State<ScrMSoft> {
                   supplyCount: suppliesProvider.items.length,
                   deliveryCount: deliveryProvider.deliveries.length,
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
+                _buildWorkspaceControls(theme),
+                const SizedBox(height: 24),
                 if (isWide)
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -261,13 +266,13 @@ class _ScrMSoftState extends State<ScrMSoft> {
                         flex: 7,
                         child: _buildCopilotConsole(theme),
                       ),
-                      const SizedBox(width: 16),
+                      const SizedBox(width: 24),
                       Expanded(
                         flex: 5,
                         child: Column(
                           children: [
                             _buildActionDeck(theme),
-                            const SizedBox(height: 16),
+                            const SizedBox(height: 24),
                             _buildLiveOverview(
                               theme: theme,
                               selectedFarm: selectedFarm,
@@ -284,9 +289,9 @@ class _ScrMSoftState extends State<ScrMSoft> {
                   )
                 else ...[
                   _buildCopilotConsole(theme),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
                   _buildActionDeck(theme),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
                   _buildLiveOverview(
                     theme: theme,
                     selectedFarm: selectedFarm,
@@ -297,7 +302,7 @@ class _ScrMSoftState extends State<ScrMSoft> {
                         deliveryProvider.sugarcaneDeliveries.length,
                   ),
                 ],
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
                 _buildTodayBoard(
                   theme: theme,
                   selectedFarm: selectedFarm,
@@ -306,12 +311,12 @@ class _ScrMSoftState extends State<ScrMSoft> {
                   suppliesProvider: suppliesProvider,
                   deliveryProvider: deliveryProvider,
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 32),
                 Center(
                   child: OutlinedButton.icon(
                     onPressed: () => _openExitScreen(context),
                     icon:
-                        const Icon(Icons.power_settings_new_rounded, size: 16),
+                        const Icon(Icons.power_settings_new_rounded, size: 18),
                     label: Text(context.tr('Exit RCAMARii')),
                   ),
                 ),
@@ -324,188 +329,200 @@ class _ScrMSoftState extends State<ScrMSoft> {
   }
 
   Widget _buildTopBar(ThemeData theme, dynamic weather) {
-    final voiceProvider =
-        Provider.of<VoiceCommandProvider>(context, listen: false);
-    final appSettings = Provider.of<AppSettingsProvider>(context);
-    final statusPills = Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: [
-        _TopPill(
-          icon: Icons.wb_cloudy_outlined,
-          label: weather == null
-              ? context.tr('Weather offline')
-              : '${weather.temp.toStringAsFixed(0)} deg  ${weather.description}',
-        ),
-        if (appSettings.voiceAssistantEnabled)
-          FilledButton.tonalIcon(
-            onPressed: () => voiceProvider.requestCommand(context),
-            icon: const Icon(Icons.mic_none_rounded),
-            label: Text(context.tr('Voice')),
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 50,
+            height: 50,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: AppVisuals.primaryGold.withValues(alpha: 0.28),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+              ],
+              border: Border.all(
+                color: AppVisuals.primaryGold.withValues(alpha: 0.4),
+                width: 1.2,
+              ),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Image.asset(
+              _kIconicPngAsset,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                color: AppVisuals.primaryGold.withValues(alpha: 0.2),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.eco_rounded,
+                  color: AppVisuals.deepGreen,
+                  size: 26,
+                ),
+              ),
+            ),
           ),
-      ],
-    );
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final stacked = constraints.maxWidth < 760;
-
-        if (stacked) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'RCAMARii Copilot',
-                style: theme.textTheme.displayMedium?.copyWith(
-                  color: Colors.white,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                DateFormat('EEEE, MMMM d').format(DateTime.now()),
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.68),
-                ),
-              ),
-              const SizedBox(height: 12),
-              statusPills,
-            ],
-          );
-        }
-
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'RCAMARii Copilot',
-                    style: theme.textTheme.displayMedium?.copyWith(
-                      color: Colors.white,
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      'RAMARI',
+                      style: theme.textTheme.displaySmall?.copyWith(
+                        color: AppVisuals.primaryGold,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.0,
+                        fontSize: 22,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    DateFormat('EEEE, MMMM d').format(DateTime.now()),
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.68),
+                    const SizedBox(width: 6),
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 2),
+                      child: Text(
+                        'FARM & FINANCE',
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: AppVisuals.lightGold.withValues(alpha: 0.6),
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.5,
+                        ),
+                      ),
                     ),
+                  ],
+                ),
+                Text(
+                  DateFormat('EEEE, MMMM d').format(DateTime.now()).toUpperCase(),
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: AppVisuals.textForest.withValues(alpha: 0.3),
+                    letterSpacing: 1.2,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 10,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            const SizedBox(width: 16),
-            Flexible(
-              child: Align(
-                alignment: Alignment.topRight,
-                child: statusPills,
-              ),
+          ),
+          if (weather != null)
+            _TopPill(
+              icon: Icons.wb_sunny_rounded,
+              label: '${weather.temp.toStringAsFixed(0)}°',
             ),
-          ],
-        );
-      },
+          const SizedBox(width: 8),
+          _HeaderIconButton(
+            icon: Icons.notifications_none_rounded,
+            onTap: () {},
+          ),
+          const SizedBox(width: 8),
+          _HeaderIconButton(
+            icon: Icons.person_outline_rounded,
+            onTap: () => _openSettings(context),
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildWorkspaceControls(ThemeData theme) {
     final scheme = theme.colorScheme;
     final languageProvider = Provider.of<GuidelineLanguageProvider>(context);
+    final audioProvider = Provider.of<AppAudioProvider>(context, listen: false);
+    final appSettings = Provider.of<AppSettingsProvider>(context, listen: false);
 
     return FrostedPanel(
-      radius: 28,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final stacked = constraints.maxWidth < 640;
-
-          return Column(
+      radius: 32,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              if (stacked) ...[
-                Text(
-                  context.tr('Workspace Controls'),
-                  style: theme.textTheme.headlineMedium,
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  context.tr(
-                    'Choose the preferred language for supply guidance before opening the field modules.',
-                  ),
-                  style: theme.textTheme.bodyMedium,
-                ),
-                const SizedBox(height: 12),
-                FilledButton.tonalIcon(
-                  onPressed: () => _openSettings(context),
-                  icon: const Icon(Icons.settings_rounded, size: 18),
-                  label: Text(context.tr('Settings')),
-                ),
-              ] else
-                Row(
+              Expanded(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            context.tr('Workspace Controls'),
-                            style: theme.textTheme.headlineMedium,
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            context.tr(
-                              'Choose the preferred language for supply guidance before opening the field modules.',
-                            ),
-                            style: theme.textTheme.bodyMedium,
-                          ),
-                        ],
-                      ),
+                    Text(
+                      context.tr('Workspace Controls'),
+                      style: theme.textTheme.headlineMedium?.copyWith(color: AppVisuals.primaryGold),
                     ),
-                    const SizedBox(width: 12),
-                    FilledButton.tonalIcon(
-                      onPressed: () => _openSettings(context),
-                      icon: const Icon(Icons.settings_rounded, size: 18),
-                      label: Text(context.tr('Settings')),
+                    const SizedBox(height: 6),
+                    Text(
+                      context.tr(
+                        'Choose the preferred language for supply guidance before opening the field modules.',
+                      ),
+                      style: theme.textTheme.bodyMedium,
                     ),
                   ],
                 ),
-              const SizedBox(height: 16),
-              Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: GuidelineLanguage.values.map((language) {
-                  final selected =
-                      languageProvider.selectedLanguage == language;
-                  return ChoiceChip(
-                    label: Text(
-                      GuidelineLocalizationService.languageLabel(language),
-                    ),
-                    selected: selected,
-                    onSelected: (_) => languageProvider.setLanguage(language),
-                    showCheckmark: false,
-                    selectedColor: scheme.primary,
-                    backgroundColor:
-                        scheme.surfaceContainerHighest.withValues(alpha: 0.92),
-                    side: BorderSide(
-                      color: selected
-                          ? scheme.primary
-                          : scheme.outline.withValues(alpha: 0.45),
-                    ),
-                    labelStyle: TextStyle(
-                      fontWeight: FontWeight.w800,
-                      color: selected ? scheme.onPrimary : scheme.onSurface,
-                    ),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
-                    ),
-                  );
-                }).toList(),
               ),
             ],
-          );
-        },
+          ),
+          const SizedBox(height: 20),
+          Wrap(
+            alignment: WrapAlignment.start,
+            spacing: 12,
+            runSpacing: 12,
+            children: GuidelineLanguage.values.map((language) {
+              final selected = languageProvider.selectedLanguage == language;
+              return ChoiceChip(
+                label: Text(
+                  GuidelineLocalizationService.languageLabel(language),
+                ),
+                selected: selected,
+                onSelected: (_) async {
+                  if (selected) return;
+                  await languageProvider.setLanguage(language);
+                  if (appSettings.audioSoundsEnabled) {
+                    final String assetPath = switch (language) {
+                      GuidelineLanguage.english => 'lib/assets/audio/english.mp3',
+                      GuidelineLanguage.tagalog => 'lib/assets/audio/tagalog.mp3',
+                      GuidelineLanguage.visayan => 'lib/assets/audio/visayan.mp3',
+                    };
+                    await audioProvider.playAsset(
+                      assetPath: assetPath,
+                      enabled: true,
+                    );
+                  }
+                },
+                showCheckmark: false,
+                selectedColor: AppVisuals.primaryGold,
+                backgroundColor:
+                    scheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                side: BorderSide(
+                  color: selected
+                      ? AppVisuals.primaryGold
+                      : scheme.outline.withValues(alpha: 0.2),
+                ),
+                labelStyle: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 12,
+                  color: selected ? AppVisuals.deepGreen : AppVisuals.textForest,
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 10,
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 20),
+          Center(
+            child: FilledButton.tonalIcon(
+              onPressed: () => _openSettings(context),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppVisuals.primaryGold.withValues(alpha: 0.1),
+                foregroundColor: AppVisuals.primaryGold,
+              ),
+              icon: const Icon(Icons.settings_rounded, size: 18),
+              label: Text(context.tr('Settings')),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -517,237 +534,141 @@ class _ScrMSoftState extends State<ScrMSoft> {
     required DeliveryProvider deliveryProvider,
   }) {
     final appSettings = Provider.of<AppSettingsProvider>(context);
-    final suggestions = [
-      context.tr('What does my active farm need this week?'),
-      context.tr('What should I buy next?'),
-      context.tr('Summarize my deliveries'),
-    ];
-
+    
     return Container(
-      padding: const EdgeInsets.all(22),
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(34),
-        gradient: const LinearGradient(
+        borderRadius: BorderRadius.circular(36),
+        gradient: LinearGradient(
           colors: [
-            Color(0xFF163425),
-            Color(0xFF30563B),
-            Color(0xFF7DAA5C),
+            const Color(0xFFE8F2EE),
+            const Color(0xFFD8E8E0),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        boxShadow: AppVisuals.softGlow(AppVisuals.forestEmerald),
+        border: Border.all(
+          color: AppVisuals.primaryGold.withValues(alpha: 0.12),
+          width: 1.5,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.4),
+            blurRadius: 30,
+            offset: const Offset(0, 15),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final stacked = constraints.maxWidth < 720;
-              final heroCopy = Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    selectedFarm == null
-                        ? context.tr('Your farm command center is ready.')
-                        : context.tr(
-                            "Today's focus is {farm}.",
-                            {'farm': selectedFarm.name},
-                          ),
-                    style: theme.textTheme.displayMedium?.copyWith(
-                      color: Colors.white,
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      context.tr('DASHBOARD'),
+                      style: theme.textTheme.labelLarge?.copyWith(
+                        color: AppVisuals.primaryGold,
+                        fontSize: 12,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    selectedFarm == null
-                        ? context.tr(
-                            'Add a farm, connect a delivery, or ask RCAMARii what to do next.',
-                          )
-                        : context.tr(
-                            '{crop} is active, {days} days from planting, with {deliveries} sugarcane deliveries in the current queue.',
-                            {
-                              'crop': selectedFarm.type,
-                              'days': '${cropAge ?? 0}',
-                              'deliveries':
-                                  '${deliveryProvider.sugarcaneDeliveries.length}',
-                            },
-                          ),
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.78),
+                    const SizedBox(height: 4),
+                    Text(
+                      selectedFarm == null
+                          ? context.tr('Welcome to Ramari')
+                          : selectedFarm.name,
+                      style: theme.textTheme.displayMedium?.copyWith(
+                        color: AppVisuals.textForest,
+                        fontSize: 24,
+                      ),
                     ),
-                  ),
-                ],
-              );
-              final heroIcon = Container(
-                width: 72,
-                height: 72,
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  color: Colors.white.withValues(alpha: 0.14),
-                  border:
-                      Border.all(color: Colors.white.withValues(alpha: 0.18)),
+                  color: AppVisuals.primaryGold.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: AppVisuals.primaryGold.withValues(alpha: 0.2),
+                  ),
                 ),
                 child: const Icon(
                   Icons.auto_awesome_rounded,
-                  color: Colors.white,
-                  size: 34,
+                  color: AppVisuals.primaryGold,
+                  size: 24,
                 ),
-              );
-
-              if (stacked) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    heroCopy,
-                    const SizedBox(height: 14),
-                    heroIcon,
-                  ],
-                );
-              }
-
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: heroCopy),
-                  const SizedBox(width: 18),
-                  heroIcon,
-                ],
-              );
-            },
+              ),
+            ],
           ),
-          const SizedBox(height: 18),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: suggestions
-                .map(
-                  (prompt) => GestureDetector(
-                    onTap: () => _postAiCommand(prompt),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.12),
-                        ),
-                      ),
-                      child: Text(
-                        prompt,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: Colors.white.withValues(alpha: 0.92),
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ),
-                )
-                .toList(),
+          const SizedBox(height: 24),
+          _buildAiInput(theme, appSettings),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAiInput(ThemeData theme, AppSettingsProvider appSettings) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF2F7F5),
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: AppVisuals.textForest.withValues(alpha: 0.12),
+        ),
+      ),
+      child: Row(
+        children: [
+          const SizedBox(width: 14),
+          Expanded(
+            child: TextField(
+              controller: _aiController,
+              onSubmitted: (value) => _postAiCommand(value),
+              style: const TextStyle(color: AppVisuals.textForest, fontSize: 14),
+              decoration: InputDecoration(
+                hintText: context.tr('Ask your farm assistant...'),
+                hintStyle: TextStyle(
+                  color: AppVisuals.textForestMuted.withValues(alpha: 0.55),
+                ),
+                border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+            ),
           ),
-          const SizedBox(height: 18),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final stacked = constraints.maxWidth < 620;
-              final input = TextField(
-                stylusHandwritingEnabled: false,
-                controller: _aiController,
-                onSubmitted: (value) => _postAiCommand(value),
-                style: const TextStyle(color: Colors.white),
-                decoration: InputDecoration(
-                  hintText: context.tr('Ask RCAMARii for a field brief...'),
-                  hintStyle: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.55),
+          if (appSettings.voiceAssistantEnabled)
+            IconButton(
+              onPressed: () => Provider.of<VoiceCommandProvider>(
+                context,
+                listen: false,
+              ).requestCommand(context),
+              icon: const Icon(Icons.mic_rounded, color: AppVisuals.primaryGold, size: 20),
+            ),
+          GestureDetector(
+            onTap: () => _postAiCommand(_aiController.text),
+            child: Container(
+              margin: const EdgeInsets.all(4),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppVisuals.primaryGold,
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    color: AppVisuals.primaryGold.withValues(alpha: 0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 3),
                   ),
-                  fillColor: Colors.white.withValues(alpha: 0.08),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(22),
-                    borderSide: BorderSide.none,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(22),
-                    borderSide: BorderSide(
-                      color: Colors.white.withValues(alpha: 0.1),
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(22),
-                    borderSide: const BorderSide(color: Colors.white),
-                  ),
-                ),
-              );
-              final sendButton = ElevatedButton(
-                onPressed: () => _postAiCommand(_aiController.text),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: AppVisuals.forestEmerald,
-                  minimumSize: const Size(58, 54),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                ),
-                child: const Icon(Icons.arrow_forward_rounded),
-              );
-              final voiceButton = appSettings.voiceAssistantEnabled
-                  ? FilledButton.tonal(
-                      onPressed: () => Provider.of<VoiceCommandProvider>(
-                        context,
-                        listen: false,
-                      ).requestCommand(
-                        context,
-                        hint: context.trRead('Ask RCAMARii'),
-                        speakResponse: false,
-                        onRecognized: (command) async {
-                          _postAiCommand(command, speakResult: true);
-                        },
-                      ),
-                      style: FilledButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        backgroundColor: Colors.white.withValues(alpha: 0.12),
-                        minimumSize: const Size(54, 54),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                      ),
-                      child: const Icon(Icons.mic_rounded),
-                    )
-                  : null;
-
-              if (stacked) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    input,
-                    const SizedBox(height: 10),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        if (voiceButton != null) ...[
-                          voiceButton,
-                          const SizedBox(width: 10),
-                        ],
-                        sendButton,
-                      ],
-                    ),
-                  ],
-                );
-              }
-
-              return Row(
-                children: [
-                  Expanded(child: input),
-                  if (voiceButton != null) ...[
-                    const SizedBox(width: 10),
-                    voiceButton,
-                  ],
-                  const SizedBox(width: 10),
-                  sendButton,
                 ],
-              );
-            },
+              ),
+              child: const Icon(Icons.arrow_forward_rounded, color: AppVisuals.deepGreen, size: 18),
+            ),
           ),
         ],
       ),
@@ -772,36 +693,44 @@ class _ScrMSoftState extends State<ScrMSoft> {
     ];
 
     return Wrap(
-      spacing: 12,
-      runSpacing: 12,
+      spacing: 16,
+      runSpacing: 16,
       children: stats
           .map(
             (stat) => FrostedPanel(
-              radius: 24,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              radius: 28,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  CircleAvatar(
-                    radius: 18,
-                    backgroundColor:
-                        theme.colorScheme.primary.withValues(alpha: 0.12),
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppVisuals.primaryGold.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     child: Icon(stat.icon,
-                        size: 18, color: theme.colorScheme.primary),
+                        size: 20, color: AppVisuals.primaryGold),
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(width: 14),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        stat.label,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.w700,
+                        stat.label.toUpperCase(),
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          color: AppVisuals.primaryGold.withValues(alpha: 0.6),
+                          fontSize: 10,
+                          letterSpacing: 0.5,
                         ),
                       ),
                       Text(
                         stat.value,
-                        style: theme.textTheme.titleLarge,
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          color: AppVisuals.textForest,
+                          fontWeight: FontWeight.w900,
+                        ),
                       ),
                     ],
                   ),
@@ -814,96 +743,62 @@ class _ScrMSoftState extends State<ScrMSoft> {
   }
 
   Widget _buildCopilotConsole(ThemeData theme) {
-    final isDark = theme.brightness == Brightness.dark;
-
     return FrostedPanel(
-      radius: 30,
+      radius: 36,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final stacked = constraints.maxWidth < 560;
-              final autopilotChip = Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  context.tr('Conversation Feed'),
+                  style: theme.textTheme.headlineMedium?.copyWith(color: AppVisuals.primaryGold),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(999),
+                  color: AppVisuals.primaryGold.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
-                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       context.tr('Autopilot'),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
+                      style: theme.textTheme.labelSmall?.copyWith(color: AppVisuals.primaryGold, fontWeight: FontWeight.w900),
                     ),
                     const SizedBox(width: 8),
                     SizedBox(
-                      height: 24,
+                      height: 20,
+                      width: 36,
                       child: Switch(
                         value: _autopilotEnabled,
-                        onChanged: (value) =>
-                            setState(() => _autopilotEnabled = value),
-                        activeThumbColor: AppVisuals.forestEmerald,
+                        onChanged: (value) => setState(() => _autopilotEnabled = value),
+                        activeThumbColor: AppVisuals.primaryGold,
+                        activeTrackColor: AppVisuals.primaryGold.withValues(alpha: 0.3),
                       ),
                     ),
                   ],
                 ),
-              );
-
-              if (stacked) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      context.tr('Conversation Feed'),
-                      style: theme.textTheme.headlineMedium,
-                    ),
-                    const SizedBox(height: 10),
-                    autopilotChip,
-                  ],
-                );
-              }
-
-              return Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      context.tr('Conversation Feed'),
-                      style: theme.textTheme.headlineMedium,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  autopilotChip,
-                ],
-              );
-            },
-          ),
-          const SizedBox(height: 8),
-          Text(
-            context.tr(
-              'Use typed or voice prompts. RCAMARii answers from your current farm context and existing knowledge logic.',
-            ),
-            style: theme.textTheme.bodyMedium,
+              ),
+            ],
           ),
           const SizedBox(height: 16),
           Container(
-            height: 280,
+            height: 300,
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF0E1711) : Colors.white,
-              borderRadius: BorderRadius.circular(24),
+              color: const Color(0xFFEFF5F2),
+              borderRadius: BorderRadius.circular(28),
               border: Border.all(
-                color: theme.colorScheme.outline.withValues(alpha: 0.45),
+                color: AppVisuals.textForest.withValues(alpha: 0.08),
               ),
             ),
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(28),
               child: ListView.builder(
                 controller: _chatController,
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.all(16),
                 itemCount: _messages.length,
                 itemBuilder: (context, index) {
                   final message = _messages[index];
@@ -911,29 +806,35 @@ class _ScrMSoftState extends State<ScrMSoft> {
                   return Align(
                     alignment:
                         isUser ? Alignment.centerRight : Alignment.centerLeft,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 560),
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(vertical: 5),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 12,
+                    child: Container(
+                      margin: const EdgeInsets.symmetric(vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isUser
+                            ? AppVisuals.primaryGold
+                            : const Color(0xFFE5EFE8),
+                        borderRadius: BorderRadius.circular(20).copyWith(
+                          bottomRight: isUser ? Radius.zero : const Radius.circular(20),
+                          bottomLeft: isUser ? const Radius.circular(20) : Radius.zero,
                         ),
-                        decoration: BoxDecoration(
-                          color: isUser
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(18),
-                        ),
-                        child: Text(
-                          message.text,
-                          style: theme.textTheme.bodyMedium?.copyWith(
-                            color: isUser
-                                ? theme.colorScheme.onPrimary
-                                : theme.colorScheme.onSurface,
-                            fontWeight:
-                                isUser ? FontWeight.w600 : FontWeight.w500,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 4,
+                            offset: const Offset(0, 2),
                           ),
+                        ],
+                      ),
+                      child: Text(
+                        message.text,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: isUser
+                              ? AppVisuals.deepGreen
+                              : AppVisuals.textForest,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ),
@@ -942,178 +843,81 @@ class _ScrMSoftState extends State<ScrMSoft> {
               ),
             ),
           ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Text(
-                context.tr('Sensitivity'),
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Slider(
-                  value: _autopilotSensitivity,
-                  onChanged: (value) =>
-                      setState(() => _autopilotSensitivity = value),
-                  min: 0.2,
-                  max: 0.95,
-                  divisions: 15,
-                  activeColor: theme.colorScheme.primary,
-                ),
-              ),
-              Text(
-                '${(_autopilotSensitivity * 100).toStringAsFixed(0)}%',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );
   }
 
   Widget _buildActionDeck(ThemeData theme) {
+    final g = AppVisuals.actionDeckGradients;
     final actions = [
       _ActionItem(
         title: context.tr('Estate'),
         subtitle: context.tr('Open farms'),
         icon: Icons.eco_rounded,
-        colors: const [Color(0xFF355D3B), Color(0xFF8ABF63)],
+        colors: g[0],
         onTap: () => _openFrmMain(context),
       ),
       _ActionItem(
         title: context.tr('Logistics'),
         subtitle: context.tr('Deliveries'),
         icon: Icons.local_shipping_rounded,
-        colors: const [Color(0xFF6B3E2A), Color(0xFFD8A057)],
+        colors: g[1],
         onTap: () => _openLogistics(context),
       ),
       _ActionItem(
         title: context.tr('Workers'),
         subtitle: context.tr('Crew panel'),
         icon: Icons.people_alt_rounded,
-        colors: const [Color(0xFF30495B), Color(0xFF7FB6D1)],
+        colors: g[2],
         onTap: () => _openWorkers(context),
       ),
       _ActionItem(
         title: context.tr('Finance'),
         subtitle: context.tr('Tracker'),
         icon: Icons.account_balance_wallet_rounded,
-        colors: const [Color(0xFF50342D), Color(0xFFD67E58)],
+        colors: g[3],
         onTap: () => _openFtracker(context),
       ),
       _ActionItem(
         title: 'SugarCalc',
         subtitle: context.tr('Estimate ROI'),
         icon: Icons.calculate_rounded,
-        colors: const [Color(0xFF244A33), Color(0xFF6AB17B)],
+        colors: g[4],
         onTap: () => _openProfitEstimator(context),
       ),
       _ActionItem(
         title: context.tr('Reports'),
         subtitle: context.tr('Charts'),
         icon: Icons.assessment_rounded,
-        colors: const [Color(0xFF3F3863), Color(0xFF9B90D4)],
+        colors: g[5],
         onTap: () => _openReports(context),
       ),
     ];
 
     return FrostedPanel(
-      radius: 30,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final crossAxisCount = constraints.maxWidth < 520 ? 1 : 2;
-          final itemHeight = crossAxisCount == 1 ? 124.0 : 140.0;
-
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                context.tr('Action Deck'),
-                style: theme.textTheme.headlineMedium,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                context.tr(
-                  'Jump into core modules without losing the copilot context.',
-                ),
-                style: theme.textTheme.bodyMedium,
-              ),
-              const SizedBox(height: 14),
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: actions.length,
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: crossAxisCount,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                  mainAxisExtent: itemHeight,
-                ),
-                itemBuilder: (context, index) {
-                  final action = actions[index];
-                  return InkWell(
-                    onTap: action.onTap,
-                    borderRadius: BorderRadius.circular(24),
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(24),
-                        gradient: LinearGradient(
-                          colors: action.colors,
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        boxShadow: AppVisuals.softGlow(action.colors.last),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(action.icon, color: Colors.white, size: 22),
-                          const SizedBox(height: 18),
-                          Expanded(
-                            child: Align(
-                              alignment: Alignment.bottomLeft,
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    action.title,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: theme.textTheme.titleLarge?.copyWith(
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    action.subtitle,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: theme.textTheme.bodySmall?.copyWith(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.78,
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ],
-          );
-        },
+      radius: 36,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            context.tr('Action Deck'),
+            style: theme.textTheme.headlineMedium?.copyWith(color: AppVisuals.primaryGold),
+          ),
+          const SizedBox(height: 20),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: actions.length,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              childAspectRatio: 1.3,
+            ),
+            itemBuilder: (context, index) => actions[index],
+          ),
+        ],
       ),
     );
   }
@@ -1126,86 +930,38 @@ class _ScrMSoftState extends State<ScrMSoft> {
     required int equipmentCount,
     required int pendingSugarcaneCount,
   }) {
-    final items = <_InsightCard>[
-      _InsightCard(
-        title: selectedFarm == null
-            ? context.tr('No active farm')
-            : selectedFarm.name,
-        message: selectedFarm == null
-            ? context.tr('Select a farm to make RCAMARii specific.')
-            : '${selectedFarm.type} • ${cropAge ?? 0} days • ${selectedFarm.area.toStringAsFixed(1)} ha',
-        icon: Icons.eco_rounded,
-      ),
-      _InsightCard(
-        title: weather == null
-            ? context.tr('Weather pending')
-            : context.tr('Weather brief'),
-        message: weather == null
-            ? context.tr('Forecast sync will appear here.')
-            : '${weather.description} • ${weather.temp.toStringAsFixed(0)} deg • humidity ${weather.humidity}%',
-        icon: Icons.cloud_outlined,
-      ),
-      _InsightCard(
-        title: context.tr('Equipment readiness'),
-        message: context.tr(
-          '{count} equipment records available for review.',
-          {'count': '$equipmentCount'},
-        ),
-        icon: Icons.precision_manufacturing_rounded,
-      ),
-      _InsightCard(
-        title: context.tr('Sugarcane queue'),
-        message: context.tr(
-          '{count} delivery records are ready for profit work.',
-          {'count': '$pendingSugarcaneCount'},
-        ),
-        icon: Icons.local_shipping_rounded,
-      ),
-    ];
-
     return FrostedPanel(
-      radius: 30,
+      radius: 36,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(context.tr('Live Overview'),
-              style: theme.textTheme.headlineMedium),
-          const SizedBox(height: 12),
-          ...items.map(
-            (item) => Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest
-                      .withValues(alpha: 0.72),
-                  borderRadius: BorderRadius.circular(22),
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    CircleAvatar(
-                      radius: 18,
-                      backgroundColor:
-                          theme.colorScheme.primary.withValues(alpha: 0.12),
-                      child: Icon(item.icon,
-                          size: 18, color: theme.colorScheme.primary),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(item.title, style: theme.textTheme.titleMedium),
-                          const SizedBox(height: 4),
-                          Text(item.message, style: theme.textTheme.bodyMedium),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          Text(
+            context.tr('Live Overview'),
+            style: theme.textTheme.headlineMedium?.copyWith(color: AppVisuals.primaryGold),
+          ),
+          const SizedBox(height: 20),
+          _OverviewRow(
+            label: context.tr('Active Farm'),
+            value: selectedFarm?.name ?? context.tr('None'),
+            icon: Icons.location_on_rounded,
+          ),
+          const Divider(height: 24, thickness: 0.5, color: AppVisuals.mutedGold),
+          _OverviewRow(
+            label: context.tr('Crop Age'),
+            value: cropAge != null ? context.tr('{days} Days', {'days': '$cropAge'}) : '--',
+            icon: Icons.calendar_today_rounded,
+          ),
+          const Divider(height: 24, thickness: 0.5, color: AppVisuals.mutedGold),
+          _OverviewRow(
+            label: context.tr('Weather'),
+            value: weather?.description ?? context.tr('N/A'),
+            icon: Icons.cloud_rounded,
+          ),
+          const Divider(height: 24, thickness: 0.5, color: AppVisuals.mutedGold),
+          _OverviewRow(
+            label: context.tr('Assets'),
+            value: context.tr('{count} items', {'count': '$equipmentCount'}),
+            icon: Icons.precision_manufacturing_rounded,
           ),
         ],
       ),
@@ -1220,172 +976,183 @@ class _ScrMSoftState extends State<ScrMSoft> {
     required SuppliesProvider suppliesProvider,
     required DeliveryProvider deliveryProvider,
   }) {
-    final activitiesThisWeek = activityProvider.activities
-        .where(
-            (activity) => DateTime.now().difference(activity.date).inDays <= 7)
-        .length;
-    final boardItems = [
-      _TodayItem(
-        title: context.tr('Field focus'),
-        detail: selectedFarm == null
-            ? context.tr('Choose a farm to unlock crop-stage guidance.')
-            : context.tr(
-                '{farm} is {days} days from planting.',
-                {
-                  'farm': selectedFarm.name,
-                  'days': '${cropAge ?? 0}',
-                },
-              ),
-        icon: Icons.crop_free_rounded,
-      ),
-      _TodayItem(
-        title: context.tr('Activity pulse'),
-        detail: context.tr(
-          '{count} activity records were logged in the last 7 days.',
-          {'count': '$activitiesThisWeek'},
-        ),
-        icon: Icons.timeline_rounded,
-      ),
-      _TodayItem(
-        title: context.tr('Inventory posture'),
-        detail: context.tr(
-          '{count} supply entries are available for review.',
-          {'count': '${suppliesProvider.items.length}'},
-        ),
-        icon: Icons.inventory_rounded,
-      ),
-      _TodayItem(
-        title: context.tr('Delivery posture'),
-        detail: context.tr(
-          '{count} deliveries are recorded across the app.',
-          {'count': '${deliveryProvider.deliveries.length}'},
-        ),
-        icon: Icons.route_rounded,
-      ),
-    ];
-
     return FrostedPanel(
-      radius: 30,
+      radius: 40,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(context.tr('Today Board'),
-              style: theme.textTheme.headlineMedium),
-          const SizedBox(height: 8),
           Text(
-            context.tr(
-              'A fast operational summary driven by your existing farm records.',
+            context.tr('Recent Activity'),
+            style: theme.textTheme.headlineMedium?.copyWith(color: AppVisuals.primaryGold),
+          ),
+          const SizedBox(height: 20),
+          if (activityProvider.activities.isEmpty)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 32),
+                child: Text(
+                  context.tr('No recent activity recorded.'),
+                  style: theme.textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic),
+                ),
+              ),
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: activityProvider.activities.take(4).length,
+              separatorBuilder: (_, __) => const SizedBox(height: 12),
+              itemBuilder: (context, index) {
+                final activity = activityProvider.activities[index];
+                return Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE8F2EE),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppVisuals.primaryGold.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.history_rounded, size: 18, color: AppVisuals.primaryGold),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              activity.name,
+                              style: theme.textTheme.titleMedium?.copyWith(color: AppVisuals.textForest),
+                            ),
+                            Text(
+                              activity.farm,
+                              style: theme.textTheme.bodySmall?.copyWith(color: AppVisuals.textForest.withValues(alpha: 0.5)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Text(
+                        DateFormat('MMM d').format(activity.date),
+                        style: theme.textTheme.labelSmall?.copyWith(color: AppVisuals.primaryGold),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
-            style: theme.textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 14),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final crossAxisCount = constraints.maxWidth >= 1100
-                  ? 4
-                  : constraints.maxWidth >= 700
-                      ? 2
-                      : 1;
-              const spacing = 12.0;
-              final itemWidth = crossAxisCount == 1
-                  ? constraints.maxWidth
-                  : (constraints.maxWidth - (spacing * (crossAxisCount - 1))) /
-                      crossAxisCount;
-
-              return Wrap(
-                spacing: spacing,
-                runSpacing: spacing,
-                children: boardItems.map((item) {
-                  return SizedBox(
-                    width: itemWidth,
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surfaceContainerHighest
-                            .withValues(alpha: 0.72),
-                        borderRadius: BorderRadius.circular(24),
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          CircleAvatar(
-                            radius: 18,
-                            backgroundColor: theme.colorScheme.primary
-                                .withValues(alpha: 0.12),
-                            child: Icon(item.icon,
-                                size: 18, color: theme.colorScheme.primary),
-                          ),
-                          const SizedBox(height: 18),
-                          Text(item.title, style: theme.textTheme.titleMedium),
-                          const SizedBox(height: 6),
-                          Text(item.detail, style: theme.textTheme.bodyMedium),
-                        ],
-                      ),
-                    ),
-                  );
-                }).toList(),
-              );
-            },
-          ),
         ],
       ),
     );
   }
 
+  void _openSettings(BuildContext context) {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
+  }
+
   void _openFrmMain(BuildContext context) {
-    Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const FrmMain()));
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const FrmMain()));
   }
 
   void _openLogistics(BuildContext context) {
-    Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const FrmLogistics()));
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const FrmLogistics()));
   }
 
   void _openWorkers(BuildContext context) {
-    Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const ScrWorkers()));
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const ScrWorkers()));
   }
 
   void _openFtracker(BuildContext context) {
-    Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const FtrackerSplashScreen()));
-  }
-
-  void _openSettings(BuildContext context) {
-    Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const SettingsScreen()));
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const FtrackerSplashScreen()));
   }
 
   void _openProfitEstimator(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const ProfitCalculatorScreen()),
-    );
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfitCalculatorScreen()));
   }
 
   void _openReports(BuildContext context) {
-    Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const ChartsScreen()));
+    Navigator.push(context, MaterialPageRoute(builder: (_) => const ChartsScreen()));
   }
 
   void _openExitScreen(BuildContext context) {
-    Navigator.of(context)
-        .push(MaterialPageRoute(builder: (_) => const ExitScreen()));
+    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const ExitScreen()));
   }
 }
 
 class _AiMessage {
   final String role;
   final String text;
-
-  const _AiMessage({
-    required this.role,
-    required this.text,
-  });
+  _AiMessage({required this.role, required this.text});
 }
 
-class _ActionItem {
+class _HeroStat {
+  final String label;
+  final String value;
+  final IconData icon;
+  _HeroStat(this.label, this.value, this.icon);
+}
+
+class _TopPill extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _TopPill({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppVisuals.primaryGold.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppVisuals.primaryGold.withValues(alpha: 0.2)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 16, color: AppVisuals.primaryGold),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: AppVisuals.primaryGold,
+                  fontWeight: FontWeight.w800,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HeaderIconButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+
+  const _HeaderIconButton({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: AppVisuals.textForest.withValues(alpha: 0.05),
+          shape: BoxShape.circle,
+          border: Border.all(color: AppVisuals.textForest.withValues(alpha: 0.1)),
+        ),
+        child: Icon(icon, size: 20, color: AppVisuals.textForest.withValues(alpha: 0.7)),
+      ),
+    );
+  }
+}
+
+class _ActionItem extends StatelessWidget {
   final String title;
   final String subtitle;
   final IconData icon;
@@ -1399,72 +1166,84 @@ class _ActionItem {
     required this.colors,
     required this.onTap,
   });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: colors,
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(
+              color: colors.first.withValues(alpha: 0.3),
+              blurRadius: 10,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: AppVisuals.textForest, size: 28),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              style: const TextStyle(
+                color: AppVisuals.textForest,
+                fontWeight: FontWeight.w900,
+                fontSize: 15,
+              ),
+            ),
+            Text(
+              subtitle,
+              style: TextStyle(
+                color: AppVisuals.textForestMuted,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
-class _HeroStat {
+class _OverviewRow extends StatelessWidget {
   final String label;
   final String value;
   final IconData icon;
 
-  const _HeroStat(this.label, this.value, this.icon);
-}
-
-class _InsightCard {
-  final String title;
-  final String message;
-  final IconData icon;
-
-  const _InsightCard({
-    required this.title,
-    required this.message,
-    required this.icon,
-  });
-}
-
-class _TodayItem {
-  final String title;
-  final String detail;
-  final IconData icon;
-
-  const _TodayItem({
-    required this.title,
-    required this.detail,
-    required this.icon,
-  });
-}
-
-class _TopPill extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _TopPill({
-    required this.icon,
-    required this.label,
-  });
+  const _OverviewRow({required this.label, required this.value, required this.icon});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: Colors.white.withValues(alpha: 0.92)),
-          const SizedBox(width: 8),
-          Text(
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: AppVisuals.primaryGold.withValues(alpha: 0.7)),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Text(
             label,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.92),
-                  fontWeight: FontWeight.w800,
-                ),
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
           ),
-        ],
-      ),
+        ),
+        Text(
+          value,
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                color: AppVisuals.primaryGold,
+                fontWeight: FontWeight.w900,
+              ),
+        ),
+      ],
     );
   }
 }

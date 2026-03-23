@@ -6,6 +6,7 @@ import '../screens/frm_add_equip_screen.dart';
 import '../screens/frm_add_equip_defs_screen.dart';
 import '../models/equipment_model.dart';
 import '../widgets/searchable_dropdown.dart';
+import '../themes/app_visuals.dart';
 
 class UserEquipmentView extends StatefulWidget {
   const UserEquipmentView({super.key});
@@ -118,7 +119,7 @@ class _UserEquipmentViewState extends State<UserEquipmentView>
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Text('You have no Equipment yet.',
-                style: TextStyle(fontSize: 18, color: Colors.white)),
+                style: TextStyle(fontSize: 18, color: AppVisuals.textForest)),
             const SizedBox(height: 8),
             ElevatedButton.icon(
               icon: const Icon(Icons.add),
@@ -140,7 +141,8 @@ class _UserEquipmentViewState extends State<UserEquipmentView>
               label: const Text('Equipment Database'),
               onPressed: _toggleScreen),
         ),
-        const Divider(color: Colors.white24),
+        Divider(
+            color: AppVisuals.textForest.withValues(alpha: 0.22)),
         Expanded(
           child: ListView.builder(
             itemCount: equipment.length,
@@ -251,7 +253,8 @@ class _UserEquipmentViewState extends State<UserEquipmentView>
               label: const Text('Back to My Equipment'),
               onPressed: _toggleScreen),
         ),
-        const Divider(color: Colors.white24),
+        Divider(
+            color: AppVisuals.textForest.withValues(alpha: 0.22)),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: SearchableDropdownFormField<String>(

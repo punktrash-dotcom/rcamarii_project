@@ -4,6 +4,7 @@ import '../providers/equipment_provider.dart';
 import '../providers/data_provider.dart';
 import '../models/equipment_model.dart';
 import '../screens/frm_add_equip_screen.dart';
+import '../themes/app_visuals.dart';
 
 class EquipmentTab extends StatefulWidget {
   const EquipmentTab({super.key});
@@ -309,23 +310,25 @@ class _EquipmentTabState extends State<EquipmentTab> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF004D40),
+        backgroundColor: const Color(0xFFE8F0EC),
         title: Text('RESTOCK ${item.name.toUpperCase()}?',
             style: const TextStyle(
-                color: Colors.white,
+                color: AppVisuals.textForest,
                 fontWeight: FontWeight.w900,
                 fontSize: 14)),
         content: const Text('Add one additional unit to your farm inventory?',
-            style: TextStyle(color: Colors.white70)),
+            style: TextStyle(color: AppVisuals.textForestMuted)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('CANCEL',
-                  style: TextStyle(color: Colors.white38))),
+              child: Text('CANCEL',
+                  style: TextStyle(
+                      color: AppVisuals.textForest.withValues(alpha: 0.45))),
+            ),
           TextButton(
               onPressed: () => Navigator.pop(ctx, true),
-              child:
-                  const Text('CONFIRM', style: TextStyle(color: Colors.white))),
+              child: const Text('CONFIRM',
+                  style: TextStyle(color: AppVisuals.textForest))),
         ],
       ),
     );
@@ -343,10 +346,10 @@ class _EquipmentTabState extends State<EquipmentTab> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: const Color(0xFF004D40),
+          backgroundColor: const Color(0xFFE8F0EC),
           title: Text("ADD ${def['Name'].toUpperCase()}",
               style: const TextStyle(
-                  color: Colors.white,
+                  color: AppVisuals.textForest,
                   fontWeight: FontWeight.w900,
                   fontSize: 14)),
           content: SingleChildScrollView(
@@ -356,26 +359,32 @@ class _EquipmentTabState extends State<EquipmentTab> {
                 TextField(
                     stylusHandwritingEnabled: false,
                     controller: qController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
+                    style: const TextStyle(color: AppVisuals.textForest),
+                    decoration: InputDecoration(
                       labelText: 'QUANTITY',
-                      labelStyle:
-                          TextStyle(fontSize: 10, color: Colors.white70),
+                      labelStyle: TextStyle(
+                          fontSize: 10,
+                          color: AppVisuals.textForest.withValues(alpha: 0.65)),
                       enabledBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white24)),
+                          borderSide: BorderSide(
+                              color: AppVisuals.textForest.withValues(
+                                  alpha: 0.25))),
                     ),
                     keyboardType: TextInputType.number),
                 const SizedBox(height: 16),
                 TextField(
                     stylusHandwritingEnabled: false,
                     controller: costController,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
+                    style: const TextStyle(color: AppVisuals.textForest),
+                    decoration: InputDecoration(
                       labelText: 'UNIT COST',
-                      labelStyle:
-                          TextStyle(fontSize: 10, color: Colors.white70),
+                      labelStyle: TextStyle(
+                          fontSize: 10,
+                          color: AppVisuals.textForest.withValues(alpha: 0.65)),
                       enabledBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.white24)),
+                          borderSide: BorderSide(
+                              color: AppVisuals.textForest.withValues(
+                                  alpha: 0.25))),
                     ),
                     keyboardType: TextInputType.number),
               ],
@@ -384,8 +393,10 @@ class _EquipmentTabState extends State<EquipmentTab> {
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: const Text('CANCEL',
-                    style: TextStyle(color: Colors.white38))),
+                child: Text('CANCEL',
+                    style: TextStyle(
+                        color: AppVisuals.textForest.withValues(alpha: 0.45))),
+              ),
             ElevatedButton(
                 onPressed: () {
                   final quantity = int.tryParse(qController.text) ?? 1;
@@ -404,8 +415,8 @@ class _EquipmentTabState extends State<EquipmentTab> {
                   _toggleScreen();
                 },
                 style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: const Color(0xFF004D40)),
+                    backgroundColor: AppVisuals.primaryGold,
+                    foregroundColor: AppVisuals.deepGreen),
                 child: const Text('CONFIRM')),
           ],
         ),
@@ -417,7 +428,7 @@ class _EquipmentTabState extends State<EquipmentTab> {
     final confirm = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-                backgroundColor: const Color(0xFF004D40),
+                backgroundColor: const Color(0xFFE8F0EC),
                 title: const Text('REMOVE EQUIPMENT?',
                     style: TextStyle(
                         color: Colors.redAccent,
@@ -425,12 +436,14 @@ class _EquipmentTabState extends State<EquipmentTab> {
                         fontSize: 14)),
                 content: const Text(
                     'Are you sure you want to remove this unit from your inventory?',
-                    style: TextStyle(color: Colors.white70)),
+                    style: TextStyle(color: AppVisuals.textForestMuted)),
                 actions: [
                   TextButton(
                       onPressed: () => Navigator.pop(ctx, false),
-                      child: const Text('NO',
-                          style: TextStyle(color: Colors.white38))),
+                      child: Text('NO',
+                          style: TextStyle(
+                              color: AppVisuals.textForest
+                                  .withValues(alpha: 0.45)))),
                   TextButton(
                       onPressed: () => Navigator.pop(ctx, true),
                       child: const Text('REMOVE',

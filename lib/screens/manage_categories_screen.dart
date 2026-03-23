@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/theme_provider.dart';
+import '../themes/app_visuals.dart';
 
 class ManageCategoriesScreen extends StatefulWidget {
   const ManageCategoriesScreen({super.key});
@@ -58,13 +59,10 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
-            final themeProvider = Provider.of<ThemeProvider>(context);
-            final isDark = themeProvider.darkTheme;
             return AlertDialog(
-              backgroundColor: isDark ? Colors.grey[900] : Colors.white,
-              title: Text('Add New Category',
-                  style:
-                      TextStyle(color: isDark ? Colors.white : Colors.black)),
+              backgroundColor: const Color(0xFFE8F0EC),
+              title: const Text('Add New Category',
+                  style: TextStyle(color: AppVisuals.textForest)),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -72,22 +70,21 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen> {
                     TextField(
                       stylusHandwritingEnabled: false,
                       controller: nameController,
-                      style: TextStyle(
-                          color: isDark ? Colors.white : Colors.black),
+                      style: const TextStyle(color: AppVisuals.textForest),
                       decoration: InputDecoration(
                         labelText: 'Category Name',
                         labelStyle: TextStyle(
-                            color: isDark ? Colors.grey : Colors.grey[700]),
+                            color: AppVisuals.textForest.withValues(alpha: 0.55)),
                         enabledBorder: UnderlineInputBorder(
                             borderSide: BorderSide(
-                                color:
-                                    isDark ? Colors.grey : Colors.grey[400]!)),
+                                color: AppVisuals.textForest
+                                    .withValues(alpha: 0.22))),
                       ),
                     ),
                     const SizedBox(height: 20),
-                    Text('Choose Icon',
+                    const Text('Choose Icon',
                         style: TextStyle(
-                            color: isDark ? Colors.white : Colors.black,
+                            color: AppVisuals.textForest,
                             fontWeight: FontWeight.bold)),
                     const SizedBox(height: 10),
                     SizedBox(
@@ -105,7 +102,8 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen> {
                             icon: Icon(icon,
                                 color: isSelected
                                     ? Colors.deepPurple
-                                    : (isDark ? Colors.white54 : Colors.grey)),
+                                    : AppVisuals.textForest
+                                        .withValues(alpha: 0.45)),
                             onPressed: () =>
                                 setDialogState(() => selectedIcon = icon),
                           );
@@ -136,8 +134,8 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen> {
                   },
                   style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.deepPurple),
-                  child:
-                      const Text('Add', style: TextStyle(color: Colors.white)),
+                  child: const Text('Add',
+                      style: TextStyle(color: AppVisuals.softWhite)),
                 ),
               ],
             );
@@ -153,16 +151,17 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen> {
     final isDark = themeProvider.darkTheme;
 
     return Scaffold(
-      backgroundColor: isDark ? Colors.black : Colors.grey[200],
+      backgroundColor:
+          isDark ? const Color(0xFFD8E8E0) : Colors.grey[200],
       appBar: AppBar(
-        title: Text('Manage Categories',
+        title: const Text('Manage Categories',
             style: TextStyle(
-                color: isDark ? Colors.white : Colors.black,
+                color: AppVisuals.textForest,
                 fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
-        iconTheme: IconThemeData(color: isDark ? Colors.white : Colors.black),
+        iconTheme: const IconThemeData(color: AppVisuals.textForest),
         actions: [
           IconButton(
             icon: const Icon(Icons.add, size: 30),
@@ -176,7 +175,7 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen> {
         itemBuilder: (context, index) {
           final category = _categories[index];
           return Card(
-            color: isDark ? Colors.grey[900] : Colors.white,
+            color: const Color(0xFFE8F0EC),
             margin: const EdgeInsets.symmetric(vertical: 8),
             elevation: 1,
             shape:
@@ -189,9 +188,9 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen> {
                     size: 24),
               ),
               title: Text(category['name'],
-                  style: TextStyle(
+                  style: const TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: isDark ? Colors.white : Colors.black)),
+                      color: AppVisuals.textForest)),
             ),
           );
         },

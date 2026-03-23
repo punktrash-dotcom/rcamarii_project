@@ -136,6 +136,7 @@ class AppSettingsProvider with ChangeNotifier {
   static const _voiceResponsesEnabledKey =
       'app_settings.voice_responses_enabled';
   static const _audioSoundsEnabledKey = 'app_settings.audio_sounds_enabled';
+  static const _audioSoundsVolumeKey = 'app_settings.audio_sounds_volume';
   static const _audioSoundStyleKey = 'app_settings.audio_sound_style';
   static const _weatherAutoRefreshKey = 'app_settings.weather_auto_refresh';
   static const _reducedMotionKey = 'app_settings.reduced_motion';
@@ -147,6 +148,7 @@ class AppSettingsProvider with ChangeNotifier {
   bool _voiceAssistantEnabled = true;
   bool _voiceResponsesEnabled = true;
   bool _audioSoundsEnabled = false;
+  double _audioSoundsVolume = 0.75;
   AudioSoundStyle _audioSoundStyle = AudioSoundStyle.serious;
   bool _weatherAutoRefresh = true;
   bool _reducedMotion = false;
@@ -158,6 +160,7 @@ class AppSettingsProvider with ChangeNotifier {
   bool get voiceAssistantEnabled => _voiceAssistantEnabled;
   bool get voiceResponsesEnabled => _voiceResponsesEnabled;
   bool get audioSoundsEnabled => _audioSoundsEnabled;
+  double get audioSoundsVolume => _audioSoundsVolume;
   AudioSoundStyle get audioSoundStyle => _audioSoundStyle;
   bool get weatherAutoRefresh => _weatherAutoRefresh;
   bool get reducedMotion => _reducedMotion;
@@ -216,6 +219,15 @@ class AppSettingsProvider with ChangeNotifier {
     await prefs.setBool(_audioSoundsEnabledKey, value);
   }
 
+  Future<void> setAudioSoundsVolume(double value) async {
+    if (_audioSoundsVolume == value) return;
+    _audioSoundsVolume = value;
+    notifyListeners();
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble(_audioSoundsVolumeKey, value);
+  }
+
   Future<void> setAudioSoundStyle(AudioSoundStyle value) async {
     if (_audioSoundStyle == value) return;
     _audioSoundStyle = value;
@@ -254,6 +266,7 @@ class AppSettingsProvider with ChangeNotifier {
     _voiceAssistantEnabled = prefs.getBool(_voiceAssistantEnabledKey) ?? true;
     _voiceResponsesEnabled = prefs.getBool(_voiceResponsesEnabledKey) ?? true;
     _audioSoundsEnabled = prefs.getBool(_audioSoundsEnabledKey) ?? false;
+    _audioSoundsVolume = prefs.getDouble(_audioSoundsVolumeKey) ?? 0.75;
     _audioSoundStyle =
         AudioSoundStyleX.fromCode(prefs.getString(_audioSoundStyleKey));
     selectedGlobalAudioSoundStyle = _audioSoundStyle;
