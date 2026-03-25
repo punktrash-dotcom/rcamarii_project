@@ -352,6 +352,17 @@ class MarketPriceSyncService {
     return File('${directory.path}${Platform.pathSeparator}$_cacheFileName');
   }
 
+  Future<void> clearCache() async {
+    try {
+      final file = await _cacheFile();
+      if (await file.exists()) {
+        await file.delete();
+      }
+    } catch (error) {
+      debugPrint('MarketPriceSyncService.clearCache error: $error');
+    }
+  }
+
   Map<String, Map<String, dynamic>> _sourceMapById(
     Map<String, dynamic>? snapshot,
   ) {

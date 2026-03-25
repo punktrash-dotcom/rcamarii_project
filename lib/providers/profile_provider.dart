@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
+import '../services/app_properties_store.dart';
 
 class ProfileProvider with ChangeNotifier {
   static const String _nameKey = 'profile_name';
@@ -7,6 +8,7 @@ class ProfileProvider with ChangeNotifier {
 
   String _userName = 'My Wallet';
   String? _imagePath;
+  final AppPropertiesStore _store = AppPropertiesStore.instance;
 
   String get userName => _userName;
   String? get imagePath => _imagePath;
@@ -16,21 +18,24 @@ class ProfileProvider with ChangeNotifier {
   }
 
   Future<void> _loadProfile() async {
-    final prefs = await SharedPreferences.getInstance();
-    _userName = prefs.getString(_nameKey) ?? 'My Wallet';
-    _imagePath = prefs.getString(_imageKey);
+    await _store.ready;
+    _userName = await _store.getString(_nameKey) ?? 'My Wallet';
+    _imagePath = await _store.getString(_imageKey);
     notifyListeners();
   }
 
+  Future<void> reload() async {
+    await _loadProfile();
+  }
+
   Future<void> updateProfile(String name, String? imagePath) async {
-    final prefs = await SharedPreferences.getInstance();
     _userName = name;
     _imagePath = imagePath;
-    await prefs.setString(_nameKey, name);
+    await _store.setString(_nameKey, name);
     if (imagePath != null) {
-      await prefs.setString(_imageKey, imagePath);
+      await _store.setString(_imageKey, imagePath);
     } else {
-      await prefs.remove(_imageKey);
+      await _store.remove(_imageKey);
     }
     notifyListeners();
   }

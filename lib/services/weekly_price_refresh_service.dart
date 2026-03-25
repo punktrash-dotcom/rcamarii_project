@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../providers/data_provider.dart';
+import 'app_properties_store.dart';
 import 'market_price_sync_service.dart';
 import 'supply_price_sync_service.dart';
 
@@ -16,9 +16,8 @@ class WeeklyPriceRefreshService {
   static const _refreshInterval = Duration(days: 7);
 
   Future<void> refreshIfDue(DataProvider dataProvider) async {
-    final prefs = await SharedPreferences.getInstance();
     final lastSuccessfulRefreshRaw =
-        prefs.getString(_lastSuccessfulRefreshKey);
+        await AppPropertiesStore.instance.getString(_lastSuccessfulRefreshKey);
     final now = DateTime.now();
 
     if (lastSuccessfulRefreshRaw != null) {
@@ -33,7 +32,8 @@ class WeeklyPriceRefreshService {
       await MarketPriceSyncService.instance.syncLatestPriceCache();
       await SupplyPriceSyncService.instance.syncCatalogWithLatestSourcePrices();
       await dataProvider.loadDefSupsFromDb();
-      await prefs.setString(_lastSuccessfulRefreshKey, now.toIso8601String());
+      await AppPropertiesStore.instance
+          .setString(_lastSuccessfulRefreshKey, now.toIso8601String());
     } catch (error) {
       debugPrint('WeeklyPriceRefreshService.refreshIfDue error: $error');
     }

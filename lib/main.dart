@@ -22,9 +22,11 @@ import 'providers/guideline_language_provider.dart';
 import 'providers/sugarcane_profit_provider.dart';
 
 import 'screens/splash_screen.dart';
+import 'services/app_properties_store.dart';
 import 'services/app_localization_service.dart';
 import 'services/app_route_observer.dart';
 import 'themes/app_visuals.dart';
+import 'utils/app_layout_utils.dart';
 import 'providers/ftracker_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/profile_provider.dart';
@@ -41,6 +43,8 @@ Future<void> main() async {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
   }
+
+  await AppPropertiesStore.instance.ready;
 
   runApp(const MyApp());
 }
@@ -69,7 +73,14 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => ProfileProvider()),
         ChangeNotifierProvider(create: (_) => GuidelineLanguageProvider()),
         ChangeNotifierProvider(create: (_) => AppSettingsProvider()),
-        ChangeNotifierProvider(create: (_) => AppAudioProvider()),
+        ChangeNotifierProxyProvider<AppSettingsProvider, AppAudioProvider>(
+          create: (_) => AppAudioProvider(),
+          update: (_, appSettings, appAudio) {
+            final provider = appAudio ?? AppAudioProvider();
+            provider.updateVolume(appSettings.audioSoundsVolume);
+            return provider;
+          },
+        ),
       ],
       child: Consumer3<ThemeProvider, GuidelineLanguageProvider,
           AppSettingsProvider>(
@@ -108,6 +119,7 @@ class MyApp extends StatelessWidget {
               return MediaQuery(
                 data: mediaQuery.copyWith(
                   disableAnimations: reduceMotion,
+                  textScaler: AppLayoutUtils.clampedTextScaler(mediaQuery),
                 ),
                 child: child,
               );

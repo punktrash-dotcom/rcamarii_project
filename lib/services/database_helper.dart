@@ -7,7 +7,7 @@ import 'package:path_provider/path_provider.dart';
 class DatabaseHelper {
   static const _databaseName = 'RcamariiFarm.db';
   static const _databaseVersion =
-      42; // Incremented for Activities note relaxation
+      46; // Incremented for employee cellphone field
 
   // Table Names Constants
   static const tableFarms = 'Farms';
@@ -15,6 +15,7 @@ class DatabaseHelper {
   static const tableSupplies = 'Supplies';
   static const tableFtracker = 'Ftracker';
   static const tableDeliveries = 'Deliveries';
+  static const tableProduceDeliveries = 'ProduceDeliveries';
   static const tableSugarcaneProfits = 'SugarcaneProfits';
   static const tableEquipment = 'Equipment';
   static const tableWorkers = 'Employees';
@@ -24,6 +25,7 @@ class DatabaseHelper {
   static const tableCategories = 'Categories';
   static const tableQaTable = 'qa_table';
   static const tableQaCategoryIcons = 'qa_category_icons';
+  static const tableAppProperties = 'AppProperties';
 
   DatabaseHelper._privateConstructor();
   static final DatabaseHelper instance = DatabaseHelper._privateConstructor();
@@ -84,6 +86,22 @@ class DatabaseHelper {
     if (oldVersion < 42) {
       await _ensureActivitiesSchema(db);
     }
+
+    if (oldVersion < 43) {
+      await _createProduceDeliveriesTable(db);
+    }
+
+    if (oldVersion < 44) {
+      await _recreateProduceDeliveriesTableWithExpenseBreakdown(db);
+    }
+
+    if (oldVersion < 45) {
+      await _createAppPropertiesTable(db);
+    }
+
+    if (oldVersion < 46) {
+      await _ensureEmployeesSchema(db);
+    }
   }
 
   Future _onOpen(Database db) async {
@@ -91,11 +109,17 @@ class DatabaseHelper {
     await _ensureFtrackerSchema(db);
     await _ensureActivitiesSchema(db);
     await _createSugarcaneProfitsTable(db);
+    await _createProduceDeliveriesTable(db);
     await _createQaTable(db);
     await _createQaCategoryIconsTable(db);
+    await _createAppPropertiesTable(db);
+    await _ensureEmployeesSchema(db);
   }
 
-  Future<void> _dropAllTables(Database db) async {
+  Future<void> _dropAllTables(
+    DatabaseExecutor db, {
+    bool includeAppProperties = true,
+  }) async {
     final tables = [
       tableFtracker,
       tableSugarcaneProfits,
@@ -110,9 +134,13 @@ class DatabaseHelper {
       tableActivities,
       tableSupplies,
       tableDeliveries,
+      tableProduceDeliveries,
       tableWorkers,
-      'WorkersDB'
+      'WorkersDB',
     ];
+    if (includeAppProperties) {
+      tables.add(tableAppProperties);
+    }
     for (var table in tables) {
       await db.execute('DROP TABLE IF EXISTS $table');
     }
@@ -121,7 +149,7 @@ class DatabaseHelper {
 
   // --- Table Creation Methods ---
 
-  Future<void> _createFarmsTable(Database db) async {
+  Future<void> _createFarmsTable(DatabaseExecutor db) async {
     await db.execute('''
       CREATE TABLE $tableFarms (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -137,7 +165,7 @@ class DatabaseHelper {
     print("   -> Table '$tableFarms' created.");
   }
 
-  Future<void> _createActivitiesTable(Database db) async {
+  Future<void> _createActivitiesTable(DatabaseExecutor db) async {
     await db.execute('''
       CREATE TABLE $tableActivities (
         jobId TEXT PRIMARY KEY,
@@ -158,7 +186,7 @@ class DatabaseHelper {
     print("   -> Table '$tableActivities' created.");
   }
 
-  Future<void> _createSuppliesTable(Database db) async {
+  Future<void> _createSuppliesTable(DatabaseExecutor db) async {
     await db.execute('''
       CREATE TABLE $tableSupplies (
         id TEXT PRIMARY KEY,
@@ -172,7 +200,7 @@ class DatabaseHelper {
     print("   -> Table '$tableSupplies' created.");
   }
 
-  Future<void> _createFtrackerTable(Database db) async {
+  Future<void> _createFtrackerTable(DatabaseExecutor db) async {
     await db.execute('''
       CREATE TABLE $tableFtracker(
         TransID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -195,6 +223,24 @@ class DatabaseHelper {
   Future<void> _ensureActivitiesSchema(Database db) async {
     await _relaxActivitiesCostTotalConstraints(db);
     await _relaxActivitiesNoteConstraint(db);
+  }
+
+  Future<void> _ensureEmployeesSchema(Database db) async {
+    final columns = await db.rawQuery('PRAGMA table_info($tableWorkers)');
+    if (columns.isEmpty) return;
+
+    final hasCellphoneColumn = columns.any(
+      (column) =>
+          (column['name'] ?? '').toString().toLowerCase() == 'cellphonenumber',
+    );
+    if (hasCellphoneColumn) return;
+
+    await db.execute(
+      'ALTER TABLE $tableWorkers ADD COLUMN CellphoneNumber TEXT',
+    );
+    print(
+      "   -> Migrated '$tableWorkers': added 'CellphoneNumber' column.",
+    );
   }
 
   bool _columnIsNotNull(Map<String, Object?> column) {
@@ -415,7 +461,7 @@ class DatabaseHelper {
         "   -> Migrated '$tableActivities': relaxed 'note' column to allow NULL values.");
   }
 
-  Future<void> _createDeliveriesTable(Database db) async {
+  Future<void> _createDeliveriesTable(DatabaseExecutor db) async {
     await db.execute('''
       CREATE TABLE $tableDeliveries(
         DelID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -432,7 +478,140 @@ class DatabaseHelper {
     print("   -> Table '$tableDeliveries' created with updated schema.");
   }
 
-  Future<void> _createSugarcaneProfitsTable(Database db) async {
+  Future<void> _createProduceDeliveriesTable(DatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $tableProduceDeliveries(
+        ProduceDeliveryID INTEGER PRIMARY KEY AUTOINCREMENT,
+        DeliveryRefID INTEGER,
+        DeliveryNo TEXT NOT NULL,
+        Date TEXT NOT NULL,
+        Crop TEXT NOT NULL,
+        FarmName TEXT NOT NULL,
+        TotalSacks REAL NOT NULL,
+        GrossWeight REAL NOT NULL,
+        DeductionsPercent REAL NOT NULL,
+        MaintainerSharePercent REAL NOT NULL,
+        HarvesterSharePercent REAL NOT NULL,
+        PriceOfProduce REAL NOT NULL,
+        GrossSales REAL NOT NULL,
+        TotalDeductions REAL NOT NULL,
+        AverageWeightPerSack REAL NOT NULL,
+        NetProfit REAL NOT NULL,
+        IncludeOverallExpenses INTEGER NOT NULL DEFAULT 0,
+        PrePlantingExpenses REAL NOT NULL DEFAULT 0,
+        OverallFarmExpenses REAL NOT NULL DEFAULT 0,
+        PostPlantingExpenses REAL NOT NULL DEFAULT 0,
+        FinalProfit REAL NOT NULL,
+        Note TEXT,
+        CreatedAt TEXT NOT NULL
+      )
+    ''');
+    print("   -> Table '$tableProduceDeliveries' created.");
+  }
+
+  Future<void> _recreateProduceDeliveriesTableWithExpenseBreakdown(
+      Database db) async {
+    final columns =
+        await db.rawQuery('PRAGMA table_info($tableProduceDeliveries)');
+    final hasPrePlanting = columns.any(
+      (column) => (column['name'] ?? '').toString() == 'PrePlantingExpenses',
+    );
+    final hasPostPlanting = columns.any(
+      (column) => (column['name'] ?? '').toString() == 'PostPlantingExpenses',
+    );
+    if (hasPrePlanting && hasPostPlanting) {
+      return;
+    }
+
+    await db.transaction((txn) async {
+      await txn.execute('''
+        CREATE TABLE ${tableProduceDeliveries}_v44(
+          ProduceDeliveryID INTEGER PRIMARY KEY AUTOINCREMENT,
+          DeliveryRefID INTEGER,
+          DeliveryNo TEXT NOT NULL,
+          Date TEXT NOT NULL,
+          Crop TEXT NOT NULL,
+          FarmName TEXT NOT NULL,
+          TotalSacks REAL NOT NULL,
+          GrossWeight REAL NOT NULL,
+          DeductionsPercent REAL NOT NULL,
+          MaintainerSharePercent REAL NOT NULL,
+          HarvesterSharePercent REAL NOT NULL,
+          PriceOfProduce REAL NOT NULL,
+          GrossSales REAL NOT NULL,
+          TotalDeductions REAL NOT NULL,
+          AverageWeightPerSack REAL NOT NULL,
+          NetProfit REAL NOT NULL,
+          IncludeOverallExpenses INTEGER NOT NULL DEFAULT 0,
+          PrePlantingExpenses REAL NOT NULL DEFAULT 0,
+          OverallFarmExpenses REAL NOT NULL DEFAULT 0,
+          PostPlantingExpenses REAL NOT NULL DEFAULT 0,
+          FinalProfit REAL NOT NULL,
+          Note TEXT,
+          CreatedAt TEXT NOT NULL
+        )
+      ''');
+
+      await txn.execute('''
+        INSERT INTO ${tableProduceDeliveries}_v44 (
+          ProduceDeliveryID,
+          DeliveryRefID,
+          DeliveryNo,
+          Date,
+          Crop,
+          FarmName,
+          TotalSacks,
+          GrossWeight,
+          DeductionsPercent,
+          MaintainerSharePercent,
+          HarvesterSharePercent,
+          PriceOfProduce,
+          GrossSales,
+          TotalDeductions,
+          AverageWeightPerSack,
+          NetProfit,
+          IncludeOverallExpenses,
+          PrePlantingExpenses,
+          OverallFarmExpenses,
+          PostPlantingExpenses,
+          FinalProfit,
+          Note,
+          CreatedAt
+        )
+        SELECT
+          ProduceDeliveryID,
+          DeliveryRefID,
+          DeliveryNo,
+          Date,
+          Crop,
+          FarmName,
+          TotalSacks,
+          GrossWeight,
+          DeductionsPercent,
+          MaintainerSharePercent,
+          HarvesterSharePercent,
+          PriceOfProduce,
+          GrossSales,
+          TotalDeductions,
+          AverageWeightPerSack,
+          NetProfit,
+          IncludeOverallExpenses,
+          0,
+          OverallFarmExpenses,
+          0,
+          FinalProfit,
+          Note,
+          CreatedAt
+        FROM $tableProduceDeliveries
+      ''');
+
+      await txn.execute('DROP TABLE $tableProduceDeliveries');
+      await txn.execute(
+          'ALTER TABLE ${tableProduceDeliveries}_v44 RENAME TO $tableProduceDeliveries');
+    });
+  }
+
+  Future<void> _createSugarcaneProfitsTable(DatabaseExecutor db) async {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS $tableSugarcaneProfits(
         ProfitID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -460,7 +639,7 @@ class DatabaseHelper {
     print("   -> Table '$tableSugarcaneProfits' created.");
   }
 
-  Future<void> _createEquipmentTable(Database db) async {
+  Future<void> _createEquipmentTable(DatabaseExecutor db) async {
     await db.execute('''
       CREATE TABLE $tableEquipment (
         EqID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -475,20 +654,21 @@ class DatabaseHelper {
     print("   -> Table 'Equipment' created.");
   }
 
-  Future<void> _createEmployeesTable(Database db) async {
+  Future<void> _createEmployeesTable(DatabaseExecutor db) async {
     await db.execute('''
       CREATE TABLE $tableWorkers (
         EmployeeID INTEGER PRIMARY KEY AUTOINCREMENT,
         Name TEXT NOT NULL,
         Address TEXT,
         Position TEXT,
+        CellphoneNumber TEXT,
         Note TEXT
       );
     ''');
     print("   -> Table '$tableWorkers' created.");
   }
 
-  Future<void> _createEquipmentDefsTable(Database db) async {
+  Future<void> _createEquipmentDefsTable(DatabaseExecutor db) async {
     await db.execute('''
       CREATE TABLE $tableEquipmentDefs (
         EquipID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -503,7 +683,7 @@ class DatabaseHelper {
     print("   -> Table '$tableEquipmentDefs' created.");
   }
 
-  Future<void> _createDefSupTable(Database db) async {
+  Future<void> _createDefSupTable(DatabaseExecutor db) async {
     await db.execute('''
       CREATE TABLE $tableDefSup (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -516,7 +696,7 @@ class DatabaseHelper {
     print("   -> Table '$tableDefSup' created.");
   }
 
-  Future<void> _createWorkDefsTable(Database db) async {
+  Future<void> _createWorkDefsTable(DatabaseExecutor db) async {
     await db.execute('''
       CREATE TABLE $tableWorkDefs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -530,7 +710,7 @@ class DatabaseHelper {
     print("   -> Table '$tableWorkDefs' created.");
   }
 
-  Future<void> _createCategoriesTable(Database db) async {
+  Future<void> _createCategoriesTable(DatabaseExecutor db) async {
     await db.execute('''
       CREATE TABLE $tableCategories (
         Name TEXT PRIMARY KEY,
@@ -540,7 +720,7 @@ class DatabaseHelper {
     print("   -> Table '$tableCategories' created.");
   }
 
-  Future<void> _createQaTable(Database db) async {
+  Future<void> _createQaTable(DatabaseExecutor db) async {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS $tableQaTable (
         QaID INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -555,7 +735,7 @@ class DatabaseHelper {
     print("   -> Table '$tableQaTable' created.");
   }
 
-  Future<void> _createQaCategoryIconsTable(Database db) async {
+  Future<void> _createQaCategoryIconsTable(DatabaseExecutor db) async {
     await db.execute('''
       CREATE TABLE IF NOT EXISTS $tableQaCategoryIcons (
         Category TEXT PRIMARY KEY,
@@ -565,12 +745,27 @@ class DatabaseHelper {
     print("   -> Table '$tableQaCategoryIcons' created.");
   }
 
-  Future<void> _createTables(Database db) async {
+  Future<void> _createAppPropertiesTable(DatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $tableAppProperties (
+        property_key TEXT PRIMARY KEY,
+        property_type TEXT NOT NULL,
+        property_value TEXT
+      )
+    ''');
+    print("   -> Table '$tableAppProperties' created.");
+  }
+
+  Future<void> _createTables(
+    DatabaseExecutor db, {
+    bool includeAppProperties = true,
+  }) async {
     await _createFarmsTable(db);
     await _createActivitiesTable(db);
     await _createSuppliesTable(db);
     await _createFtrackerTable(db);
     await _createDeliveriesTable(db);
+    await _createProduceDeliveriesTable(db);
     await _createSugarcaneProfitsTable(db);
     await _createEquipmentTable(db);
     await _createEmployeesTable(db);
@@ -580,6 +775,9 @@ class DatabaseHelper {
     await _createCategoriesTable(db);
     await _createQaTable(db);
     await _createQaCategoryIconsTable(db);
+    if (includeAppProperties) {
+      await _createAppPropertiesTable(db);
+    }
   }
 
   // Helper methods
@@ -627,8 +825,17 @@ class DatabaseHelper {
     return await db.query(table, where: where, whereArgs: whereArgs);
   }
 
-  Future<T> runInTransaction<T>(Future<T> Function(Transaction txn) action) async {
+  Future<T> runInTransaction<T>(
+      Future<T> Function(Transaction txn) action) async {
     final db = await instance.database;
     return db.transaction(action);
+  }
+
+  Future<void> resetAppData() async {
+    final db = await instance.database;
+    await db.transaction((txn) async {
+      await _dropAllTables(txn, includeAppProperties: false);
+      await _createTables(txn, includeAppProperties: false);
+    });
   }
 }

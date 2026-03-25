@@ -1,4 +1,9 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -21,11 +26,13 @@ class MarketPriceListScreen extends StatefulWidget {
 }
 
 class _MarketPriceListScreenState extends State<MarketPriceListScreen> {
+  static const String _allRegionsOption = 'All regions';
+
   Map<String, dynamic>? _snapshot;
   bool _isLoading = true;
   bool _isRefreshing = false;
-  String? _error;
   late MarketPriceCategoryFilter _selectedFilter;
+  final Map<String, String> _selectedRegionsBySourceId = <String, String>{};
 
   @override
   void initState() {
@@ -44,12 +51,10 @@ class _MarketPriceListScreenState extends State<MarketPriceListScreen> {
     if (refresh) {
       setState(() {
         _isRefreshing = true;
-        _error = null;
       });
     } else {
       setState(() {
         _isLoading = true;
-        _error = null;
       });
     }
 
@@ -79,7 +84,6 @@ class _MarketPriceListScreenState extends State<MarketPriceListScreen> {
         return;
       }
       setState(() {
-        _error = error.toString();
         _isLoading = false;
         _isRefreshing = false;
       });
@@ -102,15 +106,12 @@ class _MarketPriceListScreenState extends State<MarketPriceListScreen> {
       dataProvider.defSups,
       'Pesticide',
     );
-    final showFertilizer =
-        _selectedFilter == MarketPriceCategoryFilter.all ||
-            _selectedFilter == MarketPriceCategoryFilter.fertilizer;
-    final showHerbicide =
-        _selectedFilter == MarketPriceCategoryFilter.all ||
-            _selectedFilter == MarketPriceCategoryFilter.herbicide;
-    final showPesticide =
-        _selectedFilter == MarketPriceCategoryFilter.all ||
-            _selectedFilter == MarketPriceCategoryFilter.pesticide;
+    final showFertilizer = _selectedFilter == MarketPriceCategoryFilter.all ||
+        _selectedFilter == MarketPriceCategoryFilter.fertilizer;
+    final showHerbicide = _selectedFilter == MarketPriceCategoryFilter.all ||
+        _selectedFilter == MarketPriceCategoryFilter.herbicide;
+    final showPesticide = _selectedFilter == MarketPriceCategoryFilter.all ||
+        _selectedFilter == MarketPriceCategoryFilter.pesticide;
     final sources =
         (_snapshot?['sources'] as List<dynamic>? ?? const <dynamic>[])
             .whereType<Map>()
@@ -145,14 +146,9 @@ class _MarketPriceListScreenState extends State<MarketPriceListScreen> {
                 child: ListView(
                   padding: const EdgeInsets.all(16),
                   children: [
-                    _buildHeaderCard(
-                      context: context,
-                      lastSyncedAt: lastSyncedAt,
-                      error: _error,
-                    ),
-                    const SizedBox(height: 16),
                     _buildCatalogSectionsCard(
                       context: context,
+                      lastSyncedAt: lastSyncedAt,
                       fertilizerItems: fertilizerItems,
                       herbicideItems: herbicideItems,
                       pesticideItems: pesticideItems,
@@ -175,63 +171,6 @@ class _MarketPriceListScreenState extends State<MarketPriceListScreen> {
     );
   }
 
-  Widget _buildHeaderCard({
-    required BuildContext context,
-    required String? lastSyncedAt,
-    required String? error,
-  }) {
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: scheme.primary.withValues(alpha: 0.12)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Cached locally for offline use',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w800,
-              color: scheme.onSurface,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            lastSyncedAt == null
-                ? 'No local snapshot yet. Pull down or tap refresh when connected.'
-                : 'Last sync: ${_formatTimestamp(lastSyncedAt)}',
-            style: TextStyle(
-              height: 1.45,
-              color: scheme.onSurface.withValues(alpha: 0.72),
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'The app refreshes these sources on launch and stores the normalized JSON snapshot on-device.',
-            style: TextStyle(
-              height: 1.45,
-              color: scheme.onSurface.withValues(alpha: 0.72),
-            ),
-          ),
-          if (error != null && error.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Text(
-              'Refresh issue: $error',
-              style: TextStyle(
-                color: scheme.error,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
   Widget _buildEmptyCard(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Container(
@@ -249,6 +188,7 @@ class _MarketPriceListScreenState extends State<MarketPriceListScreen> {
 
   Widget _buildCatalogSectionsCard({
     required BuildContext context,
+    required String? lastSyncedAt,
     required List<DefSup> fertilizerItems,
     required List<DefSup> herbicideItems,
     required List<DefSup> pesticideItems,
@@ -281,6 +221,16 @@ class _MarketPriceListScreenState extends State<MarketPriceListScreen> {
               fontSize: 16,
               fontWeight: FontWeight.w800,
               color: scheme.onSurface,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            lastSyncedAt == null
+                ? 'Last updated: not available yet'
+                : 'Last updated: ${_formatTimestamp(lastSyncedAt)}',
+            style: TextStyle(
+              fontWeight: FontWeight.w700,
+              color: scheme.primary,
             ),
           ),
           const SizedBox(height: 6),
@@ -463,9 +413,17 @@ class _MarketPriceListScreenState extends State<MarketPriceListScreen> {
     final meta = source['meta'] is Map
         ? Map<String, dynamic>.from(source['meta'] as Map)
         : const <String, dynamic>{};
+    final sourceId = source['id']?.toString() ??
+        source['label']?.toString() ??
+        'market-price-source';
     final displayType = source['displayType']?.toString() ?? '';
     final status = source['status']?.toString() ?? 'unknown';
     final sourceUrl = source['sourceUrl']?.toString();
+    final selectedRegion =
+        _selectedRegionsBySourceId[sourceId] ?? _allRegionsOption;
+    final visibleRegionalRows = displayType == 'regional_prices'
+        ? _filterRegionalRows(rows, selectedRegion)
+        : const <Map<String, dynamic>>[];
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -517,6 +475,19 @@ class _MarketPriceListScreenState extends State<MarketPriceListScreen> {
             const SizedBox(height: 12),
             _buildMetaWrap(context, meta),
           ],
+          if (displayType == 'regional_prices') ...[
+            const SizedBox(height: 12),
+            _buildRegionalControls(
+              context,
+              sourceId: sourceId,
+              sourceLabel: source['label']?.toString() ?? 'Regional prices',
+              selectedRegion: selectedRegion,
+              allRows: rows,
+              visibleRows: visibleRegionalRows,
+              meta: meta,
+              fetchedAt: source['fetchedAt']?.toString(),
+            ),
+          ],
           if (sourceUrl != null && sourceUrl.isNotEmpty) ...[
             const SizedBox(height: 10),
             TextButton.icon(
@@ -527,7 +498,11 @@ class _MarketPriceListScreenState extends State<MarketPriceListScreen> {
           ],
           const SizedBox(height: 8),
           if (displayType == 'regional_prices')
-            _buildRegionalPriceRows(context, rows)
+            _buildRegionalPriceRows(
+              context,
+              visibleRegionalRows,
+              selectedRegion: selectedRegion,
+            )
           else if (displayType == 'report_links')
             _buildReportRows(context, rows)
           else if (displayType == 'daily_report_links')
@@ -602,6 +577,87 @@ class _MarketPriceListScreenState extends State<MarketPriceListScreen> {
     );
   }
 
+  Widget _buildRegionalControls(
+    BuildContext context, {
+    required String sourceId,
+    required String sourceLabel,
+    required String selectedRegion,
+    required List<Map<String, dynamic>> allRows,
+    required List<Map<String, dynamic>> visibleRows,
+    required Map<String, dynamic> meta,
+    required String? fetchedAt,
+  }) {
+    final regionOptions = <String>[
+      _allRegionsOption,
+      ..._regionOptionsForRows(allRows),
+    ];
+    final effectiveRegion = regionOptions.contains(selectedRegion)
+        ? selectedRegion
+        : _allRegionsOption;
+    final dropdown = DropdownButtonFormField<String>(
+      initialValue: effectiveRegion,
+      isExpanded: true,
+      decoration: const InputDecoration(
+        labelText: 'Region to display',
+      ),
+      items: regionOptions
+          .map(
+            (region) => DropdownMenuItem<String>(
+              value: region,
+              child: Text(region),
+            ),
+          )
+          .toList(),
+      onChanged: (value) {
+        if (value == null) {
+          return;
+        }
+        setState(() {
+          _selectedRegionsBySourceId[sourceId] = value;
+        });
+      },
+    );
+    final printButton = OutlinedButton.icon(
+      onPressed: visibleRows.isEmpty
+          ? null
+          : () => _openRegionalPricePrintPreview(
+                context,
+                sourceLabel: sourceLabel,
+                selectedRegion: effectiveRegion,
+                rows: visibleRows,
+                meta: meta,
+                fetchedAt: fetchedAt,
+              ),
+      icon: const Icon(Icons.print_rounded),
+      label: const Text('Print list'),
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final stacked = constraints.maxWidth < 620;
+        if (stacked) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              dropdown,
+              const SizedBox(height: 12),
+              SizedBox(width: double.infinity, child: printButton),
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: dropdown),
+            const SizedBox(width: 12),
+            printButton,
+          ],
+        );
+      },
+    );
+  }
+
   String? _metaRange(Map<String, dynamic> meta) {
     final start = meta['latestWeekStart']?.toString();
     final end = meta['latestWeekEnd']?.toString();
@@ -612,13 +668,26 @@ class _MarketPriceListScreenState extends State<MarketPriceListScreen> {
   }
 
   Widget _buildRegionalPriceRows(
-    BuildContext context,
-    List<Map<String, dynamic>> rows,
-  ) {
+      BuildContext context, List<Map<String, dynamic>> rows,
+      {required String selectedRegion}) {
     final scheme = Theme.of(context).colorScheme;
-    final visibleRows = rows.take(12).toList();
+    if (rows.isEmpty) {
+      final emptyLabel = selectedRegion == _allRegionsOption
+          ? 'No regional price rows are available right now.'
+          : 'No price rows are available for $selectedRegion.';
+      return Padding(
+        padding: const EdgeInsets.only(top: 10),
+        child: Text(
+          emptyLabel,
+          style: TextStyle(
+            color: scheme.onSurface.withValues(alpha: 0.65),
+          ),
+        ),
+      );
+    }
+
     return Column(
-      children: visibleRows
+      children: rows
           .map(
             (row) => Container(
               margin: const EdgeInsets.only(top: 10),
@@ -636,7 +705,7 @@ class _MarketPriceListScreenState extends State<MarketPriceListScreen> {
                     ),
                   ),
                   Text(
-                    '₱${(row['price'] as num?)?.toStringAsFixed(2) ?? '0.00'}',
+                    _formatPeso(_priceFromRow(row)),
                     style: TextStyle(
                       fontWeight: FontWeight.w800,
                       color: scheme.primary,
@@ -746,6 +815,112 @@ class _MarketPriceListScreenState extends State<MarketPriceListScreen> {
     await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
+  Future<void> _openRegionalPricePrintPreview(
+    BuildContext context, {
+    required String sourceLabel,
+    required String selectedRegion,
+    required List<Map<String, dynamic>> rows,
+    required Map<String, dynamic> meta,
+    required String? fetchedAt,
+  }) async {
+    if (rows.isEmpty) {
+      return;
+    }
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _MarketPricePrintPreviewScreen(
+          title: 'Market Price Print Preview',
+          buildPdf: (format) => _buildRegionalPricePdf(
+            format,
+            sourceLabel: sourceLabel,
+            selectedRegion: selectedRegion,
+            rows: rows,
+            meta: meta,
+            fetchedAt: fetchedAt,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<Uint8List> _buildRegionalPricePdf(
+    PdfPageFormat format, {
+    required String sourceLabel,
+    required String selectedRegion,
+    required List<Map<String, dynamic>> rows,
+    required Map<String, dynamic> meta,
+    required String? fetchedAt,
+  }) async {
+    final doc = pw.Document();
+    final generatedAt = _formatTimestamp(DateTime.now().toIso8601String());
+    final fetchedAtLabel =
+        fetchedAt == null ? null : _formatTimestamp(fetchedAt);
+    final range = _metaRange(meta);
+    final unit = meta['unit']?.toString();
+
+    doc.addPage(
+      pw.MultiPage(
+        pageFormat: format,
+        margin: const pw.EdgeInsets.all(24),
+        build: (context) => [
+          pw.Text(
+            'RCAMARii Market Price List',
+            style: pw.TextStyle(
+              fontSize: 20,
+              fontWeight: pw.FontWeight.bold,
+            ),
+          ),
+          pw.SizedBox(height: 6),
+          pw.Text(
+            sourceLabel,
+            style: pw.TextStyle(
+              fontSize: 12,
+              fontWeight: pw.FontWeight.bold,
+            ),
+          ),
+          pw.SizedBox(height: 6),
+          pw.Text('Region: $selectedRegion'),
+          if (unit != null && unit.isNotEmpty) pw.Text('Unit: $unit'),
+          if (range != null) pw.Text(range),
+          if (fetchedAtLabel != null) pw.Text('Latest sync: $fetchedAtLabel'),
+          pw.Text('Generated: $generatedAt'),
+          pw.SizedBox(height: 16),
+          pw.TableHelper.fromTextArray(
+            headers: const ['Region', 'Price'],
+            data: rows
+                .map(
+                  (row) => [
+                    row['location']?.toString() ?? '',
+                    _formatPeso(_priceFromRow(row)),
+                  ],
+                )
+                .toList(),
+            headerStyle: pw.TextStyle(
+              fontWeight: pw.FontWeight.bold,
+              color: PdfColors.white,
+            ),
+            headerDecoration: const pw.BoxDecoration(
+              color: PdfColors.green700,
+            ),
+            cellAlignment: pw.Alignment.centerLeft,
+            cellAlignments: <int, pw.Alignment>{
+              1: pw.Alignment.centerRight,
+            },
+            cellStyle: const pw.TextStyle(fontSize: 11),
+            rowDecoration: const pw.BoxDecoration(
+              border: pw.Border(
+                bottom: pw.BorderSide(color: PdfColors.grey300),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    return doc.save();
+  }
+
   String _formatTimestamp(String raw) {
     final parsed = DateTime.tryParse(raw);
     if (parsed == null) {
@@ -780,5 +955,99 @@ class _MarketPriceListScreenState extends State<MarketPriceListScreen> {
     return filtered;
   }
 
+  List<String> _regionOptionsForRows(List<Map<String, dynamic>> rows) {
+    final regions = rows
+        .map((row) => row['location']?.toString().trim() ?? '')
+        .where((region) => region.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    return regions;
+  }
+
+  List<Map<String, dynamic>> _filterRegionalRows(
+    List<Map<String, dynamic>> rows,
+    String selectedRegion,
+  ) {
+    if (selectedRegion == _allRegionsOption) {
+      return rows.take(12).toList();
+    }
+    return rows
+        .where(
+          (row) => (row['location']?.toString().trim() ?? '') == selectedRegion,
+        )
+        .toList();
+  }
+
+  double _priceFromRow(Map<String, dynamic> row) {
+    final price = row['price'];
+    if (price is num) {
+      return price.toDouble();
+    }
+    return double.tryParse(price?.toString() ?? '') ?? 0.0;
+  }
+
   String _formatPeso(double value) => 'PHP ${value.toStringAsFixed(2)}';
+}
+
+class _MarketPricePrintPreviewScreen extends StatelessWidget {
+  const _MarketPricePrintPreviewScreen({
+    required this.title,
+    required this.buildPdf,
+  });
+
+  final String title;
+  final Future<Uint8List> Function(PdfPageFormat format) buildPdf;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    return Scaffold(
+      backgroundColor: scheme.surface,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(
+            Icons.arrow_back_ios_new_rounded,
+            color: scheme.onSurface,
+          ),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text(
+          title,
+          style: TextStyle(
+            color: scheme.onSurface,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+      body: PdfPreview(
+        build: buildPdf,
+        allowPrinting: true,
+        allowSharing: true,
+        canChangeOrientation: false,
+        canChangePageFormat: true,
+        pdfFileName: 'rcamarii-market-price-list.pdf',
+        previewPageMargin: const EdgeInsets.all(12),
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        scrollViewDecoration: BoxDecoration(
+          color: scheme.surface,
+        ),
+        pdfPreviewPageDecoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.18),
+              blurRadius: 18,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

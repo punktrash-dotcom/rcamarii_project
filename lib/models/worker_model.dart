@@ -3,6 +3,7 @@ class Worker {
   final String name;
   final String address;
   final String position;
+  final String cellphoneNumber;
   final String? note;
 
   Worker({
@@ -10,6 +11,7 @@ class Worker {
     required this.name,
     required this.address,
     required this.position,
+    required this.cellphoneNumber,
     this.note,
   });
 
@@ -19,6 +21,7 @@ class Worker {
       'Name': name,
       'Address': address,
       'Position': position,
+      'CellphoneNumber': cellphoneNumber,
       'Note': note,
     };
   }
@@ -29,6 +32,7 @@ class Worker {
       name: map['Name'] ?? '',
       address: map['Address'] ?? '',
       position: map['Position'] ?? '',
+      cellphoneNumber: map['CellphoneNumber'] ?? '',
       note: map['Note'] as String?,
     );
   }

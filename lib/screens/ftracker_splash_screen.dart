@@ -11,9 +11,9 @@ const _logoSplashBackground = LinearGradient(
   begin: Alignment.topLeft,
   end: Alignment.bottomRight,
   colors: [
-    Color(0xFF0E1712),
-    Color(0xFF16261C),
-    Color(0xFF223127),
+    AppVisuals.deepGreen,
+    AppVisuals.surfaceGreen,
+    Color(0xFF244838),
   ],
 );
 
@@ -72,10 +72,10 @@ class _FtrackerSplashScreenState extends State<FtrackerSplashScreen>
       body: AppBackdrop(
         isDark: true,
         backgroundGradient: _logoSplashBackground,
-        orbTopLeftColor: Color(0xFF274734),
-        orbTopRightColor: Color(0xFF6A4B3A),
-        orbBottomLeftColor: Color(0x335C8A6A),
-        orbBottomRightColor: Color(0x336A4B3A),
+        orbTopLeftColor: AppVisuals.brandBlue.withValues(alpha: 0.36),
+        orbTopRightColor: AppVisuals.brandRed.withValues(alpha: 0.34),
+        orbBottomLeftColor: AppVisuals.brandGreen.withValues(alpha: 0.24),
+        orbBottomRightColor: AppVisuals.brandRed.withValues(alpha: 0.2),
         child: Center(
           child: FadeTransition(
             opacity: _fadeAnimation,
@@ -92,7 +92,7 @@ class _FtrackerSplashScreenState extends State<FtrackerSplashScreen>
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(26),
                         gradient: const LinearGradient(
-                          colors: [Color(0xFF274734), Color(0xFF7EAC5F)],
+                          colors: [AppVisuals.brandGreen, AppVisuals.brandBlue],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),

@@ -8,7 +8,7 @@ class ScheduleAlert {
   final IconData icon;
   final Color color;
 
-  ScheduleAlert({
+  const ScheduleAlert({
     required this.title,
     required this.message,
     required this.startDay,

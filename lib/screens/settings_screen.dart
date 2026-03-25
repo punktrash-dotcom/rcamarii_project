@@ -9,15 +9,19 @@ import '../providers/app_settings_provider.dart';
 import '../providers/guideline_language_provider.dart';
 import '../providers/profile_provider.dart';
 import '../providers/theme_provider.dart';
+import '../services/factory_reset_service.dart';
 import '../services/app_localization_service.dart';
 import '../services/app_route_observer.dart';
 import '../services/guideline_localization_service.dart';
 import '../themes/app_visuals.dart';
 import '../widgets/searchable_dropdown.dart';
+import '../widgets/user_access_dialogs.dart';
 import 'about_screen.dart';
 import 'backup_screen.dart';
+import 'help_screen.dart';
 import 'manage_categories_screen.dart';
 import 'restore_screen.dart';
+import 'splash_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -27,8 +31,16 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
-  static const _seriousAudioPreviewAssetPath = 'lib/assets/audio/sunshine.mp3';
-  static const _funnyAudioPreviewAssetPath = 'lib/assets/audio/anak.mp3';
+  static const _seriousAudioPreviewAssetPath =
+      'lib/assets/audio/serious_settings.mp3';
+  static const _funnyAudioPreviewAssetPath =
+      'lib/assets/audio/funny_settings.mp3';
+  static const _englishLanguagePreviewAssetPath =
+      'lib/assets/audio/english.mp3';
+  static const _tagalogLanguagePreviewAssetPath =
+      'lib/assets/audio/tagalog.mp3';
+  static const _visayanLanguagePreviewAssetPath =
+      'lib/assets/audio/visayan.mp3';
   int _audioPreviewRequestId = 0;
   bool _playedScreenOpenAudio = false;
   bool _isRouteObserverSubscribed = false;
@@ -55,10 +67,10 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
     }
     _playedScreenOpenAudio = true;
     await appAudio.playScreenOpenSound(
-          screenKey: 'settings',
-          style: appSettings.audioSoundStyle,
-          enabled: appSettings.audioSoundsEnabled,
-        );
+      screenKey: 'settings',
+      style: appSettings.audioSoundStyle,
+      enabled: appSettings.audioSoundsEnabled,
+    );
   }
 
   Future<void> _playAudioPreview(
@@ -75,6 +87,41 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
           funnyAssetPath: _funnyAudioPreviewAssetPath,
           enabled: appSettings.audioSoundsEnabled,
         );
+  }
+
+  String _languagePreviewAssetPath(GuidelineLanguage language) {
+    switch (language) {
+      case GuidelineLanguage.english:
+        return _englishLanguagePreviewAssetPath;
+      case GuidelineLanguage.tagalog:
+        return _tagalogLanguagePreviewAssetPath;
+      case GuidelineLanguage.visayan:
+        return _visayanLanguagePreviewAssetPath;
+    }
+  }
+
+  Future<void> _handleLanguageChanged(
+    GuidelineLanguageProvider languageProvider,
+    AppSettingsProvider appSettings,
+    GuidelineLanguage language,
+  ) async {
+    await languageProvider.setLanguage(language);
+    if (!mounted || !appSettings.audioSoundsEnabled) {
+      return;
+    }
+
+    final requestId = ++_audioPreviewRequestId;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || requestId != _audioPreviewRequestId) {
+        return;
+      }
+      unawaited(
+        context.read<AppAudioProvider>().playAsset(
+              assetPath: _languagePreviewAssetPath(language),
+              enabled: appSettings.audioSoundsEnabled,
+            ),
+      );
+    });
   }
 
   Future<void> _stopScreenAudioIfNeeded() async {
@@ -138,6 +185,7 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
       }
       return;
     }
+    _scheduleAudioPreview(appSettings);
   }
 
   Future<void> _handleAudioSoundStyleChanged(
@@ -148,6 +196,89 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
     if (appSettings.audioSoundsEnabled) {
       _scheduleAudioPreview(appSettings);
     }
+  }
+
+  Future<void> _editAccountAccess(AppSettingsProvider appSettings) async {
+    if (appSettings.hasAppPassword) {
+      final verified = await showPasswordVerificationDialog(
+        context,
+        expectedPassword: appSettings.appPassword,
+        title: 'Verify password',
+        message:
+            'Enter your password to edit username and startup lock settings.',
+      );
+      if (!mounted || !verified) return;
+    }
+
+    final result = await showUserAccessEditDialog(
+      context,
+      initialName: appSettings.userName,
+      initialAppLockEnabled: appSettings.appLockEnabled,
+      initialPassword: appSettings.appPassword,
+    );
+    if (!mounted || result == null) return;
+
+    await appSettings.updateUserAccess(
+      userName: result.userName,
+      appLockEnabled: result.appLockEnabled,
+      password: result.password,
+    );
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Account access updated.'),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> _resetToFactorySettings({
+    required AppSettingsProvider appSettings,
+    required ThemeProvider themeProvider,
+    required GuidelineLanguageProvider languageProvider,
+    required ProfileProvider profileProvider,
+  }) async {
+    final shouldReset = await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: const Text('Reset App?'),
+            content: const Text(
+              'Do you want to reset the app to factory settings? This will remove your saved data, account access settings, and app preferences.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.of(dialogContext).pop(true),
+                child: const Text('Reset'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (!shouldReset || !mounted) {
+      return;
+    }
+
+    await FactoryResetService.resetAppToFactorySettings();
+    await Future.wait([
+      appSettings.reload(),
+      themeProvider.reload(),
+      languageProvider.reload(),
+      profileProvider.reload(),
+    ]);
+    if (!mounted) {
+      return;
+    }
+
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const SplashScreen()),
+      (route) => false,
+    );
   }
 
   @override
@@ -205,245 +336,306 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
       body: AppBackdrop(
         isDark: isDark,
         child: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildProfileCard(profileProvider, isDark),
-            const SizedBox(height: 16),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: scheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: scheme.outline.withValues(alpha: 0.35)),
-                boxShadow: AppVisuals.neoShadows(scheme),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildProfileCard(
+                profileProvider: profileProvider,
+                appSettings: appSettings,
+                isDark: isDark,
               ),
-              child: Text(
-                context.tr('These preferences apply across RCAMARii.'),
-                style: TextStyle(
-                  color: scheme.onSurfaceVariant,
-                  height: 1.5,
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(20),
+                  border:
+                      Border.all(color: scheme.outline.withValues(alpha: 0.35)),
+                  boxShadow: AppVisuals.neoShadows(scheme),
                 ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            _buildSectionLabel(context.tr('APP PREFERENCES')),
-            const SizedBox(height: 8),
-            _buildSettingsGroup(
-              [
-                _buildLanguageSelector(
-                  context,
-                  languageProvider,
-                  isDark,
-                ),
-                _buildDropdownTile<LaunchDestination>(
-                  icon: Icons.rocket_launch_rounded,
-                  iconColor: AppVisuals.accentChartBlue,
-                  title: context.tr('Launch Screen'),
-                  value: appSettings.launchDestination,
-                  isDark: isDark,
-                  items: LaunchDestination.values
-                      .map(
-                        (destination) => DropdownMenuItem(
-                          value: destination,
-                          child: Text(context.tr(destination.label)),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (value) {
-                    if (value != null) {
-                      appSettings.setLaunchDestination(value);
-                    }
-                  },
-                ),
-                _buildSettingsTile(
-                  icon: Icons.folder_open,
-                  iconColor: AppVisuals.primaryGoldDim,
-                  title: context.tr('Manage Categories'),
-                  isDark: isDark,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const ManageCategoriesScreen(),
-                    ),
+                child: Text(
+                  appSettings.userName.isEmpty
+                      ? context.tr('These preferences apply across RCAMARii.')
+                      : 'These preferences apply across ${appSettings.userName}\'s RCAMARii workspace.',
+                  style: TextStyle(
+                    color: scheme.onSurfaceVariant,
+                    height: 1.5,
                   ),
                 ),
-              ],
-              isDark,
-            ),
-            const SizedBox(height: 24),
-            _buildSectionLabel(context.tr('FINANCE')),
-            const SizedBox(height: 8),
-            _buildSettingsGroup(
-              [
-                _buildDropdownTile<AppCurrency>(
-                  icon: Icons.payments_rounded,
-                  iconColor: AppVisuals.primaryGold,
-                  title: context.tr('Currency'),
-                  value: appSettings.currency,
-                  isDark: isDark,
-                  items: AppCurrency.values
-                      .map(
-                        (currency) => DropdownMenuItem(
-                          value: currency,
-                          child: Text(
-                            '${currency.symbol} ${context.tr(currency.label)}',
+              ),
+              const SizedBox(height: 24),
+              _buildSectionLabel(context.tr('Workspace Controls')),
+              const SizedBox(height: 8),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(20),
+                  border:
+                      Border.all(color: scheme.outline.withValues(alpha: 0.35)),
+                  boxShadow: AppVisuals.neoShadows(scheme),
+                ),
+                child: Text(
+                  context.tr(
+                    'Choose the preferred language for supply guidance before opening the field modules.',
+                  ),
+                  style: TextStyle(
+                    color: scheme.onSurfaceVariant,
+                    height: 1.5,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              _buildSettingsGroup(
+                [
+                  _buildLanguageSelector(
+                    context,
+                    languageProvider,
+                    appSettings,
+                    isDark,
+                  ),
+                  _buildDropdownTile<LaunchDestination>(
+                    icon: Icons.rocket_launch_rounded,
+                    iconColor: AppVisuals.accentChartBlue,
+                    title: context.tr('Launch Screen'),
+                    value: appSettings.launchDestination,
+                    isDark: isDark,
+                    items: LaunchDestination.values
+                        .map(
+                          (destination) => DropdownMenuItem(
+                            value: destination,
+                            child: Text(context.tr(destination.label)),
                           ),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (value) {
-                    if (value != null) {
-                      appSettings.setCurrency(value);
-                    }
-                  },
-                ),
-              ],
-              isDark,
-            ),
-            const SizedBox(height: 24),
-            _buildSectionLabel(context.tr('APPEARANCE')),
-            const SizedBox(height: 8),
-            _buildSettingsGroup(
-              [
-                _buildSwitchTile(
-                  icon: Icons.dark_mode_outlined,
-                  iconColor: AppVisuals.primaryGoldDim,
-                  title: context.tr('Dark Mode'),
-                  value: themeProvider.darkTheme,
-                  isDark: isDark,
-                  onChanged: (value) => themeProvider.darkTheme = value,
-                ),
-                _buildSwitchTile(
-                  icon: Icons.motion_photos_off_rounded,
-                  iconColor: AppVisuals.mintAccent,
-                  title: context.tr('Reduced Motion'),
-                  value: appSettings.reducedMotion,
-                  isDark: isDark,
-                  onChanged: (value) => appSettings.setReducedMotion(value),
-                ),
-              ],
-              isDark,
-            ),
-            const SizedBox(height: 24),
-            _buildSectionLabel(context.tr('VOICE & ASSISTANCE')),
-            const SizedBox(height: 8),
-            _buildSettingsGroup(
-              [
-                _buildSwitchTile(
-                  icon: Icons.mic_rounded,
-                  iconColor: scheme.error,
-                  title: context.tr('Voice Assistant'),
-                  value: appSettings.voiceAssistantEnabled,
-                  isDark: isDark,
-                  onChanged: (value) =>
-                      appSettings.setVoiceAssistantEnabled(value),
-                ),
-                _buildSwitchTile(
-                  icon: Icons.volume_up_rounded,
-                  iconColor: AppVisuals.growthGreen,
-                  title: context.tr('Spoken Responses'),
-                  value: appSettings.voiceResponsesEnabled,
-                  isDark: isDark,
-                  onChanged: appSettings.voiceAssistantEnabled
-                      ? (value) => appSettings.setVoiceResponsesEnabled(value)
-                      : null,
-                ),
-                _buildSwitchTile(
-                  icon: Icons.music_note_rounded,
-                  iconColor: AppVisuals.primaryGold,
-                  title: context.tr('Audio Sounds'),
-                  value: appSettings.audioSoundsEnabled,
-                  isDark: isDark,
-                  onChanged: (value) =>
-                      _handleAudioSoundsChanged(appSettings, value),
-                ),
-                _buildAudioStyleTile(
-                  context: context,
-                  appSettings: appSettings,
-                  isDark: isDark,
-                ),
-                _buildVolumeTile(
-                  context: context,
-                  appSettings: appSettings,
-                  isDark: isDark,
-                ),
-              ],
-              isDark,
-            ),
-            const SizedBox(height: 24),
-            _buildSectionLabel(context.tr('WEATHER')),
-            const SizedBox(height: 8),
-            _buildSettingsGroup(
-              [
-                _buildSwitchTile(
-                  icon: Icons.cloud_sync_rounded,
-                  iconColor: AppVisuals.accentChartBlue,
-                  title: context.tr('Auto Refresh Weather'),
-                  value: appSettings.weatherAutoRefresh,
-                  isDark: isDark,
-                  onChanged: (value) =>
-                      appSettings.setWeatherAutoRefresh(value),
-                ),
-              ],
-              isDark,
-            ),
-            const SizedBox(height: 24),
-            _buildSectionLabel(context.tr('DATA MANAGEMENT')),
-            const SizedBox(height: 8),
-            _buildSettingsGroup(
-              [
-                _buildSettingsTile(
-                  icon: Icons.download,
-                  iconColor: AppVisuals.accentChartBlue,
-                  title: context.tr('Backup Data'),
-                  isDark: isDark,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const BackupScreen(),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        appSettings.setLaunchDestination(value);
+                      }
+                    },
+                  ),
+                ],
+                isDark,
+              ),
+              const SizedBox(height: 24),
+              _buildSectionLabel(context.tr('APP PREFERENCES')),
+              const SizedBox(height: 8),
+              _buildSettingsGroup(
+                [
+                  _buildSettingsTile(
+                    icon: Icons.folder_open,
+                    iconColor: AppVisuals.primaryGoldDim,
+                    title: context.tr('Manage Categories'),
+                    isDark: isDark,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ManageCategoriesScreen(),
+                      ),
                     ),
                   ),
-                ),
-                _buildSettingsTile(
-                  icon: Icons.upload,
-                  iconColor: AppVisuals.growthGreen,
-                  title: context.tr('Restore Data'),
-                  isDark: isDark,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const RestoreScreen(),
+                ],
+                isDark,
+              ),
+              const SizedBox(height: 24),
+              _buildSectionLabel(context.tr('FINANCE')),
+              const SizedBox(height: 8),
+              _buildSettingsGroup(
+                [
+                  _buildDropdownTile<AppCurrency>(
+                    icon: Icons.payments_rounded,
+                    iconColor: AppVisuals.primaryGold,
+                    title: context.tr('Currency'),
+                    value: appSettings.currency,
+                    isDark: isDark,
+                    items: AppCurrency.values
+                        .map(
+                          (currency) => DropdownMenuItem(
+                            value: currency,
+                            child: Text(
+                              '${currency.symbol} ${context.tr(currency.label)}',
+                            ),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        appSettings.setCurrency(value);
+                      }
+                    },
+                  ),
+                ],
+                isDark,
+              ),
+              const SizedBox(height: 24),
+              _buildSectionLabel(context.tr('APPEARANCE')),
+              const SizedBox(height: 8),
+              _buildSettingsGroup(
+                [
+                  _buildSwitchTile(
+                    icon: Icons.dark_mode_outlined,
+                    iconColor: AppVisuals.primaryGoldDim,
+                    title: context.tr('Dark Mode'),
+                    value: themeProvider.darkTheme,
+                    isDark: isDark,
+                    onChanged: (value) => themeProvider.darkTheme = value,
+                  ),
+                  _buildSwitchTile(
+                    icon: Icons.motion_photos_off_rounded,
+                    iconColor: AppVisuals.mintAccent,
+                    title: context.tr('Reduced Motion'),
+                    value: appSettings.reducedMotion,
+                    isDark: isDark,
+                    onChanged: (value) => appSettings.setReducedMotion(value),
+                  ),
+                ],
+                isDark,
+              ),
+              const SizedBox(height: 24),
+              _buildSectionLabel(context.tr('VOICE & ASSISTANCE')),
+              const SizedBox(height: 8),
+              _buildSettingsGroup(
+                [
+                  _buildSwitchTile(
+                    icon: Icons.mic_rounded,
+                    iconColor: scheme.error,
+                    title: context.tr('Voice Assistant'),
+                    value: appSettings.voiceAssistantEnabled,
+                    isDark: isDark,
+                    onChanged: (value) =>
+                        appSettings.setVoiceAssistantEnabled(value),
+                  ),
+                  _buildSwitchTile(
+                    icon: Icons.volume_up_rounded,
+                    iconColor: AppVisuals.growthGreen,
+                    title: context.tr('Spoken Responses'),
+                    value: appSettings.voiceResponsesEnabled,
+                    isDark: isDark,
+                    onChanged: appSettings.voiceAssistantEnabled
+                        ? (value) => appSettings.setVoiceResponsesEnabled(value)
+                        : null,
+                  ),
+                  _buildSwitchTile(
+                    icon: Icons.music_note_rounded,
+                    iconColor: AppVisuals.primaryGold,
+                    title: context.tr('Audio Sounds'),
+                    value: appSettings.audioSoundsEnabled,
+                    isDark: isDark,
+                    onChanged: (value) =>
+                        _handleAudioSoundsChanged(appSettings, value),
+                  ),
+                  _buildAudioStyleTile(
+                    context: context,
+                    appSettings: appSettings,
+                    isDark: isDark,
+                  ),
+                  _buildVolumeTile(
+                    context: context,
+                    appSettings: appSettings,
+                    isDark: isDark,
+                  ),
+                ],
+                isDark,
+              ),
+              const SizedBox(height: 24),
+              _buildSectionLabel(context.tr('WEATHER')),
+              const SizedBox(height: 8),
+              _buildSettingsGroup(
+                [
+                  _buildSwitchTile(
+                    icon: Icons.cloud_sync_rounded,
+                    iconColor: AppVisuals.accentChartBlue,
+                    title: context.tr('Auto Refresh Weather'),
+                    value: appSettings.weatherAutoRefresh,
+                    isDark: isDark,
+                    onChanged: (value) =>
+                        appSettings.setWeatherAutoRefresh(value),
+                  ),
+                ],
+                isDark,
+              ),
+              const SizedBox(height: 24),
+              _buildSectionLabel(context.tr('DATA MANAGEMENT')),
+              const SizedBox(height: 8),
+              _buildSettingsGroup(
+                [
+                  _buildSettingsTile(
+                    icon: Icons.download,
+                    iconColor: AppVisuals.accentChartBlue,
+                    title: context.tr('Backup Data'),
+                    isDark: isDark,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const BackupScreen(),
+                      ),
                     ),
                   ),
-                ),
-              ],
-              isDark,
-            ),
-            const SizedBox(height: 24),
-            _buildSectionLabel(context.tr('ABOUT')),
-            const SizedBox(height: 8),
-            _buildSettingsGroup(
-              [
-                _buildSettingsTile(
-                  icon: Icons.info_outline_rounded,
-                  iconColor: AppVisuals.mintAccent,
-                  title: context.tr('About RCAMARii'),
-                  isDark: isDark,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => const AboutScreen(),
+                  _buildSettingsTile(
+                    icon: Icons.upload,
+                    iconColor: AppVisuals.growthGreen,
+                    title: context.tr('Restore Data'),
+                    isDark: isDark,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const RestoreScreen(),
+                      ),
                     ),
                   ),
-                ),
-              ],
-              isDark,
-            ),
-          ],
-        ),
+                  _buildSettingsTile(
+                    icon: Icons.restart_alt_rounded,
+                    iconColor: scheme.error,
+                    title: context.tr('Reset to Factory Settings'),
+                    isDark: isDark,
+                    onTap: () => _resetToFactorySettings(
+                      appSettings: appSettings,
+                      themeProvider: themeProvider,
+                      languageProvider: languageProvider,
+                      profileProvider: profileProvider,
+                    ),
+                  ),
+                ],
+                isDark,
+              ),
+              const SizedBox(height: 24),
+              _buildSectionLabel(context.tr('ABOUT')),
+              const SizedBox(height: 8),
+              _buildSettingsGroup(
+                [
+                  _buildSettingsTile(
+                    icon: Icons.help_outline_rounded,
+                    iconColor: AppVisuals.accentChartBlue,
+                    title: context.tr('Help Center'),
+                    isDark: isDark,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const HelpScreen(),
+                      ),
+                    ),
+                  ),
+                  _buildSettingsTile(
+                    icon: Icons.info_outline_rounded,
+                    iconColor: AppVisuals.mintAccent,
+                    title: context.tr('About RCAMARii'),
+                    isDark: isDark,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AboutScreen(),
+                      ),
+                    ),
+                  ),
+                ],
+                isDark,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -466,8 +658,19 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
     );
   }
 
-  Widget _buildProfileCard(ProfileProvider profile, bool isDark) {
+  Widget _buildProfileCard({
+    required ProfileProvider profileProvider,
+    required AppSettingsProvider appSettings,
+    required bool isDark,
+  }) {
     final scheme = Theme.of(context).colorScheme;
+    final displayName = appSettings.userName.isNotEmpty
+        ? appSettings.userName
+        : profileProvider.userName;
+    final accessLabel = appSettings.appLockEnabled
+        ? 'Startup password enabled'
+        : 'Startup password disabled';
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -476,36 +679,64 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
         border: Border.all(color: scheme.outline.withValues(alpha: 0.35)),
         boxShadow: AppVisuals.neoShadows(scheme),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
-            radius: 30,
-            backgroundColor: scheme.primary.withValues(alpha: 0.22),
-            backgroundImage: profile.imagePath != null
-                ? FileImage(File(profile.imagePath!))
-                : null,
-            child: profile.imagePath == null
-                ? Icon(Icons.person, color: scheme.primary, size: 30)
-                : null,
-          ),
-          const SizedBox(width: 16),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
             children: [
               Text(
-                profile.userName,
+                'Account Access',
                 style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: scheme.onSurface,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 1.3,
+                  color: scheme.primary,
                 ),
               ),
-              Text(
-                'premium_user',
-                style: TextStyle(
-                  color: scheme.secondary,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
+              const Spacer(),
+              OutlinedButton.icon(
+                onPressed: () => _editAccountAccess(appSettings),
+                icon: const Icon(Icons.edit_rounded, size: 18),
+                label: const Text('Edit'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              CircleAvatar(
+                radius: 30,
+                backgroundColor: scheme.primary.withValues(alpha: 0.22),
+                backgroundImage: profileProvider.imagePath != null
+                    ? FileImage(File(profileProvider.imagePath!))
+                    : null,
+                child: profileProvider.imagePath == null
+                    ? Icon(Icons.person, color: scheme.primary, size: 30)
+                    : null,
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      displayName,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: scheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      accessLabel,
+                      style: TextStyle(
+                        color: scheme.secondary,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -522,7 +753,8 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
         items.add(
           Divider(
             height: 1,
-            color: Theme.of(context).colorScheme.outline.withValues(alpha: 0.35),
+            color:
+                Theme.of(context).colorScheme.outline.withValues(alpha: 0.35),
           ),
         );
       }
@@ -544,6 +776,7 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
   Widget _buildLanguageSelector(
     BuildContext context,
     GuidelineLanguageProvider languageProvider,
+    AppSettingsProvider appSettings,
     bool isDark,
   ) {
     final scheme = Theme.of(context).colorScheme;
@@ -578,7 +811,16 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
                   GuidelineLocalizationService.languageLabel(language),
                 ),
                 selected: selected,
-                onSelected: (_) => languageProvider.setLanguage(language),
+                onSelected: (isSelected) {
+                  if (!isSelected) {
+                    return;
+                  }
+                  _handleLanguageChanged(
+                    languageProvider,
+                    appSettings,
+                    language,
+                  );
+                },
                 showCheckmark: false,
               );
             }).toList(),
@@ -756,7 +998,8 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
                 thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 8),
                 overlayShape: const RoundSliderOverlayShape(overlayRadius: 16),
                 activeTrackColor: AppVisuals.primaryGold,
-                inactiveTrackColor: AppVisuals.primaryGold.withValues(alpha: 0.1),
+                inactiveTrackColor:
+                    AppVisuals.primaryGold.withValues(alpha: 0.1),
                 thumbColor: AppVisuals.primaryGold,
               ),
               child: Slider(
@@ -781,9 +1024,8 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
   }) {
     final scheme = Theme.of(context).colorScheme;
     final enabled = appSettings.audioSoundsEnabled;
-    final textColor = enabled
-        ? scheme.onSurface
-        : scheme.onSurface.withValues(alpha: 0.38);
+    final textColor =
+        enabled ? scheme.onSurface : scheme.onSurface.withValues(alpha: 0.38);
 
     Widget buildOption(AudioSoundStyle style) {
       return Expanded(

@@ -121,7 +121,8 @@ class _TabFarmState extends State<TabFarm>
 
     if (_currentTabCount != expectedCount || _tabController == null) {
       WidgetsBinding.instance.addPostFrameCallback((_) => _syncTabController());
-      return const Center(child: CircularProgressIndicator(color: AppVisuals.primaryGold));
+      return const Center(
+          child: CircularProgressIndicator(color: AppVisuals.primaryGold));
     }
 
     return Padding(
@@ -150,7 +151,8 @@ class _TabFarmState extends State<TabFarm>
                         : TabBarView(
                             controller: _tabController!,
                             children: farmTypes.map((type) {
-                              final farms = farmProvider.groupedFarms[type] ?? [];
+                              final farms =
+                                  farmProvider.groupedFarms[type] ?? [];
                               return _buildCardList(theme, farms, farmProvider);
                             }).toList(),
                           ),
@@ -165,7 +167,8 @@ class _TabFarmState extends State<TabFarm>
   }
 
   Widget _buildFarmMetrics(ThemeData theme, FarmProvider provider) {
-    final totalArea = provider.farms.fold<double>(0, (sum, farm) => sum + farm.area);
+    final totalArea =
+        provider.farms.fold<double>(0, (sum, farm) => sum + farm.area);
     return Row(
       children: [
         Expanded(
@@ -214,8 +217,8 @@ class _TabFarmState extends State<TabFarm>
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) =>
-                          FrmAddJob2(initialFName: farmProvider.selectedFarm!.name),
+                      builder: (_) => FrmAddJob2(
+                          initialFName: farmProvider.selectedFarm!.name),
                     ),
                   );
                 }
@@ -231,7 +234,8 @@ class _TabFarmState extends State<TabFarm>
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => AddFarmScreen(farmID: farmProvider.selectedFarm!.id),
+                      builder: (_) =>
+                          AddFarmScreen(farmID: farmProvider.selectedFarm!.id),
                     ),
                   );
                 }
@@ -316,14 +320,16 @@ class _TabFarmState extends State<TabFarm>
     );
   }
 
-  Widget _buildCardList(ThemeData theme, List<Farm> farms, FarmProvider farmProvider) {
+  Widget _buildCardList(
+      ThemeData theme, List<Farm> farms, FarmProvider farmProvider) {
     return ListView.builder(
       padding: const EdgeInsets.only(top: 8, bottom: 20),
       itemCount: farms.length,
       itemBuilder: (context, index) {
         final farm = farms[index];
         final isSelected = farmProvider.selectedFarm?.id == farm.id;
-        final cropAge = DateTime.now().difference(farm.date).inDays.clamp(0, 9999);
+        final cropAge =
+            DateTime.now().difference(farm.date).inDays.clamp(0, 9999);
 
         return GestureDetector(
           onTap: () => farmProvider.handleFarmSelection(farm),
@@ -332,31 +338,43 @@ class _TabFarmState extends State<TabFarm>
             margin: const EdgeInsets.only(bottom: 16),
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: isSelected ? AppVisuals.surfaceGreen : AppVisuals.surfaceGreen.withValues(alpha: 0.5),
+              color: isSelected
+                  ? AppVisuals.surfaceGreen
+                  : AppVisuals.surfaceGreen.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(28),
               border: Border.all(
-                color: isSelected ? AppVisuals.primaryGold : AppVisuals.textForest.withValues(alpha: 0.05),
+                color: isSelected
+                    ? AppVisuals.primaryGold
+                    : AppVisuals.textForest.withValues(alpha: 0.05),
                 width: 1.5,
               ),
-              boxShadow: isSelected ? [
-                BoxShadow(
-                  color: AppVisuals.primaryGold.withValues(alpha: 0.15),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                )
-              ] : null,
+              boxShadow: isSelected
+                  ? [
+                      BoxShadow(
+                        color: AppVisuals.primaryGold.withValues(alpha: 0.15),
+                        blurRadius: 20,
+                        offset: const Offset(0, 8),
+                      )
+                    ]
+                  : null,
             ),
             child: Row(
               children: [
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: isSelected ? AppVisuals.primaryGold : AppVisuals.textForest.withValues(alpha: 0.05),
+                    color: isSelected
+                        ? AppVisuals.primaryGold
+                        : AppVisuals.textForest.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(18),
                   ),
                   child: Icon(
-                    farm.type.toLowerCase().contains('sugar') ? Icons.bakery_dining_rounded : Icons.grass_rounded,
-                    color: isSelected ? AppVisuals.deepGreen : AppVisuals.primaryGold,
+                    farm.type.toLowerCase().contains('sugar')
+                        ? Icons.bakery_dining_rounded
+                        : Icons.grass_rounded,
+                    color: isSelected
+                        ? AppVisuals.deepGreen
+                        : AppVisuals.primaryGold,
                     size: 28,
                   ),
                 ),
@@ -368,7 +386,7 @@ class _TabFarmState extends State<TabFarm>
                       Text(
                         farm.name,
                         style: theme.textTheme.titleLarge?.copyWith(
-                          color: theme.colorScheme.onSurface,
+                          color: Colors.black,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
@@ -376,7 +394,8 @@ class _TabFarmState extends State<TabFarm>
                       Text(
                         '${farm.city}, ${farm.province}',
                         style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.75),
+                          color: theme.colorScheme.onSurfaceVariant
+                              .withValues(alpha: 0.75),
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -396,7 +415,8 @@ class _TabFarmState extends State<TabFarm>
                     Text(
                       context.tr('{days} Days', {'days': '$cropAge'}),
                       style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
+                        color: theme.colorScheme.onSurfaceVariant
+                            .withValues(alpha: 0.6),
                         fontWeight: FontWeight.w800,
                       ),
                     ),
@@ -415,11 +435,13 @@ class _TabFarmState extends State<TabFarm>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.agriculture_rounded, size: 80, color: AppVisuals.primaryGold.withValues(alpha: 0.2)),
+          Icon(Icons.agriculture_rounded,
+              size: 80, color: AppVisuals.primaryGold.withValues(alpha: 0.2)),
           const SizedBox(height: 20),
           Text(
             context.tr('No estates recorded yet.'),
-            style: theme.textTheme.bodyLarge?.copyWith(color: AppVisuals.textForest.withValues(alpha: 0.4)),
+            style: theme.textTheme.bodyLarge
+                ?.copyWith(color: AppVisuals.textForest.withValues(alpha: 0.4)),
           ),
         ],
       ),
@@ -431,27 +453,38 @@ class _MetricCard extends StatelessWidget {
   final String label;
   final String value;
   final IconData icon;
+  static const _metricMaroon = AppVisuals.deepGreen;
 
-  const _MetricCard({required this.label, required this.value, required this.icon});
+  const _MetricCard(
+      {required this.label, required this.value, required this.icon});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppVisuals.surfaceGreen.withValues(alpha: 0.6),
+        color: _metricMaroon,
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: AppVisuals.textForest.withValues(alpha: 0.05)),
+        border: Border.all(
+          color: AppVisuals.mintAccent.withValues(alpha: 0.18),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: _metricMaroon.withValues(alpha: 0.28),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: AppVisuals.primaryGold, size: 24),
+          Icon(icon, color: AppVisuals.lightGold, size: 24),
           const SizedBox(height: 12),
           Text(
             label.toUpperCase(),
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: AppVisuals.textForest.withValues(alpha: 0.3),
+                  color: AppVisuals.mintAccent.withValues(alpha: 0.88),
                   letterSpacing: 1.2,
                   fontWeight: FontWeight.w800,
                   fontSize: 9,
@@ -461,7 +494,7 @@ class _MetricCard extends StatelessWidget {
           Text(
             value,
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: AppVisuals.textForest,
+                  color: AppVisuals.softWhite,
                   fontWeight: FontWeight.w900,
                 ),
           ),

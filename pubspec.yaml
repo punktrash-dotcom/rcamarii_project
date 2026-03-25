@@ -40,6 +40,7 @@ dependencies:
   flutter_native_splash: ^2.3.0  # Add dependency here
   speech_to_text: ^7.3.0
   flutter_tts: ^4.2.5
+  audio_session: ^0.2.2
   just_audio: ^0.10.5
   flutter_svg: ^2.0.17
 
@@ -79,12 +80,12 @@ flutter:
     - lib/assets/workdefs.csv
 
 flutter_native_splash:
-  color: "#16261C"
+  color: "#FAFAFA"
   image: lib/assets/images/rcamarii_logo_splash.png
 
   android_12:
     image: lib/assets/images/rcamarii_logo_splash.png
-    color: "#16261C"
+    color: "#FAFAFA"
 
   ios: true
   ios_content_mode: scaleAspectFill

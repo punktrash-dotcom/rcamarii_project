@@ -83,6 +83,12 @@ class _ExitScreenState extends State<ExitScreen> with RouteAware {
 
   @override
   Widget build(BuildContext context) {
+    final appSettings = Provider.of<AppSettingsProvider>(context);
+    final userName = appSettings.userName.trim();
+    final exitMessage = userName.isEmpty
+        ? 'Securing your data and agricultural assets...'
+        : 'Securing $userName\'s data and agricultural assets...';
+
     return Scaffold(
       body: Stack(
         fit: StackFit.expand,
@@ -93,11 +99,11 @@ class _ExitScreenState extends State<ExitScreen> with RouteAware {
             fit: BoxFit.fill, // Stretches to fill the whole screen
           ),
           Container(color: Colors.black.withValues(alpha: 0.28)),
-          const Center(
+          Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
+                const Text(
                   'TERMINATING SESSION',
                   style: TextStyle(
                     fontSize: 28,
@@ -109,7 +115,7 @@ class _ExitScreenState extends State<ExitScreen> with RouteAware {
                 ),
                 SizedBox(height: 12),
                 Text(
-                  'Securing your data and agricultural assets...',
+                  exitMessage,
                   style: TextStyle(
                     fontSize: 14,
                     color: AppVisuals.textForestMuted,

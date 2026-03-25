@@ -66,8 +66,9 @@ class _ScrNewTransactionState extends State<ScrNewTransaction> {
       builder: (context) {
         final noteController = TextEditingController(text: _note);
         return AlertDialog(
-          backgroundColor: const Color(0xFFE8F0EC),
-          title: const Text('Note:', style: TextStyle(color: AppVisuals.textForest)),
+          backgroundColor: AppVisuals.cloudGlass,
+          title: const Text('Note:',
+              style: TextStyle(color: AppVisuals.textForest)),
           content: SingleChildScrollView(
             child: TextField(
               stylusHandwritingEnabled: false,
@@ -202,7 +203,7 @@ class _ScrNewTransactionState extends State<ScrNewTransaction> {
     };
 
     return Scaffold(
-      backgroundColor: const Color(0xFFD8E8E0),
+      backgroundColor: AppVisuals.fieldMist,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -236,10 +237,11 @@ class _ScrNewTransactionState extends State<ScrNewTransaction> {
                       Container(
                         margin: const EdgeInsets.symmetric(horizontal: 24),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFE8F0EC),
+                          color: AppVisuals.cloudGlass,
                           borderRadius: BorderRadius.circular(24),
                           border: Border.all(
-                              color: AppVisuals.textForest.withValues(alpha: 0.12)),
+                              color: AppVisuals.textForest
+                                  .withValues(alpha: 0.12)),
                         ),
                         child: Row(
                           children: [
@@ -255,7 +257,8 @@ class _ScrNewTransactionState extends State<ScrNewTransaction> {
                       // Amount display
                       Text('Enter Amount',
                           style: TextStyle(
-                              color: AppVisuals.textForest.withValues(alpha: 0.55),
+                              color:
+                                  AppVisuals.textForest.withValues(alpha: 0.55),
                               fontSize: 16)),
                       const SizedBox(height: 8),
                       Padding(
@@ -410,10 +413,11 @@ class _ScrNewTransactionState extends State<ScrNewTransaction> {
                             labelText: 'Name',
                             hintText: 'What is this transaction for?',
                             labelStyle: TextStyle(
-                                color: AppVisuals.textForest.withValues(alpha: 0.55)),
+                                color: AppVisuals.textForest
+                                    .withValues(alpha: 0.55)),
                             hintStyle: TextStyle(color: Colors.grey[600]),
                             filled: true,
-                            fillColor: const Color(0xFFE8F0EC),
+                            fillColor: AppVisuals.cloudGlass,
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
                               borderSide:
@@ -427,7 +431,8 @@ class _ScrNewTransactionState extends State<ScrNewTransaction> {
                             focusedBorder: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(16),
                               borderSide: BorderSide(
-                                  color: AppVisuals.textForest.withValues(alpha: 0.45)),
+                                  color: AppVisuals.textForest
+                                      .withValues(alpha: 0.45)),
                             ),
                           ),
                         ),
@@ -506,16 +511,15 @@ class _ScrNewTransactionState extends State<ScrNewTransaction> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: const Color(0xFFE8F0EC),
+          color: AppVisuals.cloudGlass,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-              color: AppVisuals.textForest.withValues(alpha: 0.1)),
+          border:
+              Border.all(color: AppVisuals.textForest.withValues(alpha: 0.1)),
         ),
         child: Row(
           children: [
             Icon(icon,
-                color: AppVisuals.textForest.withValues(alpha: 0.55),
-                size: 20),
+                color: AppVisuals.textForest.withValues(alpha: 0.55), size: 20),
             const SizedBox(width: 8),
             Text(label,
                 style: const TextStyle(

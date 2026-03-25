@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../models/farm_model.dart';
+import '../models/schedule_alert_model.dart';
 import '../providers/activity_provider.dart';
-import '../providers/app_audio_provider.dart';
 import '../providers/app_settings_provider.dart';
 import '../providers/delivery_provider.dart';
 import '../providers/equipment_provider.dart';
@@ -14,16 +15,19 @@ import '../providers/voice_command_provider.dart';
 import '../providers/theme_provider.dart';
 import '../providers/weather_provider.dart';
 import '../services/app_localization_service.dart';
+import '../services/farm_operations_service.dart';
+import '../services/farming_advice_service.dart';
 import '../services/guideline_localization_service.dart';
 import '../services/rice_knowledge_service.dart';
 import '../services/sugarcane_knowledge_service.dart';
 import '../themes/app_visuals.dart';
-import 'charts_screen.dart';
 import 'exit_screen.dart';
-import 'ftracker_splash_screen.dart';
+import 'farm_report_dashboard_screen.dart';
 import 'frm_logistics.dart';
 import 'frm_main.dart';
+import 'help_screen.dart';
 import 'profit_calculator_screen.dart';
+import 'scr_tracker.dart';
 import 'scr_workers.dart';
 import 'settings_screen.dart';
 
@@ -50,12 +54,18 @@ class _ScrMSoftState extends State<ScrMSoft> {
     final language =
         Provider.of<GuidelineLanguageProvider>(context, listen: false)
             .selectedLanguage;
+    final appSettings =
+        Provider.of<AppSettingsProvider>(context, listen: false);
+    final userName = appSettings.userName.trim();
+    final greetingPrefix = userName.isEmpty
+        ? 'RCAMARii is online.'
+        : 'RCAMARii is online, $userName.';
     _messages.add(
       _AiMessage(
         role: 'assistant',
         text: AppLocalizationService.format(
           language,
-          'RCAMARii is online. Ask for farm status, delivery impact, supply guidance, or weather context.',
+          '$greetingPrefix Ask for farm status, delivery impact, supply guidance, or weather context.',
         ),
       ),
     );
@@ -218,12 +228,24 @@ class _ScrMSoftState extends State<ScrMSoft> {
     final equipmentProvider = Provider.of<EquipmentProvider>(context);
     final deliveryProvider = Provider.of<DeliveryProvider>(context);
     final weatherProvider = Provider.of<WeatherProvider>(context);
+    final language =
+        Provider.of<GuidelineLanguageProvider>(context).selectedLanguage;
 
     final selectedFarm = farmProvider.selectedFarm;
     final cropAge = selectedFarm == null
         ? null
         : DateTime.now().difference(selectedFarm.date).inDays.clamp(0, 9999);
     final weather = weatherProvider.weatherData;
+    final contextualAlerts = _buildContextualAlerts(
+      selectedFarm,
+      cropAge,
+      language,
+    );
+    final harvestTimelines = farmProvider.farms
+        .map(_HarvestTimelineEntry.fromFarm)
+        .toList()
+      ..sort(
+          (left, right) => left.daysToHarvest.compareTo(right.daysToHarvest));
     final screenWidth = mediaQuery.size.width;
     final isWide = screenWidth >= 1100;
     final bottomInset = mediaQuery.viewInsets.bottom;
@@ -239,7 +261,7 @@ class _ScrMSoftState extends State<ScrMSoft> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _buildTopBar(theme, weather),
+                _buildTopBar(theme),
                 const SizedBox(height: 24),
                 _buildHeroPanel(
                   theme: theme,
@@ -248,15 +270,7 @@ class _ScrMSoftState extends State<ScrMSoft> {
                   deliveryProvider: deliveryProvider,
                 ),
                 const SizedBox(height: 24),
-                _buildStatStrip(
-                  theme: theme,
-                  farmCount: farmProvider.farms.length,
-                  activityCount: activityProvider.activities.length,
-                  supplyCount: suppliesProvider.items.length,
-                  deliveryCount: deliveryProvider.deliveries.length,
-                ),
-                const SizedBox(height: 24),
-                _buildWorkspaceControls(theme),
+                _buildActionDeck(theme),
                 const SizedBox(height: 24),
                 if (isWide)
                   Row(
@@ -271,8 +285,6 @@ class _ScrMSoftState extends State<ScrMSoft> {
                         flex: 5,
                         child: Column(
                           children: [
-                            _buildActionDeck(theme),
-                            const SizedBox(height: 24),
                             _buildLiveOverview(
                               theme: theme,
                               selectedFarm: selectedFarm,
@@ -282,6 +294,13 @@ class _ScrMSoftState extends State<ScrMSoft> {
                               pendingSugarcaneCount:
                                   deliveryProvider.sugarcaneDeliveries.length,
                             ),
+                            const SizedBox(height: 24),
+                            _buildOperationalAlerts(
+                              theme: theme,
+                              selectedFarm: selectedFarm,
+                              cropAge: cropAge,
+                              alerts: contextualAlerts,
+                            ),
                           ],
                         ),
                       ),
@@ -289,8 +308,6 @@ class _ScrMSoftState extends State<ScrMSoft> {
                   )
                 else ...[
                   _buildCopilotConsole(theme),
-                  const SizedBox(height: 24),
-                  _buildActionDeck(theme),
                   const SizedBox(height: 24),
                   _buildLiveOverview(
                     theme: theme,
@@ -301,7 +318,19 @@ class _ScrMSoftState extends State<ScrMSoft> {
                     pendingSugarcaneCount:
                         deliveryProvider.sugarcaneDeliveries.length,
                   ),
+                  const SizedBox(height: 24),
+                  _buildOperationalAlerts(
+                    theme: theme,
+                    selectedFarm: selectedFarm,
+                    cropAge: cropAge,
+                    alerts: contextualAlerts,
+                  ),
                 ],
+                const SizedBox(height: 24),
+                _buildHarvestTargets(
+                  theme: theme,
+                  timelines: harvestTimelines,
+                ),
                 const SizedBox(height: 24),
                 _buildTodayBoard(
                   theme: theme,
@@ -328,7 +357,7 @@ class _ScrMSoftState extends State<ScrMSoft> {
     );
   }
 
-  Widget _buildTopBar(ThemeData theme, dynamic weather) {
+  Widget _buildTopBar(ThemeData theme) {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
@@ -370,157 +399,29 @@ class _ScrMSoftState extends State<ScrMSoft> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      'RAMARI',
-                      style: theme.textTheme.displaySmall?.copyWith(
-                        color: AppVisuals.primaryGold,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 1.0,
-                        fontSize: 22,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 2),
-                      child: Text(
-                        'FARM & FINANCE',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: AppVisuals.lightGold.withValues(alpha: 0.6),
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
                 Text(
-                  DateFormat('EEEE, MMMM d').format(DateTime.now()).toUpperCase(),
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: AppVisuals.textForest.withValues(alpha: 0.3),
-                    letterSpacing: 1.2,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 10,
+                  'RCAMARii',
+                  style: theme.textTheme.displaySmall?.copyWith(
+                    color: AppVisuals.primaryGold,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.0,
+                    fontSize: 22,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
           ),
-          if (weather != null)
-            _TopPill(
-              icon: Icons.wb_sunny_rounded,
-              label: '${weather.temp.toStringAsFixed(0)}°',
-            ),
           const SizedBox(width: 8),
           _HeaderIconButton(
-            icon: Icons.notifications_none_rounded,
-            onTap: () {},
+            icon: Icons.help_outline_rounded,
+            onTap: () => _openHelp(context),
           ),
           const SizedBox(width: 8),
           _HeaderIconButton(
             icon: Icons.person_outline_rounded,
             onTap: () => _openSettings(context),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildWorkspaceControls(ThemeData theme) {
-    final scheme = theme.colorScheme;
-    final languageProvider = Provider.of<GuidelineLanguageProvider>(context);
-    final audioProvider = Provider.of<AppAudioProvider>(context, listen: false);
-    final appSettings = Provider.of<AppSettingsProvider>(context, listen: false);
-
-    return FrostedPanel(
-      radius: 32,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      context.tr('Workspace Controls'),
-                      style: theme.textTheme.headlineMedium?.copyWith(color: AppVisuals.primaryGold),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      context.tr(
-                        'Choose the preferred language for supply guidance before opening the field modules.',
-                      ),
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 20),
-          Wrap(
-            alignment: WrapAlignment.start,
-            spacing: 12,
-            runSpacing: 12,
-            children: GuidelineLanguage.values.map((language) {
-              final selected = languageProvider.selectedLanguage == language;
-              return ChoiceChip(
-                label: Text(
-                  GuidelineLocalizationService.languageLabel(language),
-                ),
-                selected: selected,
-                onSelected: (_) async {
-                  if (selected) return;
-                  await languageProvider.setLanguage(language);
-                  if (appSettings.audioSoundsEnabled) {
-                    final String assetPath = switch (language) {
-                      GuidelineLanguage.english => 'lib/assets/audio/english.mp3',
-                      GuidelineLanguage.tagalog => 'lib/assets/audio/tagalog.mp3',
-                      GuidelineLanguage.visayan => 'lib/assets/audio/visayan.mp3',
-                    };
-                    await audioProvider.playAsset(
-                      assetPath: assetPath,
-                      enabled: true,
-                    );
-                  }
-                },
-                showCheckmark: false,
-                selectedColor: AppVisuals.primaryGold,
-                backgroundColor:
-                    scheme.surfaceContainerHighest.withValues(alpha: 0.4),
-                side: BorderSide(
-                  color: selected
-                      ? AppVisuals.primaryGold
-                      : scheme.outline.withValues(alpha: 0.2),
-                ),
-                labelStyle: TextStyle(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 12,
-                  color: selected ? AppVisuals.deepGreen : AppVisuals.textForest,
-                ),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 10,
-                ),
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 20),
-          Center(
-            child: FilledButton.tonalIcon(
-              onPressed: () => _openSettings(context),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppVisuals.primaryGold.withValues(alpha: 0.1),
-                foregroundColor: AppVisuals.primaryGold,
-              ),
-              icon: const Icon(Icons.settings_rounded, size: 18),
-              label: Text(context.tr('Settings')),
-            ),
           ),
         ],
       ),
@@ -534,7 +435,9 @@ class _ScrMSoftState extends State<ScrMSoft> {
     required DeliveryProvider deliveryProvider,
   }) {
     final appSettings = Provider.of<AppSettingsProvider>(context);
-    
+    final welcomeName =
+        appSettings.userName.isEmpty ? 'Ramari' : appSettings.userName;
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
@@ -542,8 +445,8 @@ class _ScrMSoftState extends State<ScrMSoft> {
         borderRadius: BorderRadius.circular(36),
         gradient: LinearGradient(
           colors: [
-            const Color(0xFFE8F2EE),
-            const Color(0xFFD8E8E0),
+            AppVisuals.cloudGlass,
+            AppVisuals.panelSoftAlt,
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -578,9 +481,7 @@ class _ScrMSoftState extends State<ScrMSoft> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      selectedFarm == null
-                          ? context.tr('Welcome to Ramari')
-                          : selectedFarm.name,
+                      'Welcome $welcomeName',
                       style: theme.textTheme.displayMedium?.copyWith(
                         color: AppVisuals.textForest,
                         fontSize: 24,
@@ -630,7 +531,8 @@ class _ScrMSoftState extends State<ScrMSoft> {
             child: TextField(
               controller: _aiController,
               onSubmitted: (value) => _postAiCommand(value),
-              style: const TextStyle(color: AppVisuals.textForest, fontSize: 14),
+              style:
+                  const TextStyle(color: AppVisuals.textForest, fontSize: 14),
               decoration: InputDecoration(
                 hintText: context.tr('Ask your farm assistant...'),
                 hintStyle: TextStyle(
@@ -649,7 +551,8 @@ class _ScrMSoftState extends State<ScrMSoft> {
                 context,
                 listen: false,
               ).requestCommand(context),
-              icon: const Icon(Icons.mic_rounded, color: AppVisuals.primaryGold, size: 20),
+              icon: const Icon(Icons.mic_rounded,
+                  color: AppVisuals.primaryGold, size: 20),
             ),
           GestureDetector(
             onTap: () => _postAiCommand(_aiController.text),
@@ -667,78 +570,12 @@ class _ScrMSoftState extends State<ScrMSoft> {
                   ),
                 ],
               ),
-              child: const Icon(Icons.arrow_forward_rounded, color: AppVisuals.deepGreen, size: 18),
+              child: const Icon(Icons.arrow_forward_rounded,
+                  color: AppVisuals.deepGreen, size: 18),
             ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildStatStrip({
-    required ThemeData theme,
-    required int farmCount,
-    required int activityCount,
-    required int supplyCount,
-    required int deliveryCount,
-  }) {
-    final stats = [
-      _HeroStat(context.tr('Farms'), farmCount.toString(), Icons.eco_rounded),
-      _HeroStat(context.tr('Activities'), activityCount.toString(),
-          Icons.work_history_rounded),
-      _HeroStat(context.tr('Supplies'), supplyCount.toString(),
-          Icons.inventory_2_rounded),
-      _HeroStat(context.tr('Deliveries'), deliveryCount.toString(),
-          Icons.local_shipping_rounded),
-    ];
-
-    return Wrap(
-      spacing: 16,
-      runSpacing: 16,
-      children: stats
-          .map(
-            (stat) => FrostedPanel(
-              radius: 28,
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppVisuals.primaryGold.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Icon(stat.icon,
-                        size: 20, color: AppVisuals.primaryGold),
-                  ),
-                  const SizedBox(width: 14),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        stat.label.toUpperCase(),
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: AppVisuals.primaryGold.withValues(alpha: 0.6),
-                          fontSize: 10,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                      Text(
-                        stat.value,
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          color: AppVisuals.textForest,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          )
-          .toList(),
     );
   }
 
@@ -753,11 +590,13 @@ class _ScrMSoftState extends State<ScrMSoft> {
               Expanded(
                 child: Text(
                   context.tr('Conversation Feed'),
-                  style: theme.textTheme.headlineMedium?.copyWith(color: AppVisuals.primaryGold),
+                  style: theme.textTheme.headlineMedium
+                      ?.copyWith(color: AppVisuals.primaryGold),
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: AppVisuals.primaryGold.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(20),
@@ -766,7 +605,9 @@ class _ScrMSoftState extends State<ScrMSoft> {
                   children: [
                     Text(
                       context.tr('Autopilot'),
-                      style: theme.textTheme.labelSmall?.copyWith(color: AppVisuals.primaryGold, fontWeight: FontWeight.w900),
+                      style: theme.textTheme.labelSmall?.copyWith(
+                          color: AppVisuals.primaryGold,
+                          fontWeight: FontWeight.w900),
                     ),
                     const SizedBox(width: 8),
                     SizedBox(
@@ -774,9 +615,11 @@ class _ScrMSoftState extends State<ScrMSoft> {
                       width: 36,
                       child: Switch(
                         value: _autopilotEnabled,
-                        onChanged: (value) => setState(() => _autopilotEnabled = value),
+                        onChanged: (value) =>
+                            setState(() => _autopilotEnabled = value),
                         activeThumbColor: AppVisuals.primaryGold,
-                        activeTrackColor: AppVisuals.primaryGold.withValues(alpha: 0.3),
+                        activeTrackColor:
+                            AppVisuals.primaryGold.withValues(alpha: 0.3),
                       ),
                     ),
                   ],
@@ -788,7 +631,7 @@ class _ScrMSoftState extends State<ScrMSoft> {
           Container(
             height: 300,
             decoration: BoxDecoration(
-              color: const Color(0xFFEFF5F2),
+              color: AppVisuals.cloudGlass,
               borderRadius: BorderRadius.circular(28),
               border: Border.all(
                 color: AppVisuals.textForest.withValues(alpha: 0.08),
@@ -815,10 +658,12 @@ class _ScrMSoftState extends State<ScrMSoft> {
                       decoration: BoxDecoration(
                         color: isUser
                             ? AppVisuals.primaryGold
-                            : const Color(0xFFE5EFE8),
+                            : AppVisuals.panelSoft,
                         borderRadius: BorderRadius.circular(20).copyWith(
-                          bottomRight: isUser ? Radius.zero : const Radius.circular(20),
-                          bottomLeft: isUser ? const Radius.circular(20) : Radius.zero,
+                          bottomRight:
+                              isUser ? Radius.zero : const Radius.circular(20),
+                          bottomLeft:
+                              isUser ? const Radius.circular(20) : Radius.zero,
                         ),
                         boxShadow: [
                           BoxShadow(
@@ -849,48 +694,77 @@ class _ScrMSoftState extends State<ScrMSoft> {
   }
 
   Widget _buildActionDeck(ThemeData theme) {
-    final g = AppVisuals.actionDeckGradients;
     final actions = [
       _ActionItem(
         title: context.tr('Estate'),
         subtitle: context.tr('Open farms'),
         icon: Icons.eco_rounded,
-        colors: g[0],
+        colors: const [
+          AppVisuals.brandWhite,
+          AppVisuals.fieldMist,
+          AppVisuals.skyMist,
+        ],
+        accentColor: AppVisuals.brandRed,
         onTap: () => _openFrmMain(context),
       ),
       _ActionItem(
         title: context.tr('Logistics'),
         subtitle: context.tr('Deliveries'),
         icon: Icons.local_shipping_rounded,
-        colors: g[1],
+        colors: const [
+          AppVisuals.brandWhite,
+          AppVisuals.panelSoftAlt,
+          Color(0xFFE4F1F3),
+        ],
+        accentColor: AppVisuals.brandBlue,
         onTap: () => _openLogistics(context),
       ),
       _ActionItem(
         title: context.tr('Workers'),
         subtitle: context.tr('Crew panel'),
         icon: Icons.people_alt_rounded,
-        colors: g[2],
+        colors: const [
+          AppVisuals.brandWhite,
+          Color(0xFFF8FAED),
+          Color(0xFFE8F2D9),
+        ],
+        accentColor: AppVisuals.brandGreen,
         onTap: () => _openWorkers(context),
       ),
       _ActionItem(
         title: context.tr('Finance'),
         subtitle: context.tr('Tracker'),
         icon: Icons.account_balance_wallet_rounded,
-        colors: g[3],
+        colors: const [
+          AppVisuals.brandWhite,
+          Color(0xFFF0F8F8),
+          Color(0xFFDDECEE),
+        ],
+        accentColor: AppVisuals.brandBlue,
         onTap: () => _openFtracker(context),
       ),
       _ActionItem(
-        title: 'SugarCalc',
-        subtitle: context.tr('Estimate ROI'),
+        title: 'Profit Tools',
+        subtitle: 'Final or Trial',
         icon: Icons.calculate_rounded,
-        colors: g[4],
+        colors: const [
+          AppVisuals.brandWhite,
+          Color(0xFFFAF9EC),
+          Color(0xFFF4E7B3),
+        ],
+        accentColor: AppVisuals.lightGold,
         onTap: () => _openProfitEstimator(context),
       ),
       _ActionItem(
         title: context.tr('Reports'),
-        subtitle: context.tr('Charts'),
+        subtitle: context.tr('Dashboard'),
         icon: Icons.assessment_rounded,
-        colors: g[5],
+        colors: const [
+          AppVisuals.brandWhite,
+          Color(0xFFF1F8F2),
+          Color(0xFFE1F0DE),
+        ],
+        accentColor: AppVisuals.brandGreen,
         onTap: () => _openReports(context),
       ),
     ];
@@ -900,9 +774,53 @@ class _ScrMSoftState extends State<ScrMSoft> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            context.tr('Action Deck'),
-            style: theme.textTheme.headlineMedium?.copyWith(color: AppVisuals.primaryGold),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      context.tr('Action Deck'),
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        color: AppVisuals.primaryGold,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      context.tr(
+                        'Fast routes into the farm workspace, tuned for daily operations.',
+                      ),
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: AppVisuals.textForestMuted,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: AppVisuals.brandBlue.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: AppVisuals.brandBlue.withValues(alpha: 0.22),
+                  ),
+                ),
+                child: Text(
+                  '6 routes',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: AppVisuals.textForest,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 20),
           GridView.builder(
@@ -913,7 +831,7 @@ class _ScrMSoftState extends State<ScrMSoft> {
               crossAxisCount: 2,
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
-              childAspectRatio: 1.3,
+              childAspectRatio: 1.08,
             ),
             itemBuilder: (context, index) => actions[index],
           ),
@@ -924,12 +842,19 @@ class _ScrMSoftState extends State<ScrMSoft> {
 
   Widget _buildLiveOverview({
     required ThemeData theme,
-    required dynamic selectedFarm,
+    required Farm? selectedFarm,
     required int? cropAge,
     required dynamic weather,
     required int equipmentCount,
     required int pendingSugarcaneCount,
   }) {
+    final growthStage = selectedFarm == null || cropAge == null
+        ? '--'
+        : FarmOperationsService.growthStage(selectedFarm.type, cropAge);
+    final targetHarvest = selectedFarm == null
+        ? null
+        : FarmOperationsService.expectedHarvestDate(selectedFarm);
+
     return FrostedPanel(
       radius: 36,
       child: Column(
@@ -937,7 +862,8 @@ class _ScrMSoftState extends State<ScrMSoft> {
         children: [
           Text(
             context.tr('Live Overview'),
-            style: theme.textTheme.headlineMedium?.copyWith(color: AppVisuals.primaryGold),
+            style: theme.textTheme.headlineMedium
+                ?.copyWith(color: AppVisuals.primaryGold),
           ),
           const SizedBox(height: 20),
           _OverviewRow(
@@ -945,23 +871,51 @@ class _ScrMSoftState extends State<ScrMSoft> {
             value: selectedFarm?.name ?? context.tr('None'),
             icon: Icons.location_on_rounded,
           ),
-          const Divider(height: 24, thickness: 0.5, color: AppVisuals.mutedGold),
+          const Divider(
+              height: 24, thickness: 0.5, color: AppVisuals.mutedGold),
           _OverviewRow(
             label: context.tr('Crop Age'),
-            value: cropAge != null ? context.tr('{days} Days', {'days': '$cropAge'}) : '--',
+            value: cropAge != null
+                ? context.tr('{days} Days', {'days': '$cropAge'})
+                : '--',
             icon: Icons.calendar_today_rounded,
           ),
-          const Divider(height: 24, thickness: 0.5, color: AppVisuals.mutedGold),
+          const Divider(
+              height: 24, thickness: 0.5, color: AppVisuals.mutedGold),
+          _OverviewRow(
+            label: context.tr('Growth Stage'),
+            value: growthStage,
+            icon: Icons.grass_rounded,
+          ),
+          const Divider(
+              height: 24, thickness: 0.5, color: AppVisuals.mutedGold),
+          _OverviewRow(
+            label: context.tr('Target Harvest'),
+            value: targetHarvest == null
+                ? '--'
+                : DateFormat('MMM d, y').format(targetHarvest),
+            icon: Icons.event_available_rounded,
+          ),
+          const Divider(
+              height: 24, thickness: 0.5, color: AppVisuals.mutedGold),
           _OverviewRow(
             label: context.tr('Weather'),
             value: weather?.description ?? context.tr('N/A'),
             icon: Icons.cloud_rounded,
           ),
-          const Divider(height: 24, thickness: 0.5, color: AppVisuals.mutedGold),
+          const Divider(
+              height: 24, thickness: 0.5, color: AppVisuals.mutedGold),
           _OverviewRow(
             label: context.tr('Assets'),
             value: context.tr('{count} items', {'count': '$equipmentCount'}),
             icon: Icons.precision_manufacturing_rounded,
+          ),
+          const Divider(
+              height: 24, thickness: 0.5, color: AppVisuals.mutedGold),
+          _OverviewRow(
+            label: context.tr('Pending Cane Loads'),
+            value: '$pendingSugarcaneCount',
+            icon: Icons.local_shipping_rounded,
           ),
         ],
       ),
@@ -983,7 +937,8 @@ class _ScrMSoftState extends State<ScrMSoft> {
         children: [
           Text(
             context.tr('Recent Activity'),
-            style: theme.textTheme.headlineMedium?.copyWith(color: AppVisuals.primaryGold),
+            style: theme.textTheme.headlineMedium
+                ?.copyWith(color: AppVisuals.primaryGold),
           ),
           const SizedBox(height: 20),
           if (activityProvider.activities.isEmpty)
@@ -992,7 +947,8 @@ class _ScrMSoftState extends State<ScrMSoft> {
                 padding: const EdgeInsets.symmetric(vertical: 32),
                 child: Text(
                   context.tr('No recent activity recorded.'),
-                  style: theme.textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic),
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(fontStyle: FontStyle.italic),
                 ),
               ),
             )
@@ -1007,7 +963,7 @@ class _ScrMSoftState extends State<ScrMSoft> {
                 return Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFE8F2EE),
+                    color: AppVisuals.panelSoft,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Row(
@@ -1018,7 +974,8 @@ class _ScrMSoftState extends State<ScrMSoft> {
                           color: AppVisuals.primaryGold.withValues(alpha: 0.1),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.history_rounded, size: 18, color: AppVisuals.primaryGold),
+                        child: const Icon(Icons.history_rounded,
+                            size: 18, color: AppVisuals.primaryGold),
                       ),
                       const SizedBox(width: 14),
                       Expanded(
@@ -1027,18 +984,245 @@ class _ScrMSoftState extends State<ScrMSoft> {
                           children: [
                             Text(
                               activity.name,
-                              style: theme.textTheme.titleMedium?.copyWith(color: AppVisuals.textForest),
+                              style: theme.textTheme.titleMedium
+                                  ?.copyWith(color: AppVisuals.textForest),
                             ),
                             Text(
                               activity.farm,
-                              style: theme.textTheme.bodySmall?.copyWith(color: AppVisuals.textForest.withValues(alpha: 0.5)),
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                  color: AppVisuals.textForest
+                                      .withValues(alpha: 0.5)),
                             ),
                           ],
                         ),
                       ),
                       Text(
                         DateFormat('MMM d').format(activity.date),
-                        style: theme.textTheme.labelSmall?.copyWith(color: AppVisuals.primaryGold),
+                        style: theme.textTheme.labelSmall
+                            ?.copyWith(color: AppVisuals.primaryGold),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
+
+  List<ScheduleAlert> _buildContextualAlerts(
+    Farm? selectedFarm,
+    int? cropAge,
+    GuidelineLanguage language,
+  ) {
+    if (selectedFarm == null || cropAge == null) {
+      return [];
+    }
+
+    final alerts = [
+      ...FarmingAdviceService.getAdviceForCrop(selectedFarm.type, cropAge),
+      ...FarmOperationsService.inputAlertsForCrop(selectedFarm.type, cropAge),
+    ].map((alert) {
+      return GuidelineLocalizationService.translateAlert(alert, language);
+    }).toList();
+
+    final deduped = <ScheduleAlert>[];
+    for (final alert in alerts) {
+      final exists = deduped.any(
+        (entry) =>
+            entry.title == alert.title &&
+            entry.startDay == alert.startDay &&
+            entry.endDay == alert.endDay,
+      );
+      if (!exists) {
+        deduped.add(alert);
+      }
+    }
+
+    deduped.sort(
+      (left, right) => _alertDistance(left, cropAge)
+          .compareTo(_alertDistance(right, cropAge)),
+    );
+    return deduped.take(4).toList();
+  }
+
+  int _alertDistance(ScheduleAlert alert, int cropAge) {
+    if (cropAge >= alert.startDay && cropAge <= alert.endDay) {
+      return 0;
+    }
+    if (cropAge < alert.startDay) {
+      return alert.startDay - cropAge;
+    }
+    return cropAge - alert.endDay + 45;
+  }
+
+  Widget _buildOperationalAlerts({
+    required ThemeData theme,
+    required Farm? selectedFarm,
+    required int? cropAge,
+    required List<ScheduleAlert> alerts,
+  }) {
+    return FrostedPanel(
+      radius: 36,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Crop Action Alerts',
+            style: theme.textTheme.headlineMedium?.copyWith(
+              color: AppVisuals.primaryGold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            selectedFarm == null
+                ? 'Select a farm to surface fertilizer, herbicide, pesticide, foliar, and harvest-prep timing.'
+                : 'Stage-based windows for ${selectedFarm.name}.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: AppVisuals.textForestMuted,
+            ),
+          ),
+          const SizedBox(height: 18),
+          if (alerts.isEmpty)
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppVisuals.panelSoft,
+                borderRadius: BorderRadius.circular(22),
+              ),
+              child: Text(
+                'No immediate crop-age action window is active yet.',
+                style: theme.textTheme.bodyMedium,
+              ),
+            )
+          else
+            ...alerts.map(
+              (alert) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _HubAlertTile(
+                  theme: theme,
+                  alert: alert,
+                  cropAge: cropAge,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHarvestTargets({
+    required ThemeData theme,
+    required List<_HarvestTimelineEntry> timelines,
+  }) {
+    return FrostedPanel(
+      radius: 40,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Target Harvest Board',
+            style: theme.textTheme.headlineMedium?.copyWith(
+              color: AppVisuals.primaryGold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Quick view of expected harvest timing for each crop and field.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: AppVisuals.textForestMuted,
+            ),
+          ),
+          const SizedBox(height: 18),
+          if (timelines.isEmpty)
+            Text(
+              'No farms available yet.',
+              style: theme.textTheme.bodyMedium,
+            )
+          else
+            ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: timelines.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (context, index) {
+                final timeline = timelines[index];
+                return Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppVisuals.panelSoft,
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(
+                      color: AppVisuals.brandGreen.withValues(alpha: 0.12),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              timeline.farm.name,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                color: AppVisuals.textForest,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            timeline.daysToHarvest >= 0
+                                ? '${timeline.daysToHarvest} d'
+                                : 'Harvest due',
+                            style: theme.textTheme.labelMedium?.copyWith(
+                              color: AppVisuals.primaryGold,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        '${timeline.farm.type}  |  ${timeline.stage}  |  ${timeline.farm.area.toStringAsFixed(1)} ha',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AppVisuals.textForestMuted,
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(999),
+                        child: LinearProgressIndicator(
+                          value: timeline.progress.clamp(0.0, 1.0),
+                          minHeight: 8,
+                          color: AppVisuals.brandGreen,
+                          backgroundColor:
+                              AppVisuals.brandGreen.withValues(alpha: 0.12),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 14,
+                        runSpacing: 8,
+                        children: [
+                          Text(
+                            'Age ${timeline.ageInDays} days',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: AppVisuals.textForestMuted,
+                            ),
+                          ),
+                          Text(
+                            'Target ${DateFormat('MMM d, y').format(timeline.targetHarvest)}',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: AppVisuals.textForestMuted,
+                            ),
+                          ),
+                          Text(
+                            'Yield ${timeline.projectedYield.toStringAsFixed(1)} t',
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              color: AppVisuals.textForestMuted,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -1051,7 +1235,15 @@ class _ScrMSoftState extends State<ScrMSoft> {
   }
 
   void _openSettings(BuildContext context) {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
+    Navigator.push(
+        context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
+  }
+
+  void _openHelp(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const HelpScreen()),
+    );
   }
 
   void _openFrmMain(BuildContext context) {
@@ -1059,27 +1251,37 @@ class _ScrMSoftState extends State<ScrMSoft> {
   }
 
   void _openLogistics(BuildContext context) {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => const FrmLogistics()));
+    Navigator.push(
+        context, MaterialPageRoute(builder: (_) => const FrmLogistics()));
   }
 
   void _openWorkers(BuildContext context) {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => const ScrWorkers()));
+    Navigator.push(
+        context, MaterialPageRoute(builder: (_) => const ScrWorkers()));
   }
 
   void _openFtracker(BuildContext context) {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => const FtrackerSplashScreen()));
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ScrTracker()),
+    );
   }
 
   void _openProfitEstimator(BuildContext context) {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => const ProfitCalculatorScreen()));
+    Navigator.push(context,
+        MaterialPageRoute(builder: (_) => const ProfitCalculatorScreen()));
   }
 
   void _openReports(BuildContext context) {
-    Navigator.push(context, MaterialPageRoute(builder: (_) => const ChartsScreen()));
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const FarmReportDashboardScreen()),
+    );
   }
 
   void _openExitScreen(BuildContext context) {
-    Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const ExitScreen()));
+    Navigator.pushReplacement(
+        context, MaterialPageRoute(builder: (_) => const ExitScreen()));
   }
 }
 
@@ -1087,46 +1289,6 @@ class _AiMessage {
   final String role;
   final String text;
   _AiMessage({required this.role, required this.text});
-}
-
-class _HeroStat {
-  final String label;
-  final String value;
-  final IconData icon;
-  _HeroStat(this.label, this.value, this.icon);
-}
-
-class _TopPill extends StatelessWidget {
-  final IconData icon;
-  final String label;
-
-  const _TopPill({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: AppVisuals.primaryGold.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppVisuals.primaryGold.withValues(alpha: 0.2)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: AppVisuals.primaryGold),
-          const SizedBox(width: 8),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: AppVisuals.primaryGold,
-                  fontWeight: FontWeight.w800,
-                ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 class _HeaderIconButton extends StatelessWidget {
@@ -1142,11 +1304,13 @@ class _HeaderIconButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(10),
         decoration: BoxDecoration(
-          color: AppVisuals.textForest.withValues(alpha: 0.05),
+          color: AppVisuals.lightGold.withValues(alpha: 0.18),
           shape: BoxShape.circle,
-          border: Border.all(color: AppVisuals.textForest.withValues(alpha: 0.1)),
+          border: Border.all(
+            color: AppVisuals.lightGold.withValues(alpha: 0.45),
+          ),
         ),
-        child: Icon(icon, size: 20, color: AppVisuals.textForest.withValues(alpha: 0.7)),
+        child: Icon(icon, size: 20, color: AppVisuals.lightGold),
       ),
     );
   }
@@ -1157,6 +1321,7 @@ class _ActionItem extends StatelessWidget {
   final String subtitle;
   final IconData icon;
   final List<Color> colors;
+  final Color accentColor;
   final VoidCallback onTap;
 
   const _ActionItem({
@@ -1164,6 +1329,7 @@ class _ActionItem extends StatelessWidget {
     required this.subtitle,
     required this.icon,
     required this.colors,
+    required this.accentColor,
     required this.onTap,
   });
 
@@ -1172,7 +1338,7 @@ class _ActionItem extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           gradient: LinearGradient(
             colors: colors,
@@ -1180,35 +1346,76 @@ class _ActionItem extends StatelessWidget {
             end: Alignment.bottomRight,
           ),
           borderRadius: BorderRadius.circular(28),
+          border: Border.all(
+            color: accentColor.withValues(alpha: 0.18),
+          ),
           boxShadow: [
             BoxShadow(
-              color: colors.first.withValues(alpha: 0.3),
-              blurRadius: 10,
-              offset: const Offset(0, 5),
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 20,
+              offset: const Offset(0, 12),
+            ),
+            BoxShadow(
+              color: accentColor.withValues(alpha: 0.14),
+              blurRadius: 18,
+              spreadRadius: -8,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: AppVisuals.textForest, size: 28),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              style: const TextStyle(
-                color: AppVisuals.textForest,
-                fontWeight: FontWeight.w900,
-                fontSize: 15,
-              ),
+            Row(
+              children: [
+                Container(
+                  width: 38,
+                  height: 38,
+                  decoration: BoxDecoration(
+                    color: accentColor.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: accentColor.withValues(alpha: 0.2),
+                    ),
+                  ),
+                  child: Icon(icon, color: accentColor, size: 20),
+                ),
+                const Spacer(),
+                Icon(
+                  Icons.arrow_outward_rounded,
+                  color: accentColor.withValues(alpha: 0.75),
+                  size: 16,
+                ),
+              ],
             ),
-            Text(
-              subtitle,
-              style: TextStyle(
-                color: AppVisuals.textForestMuted,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-              ),
+            const SizedBox(height: 14),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    color: AppVisuals.textForest,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 14,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    color: AppVisuals.textForestMuted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
           ],
         ),
@@ -1222,18 +1429,23 @@ class _OverviewRow extends StatelessWidget {
   final String value;
   final IconData icon;
 
-  const _OverviewRow({required this.label, required this.value, required this.icon});
+  const _OverviewRow(
+      {required this.label, required this.value, required this.icon});
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 18, color: AppVisuals.primaryGold.withValues(alpha: 0.7)),
+        Icon(icon,
+            size: 18, color: AppVisuals.primaryGold.withValues(alpha: 0.7)),
         const SizedBox(width: 14),
         Expanded(
           child: Text(
             label,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
+            style: Theme.of(context)
+                .textTheme
+                .bodyMedium
+                ?.copyWith(fontWeight: FontWeight.w700),
           ),
         ),
         Text(
@@ -1244,6 +1456,122 @@ class _OverviewRow extends StatelessWidget {
               ),
         ),
       ],
+    );
+  }
+}
+
+class _HubAlertTile extends StatelessWidget {
+  const _HubAlertTile({
+    required this.theme,
+    required this.alert,
+    required this.cropAge,
+  });
+
+  final ThemeData theme;
+  final ScheduleAlert alert;
+  final int? cropAge;
+
+  @override
+  Widget build(BuildContext context) {
+    final age = cropAge ?? -1;
+    final isActive = age >= alert.startDay && age <= alert.endDay;
+    final ahead = alert.startDay - age;
+    final status = isActive
+        ? 'Now'
+        : ahead > 0
+            ? 'In $ahead d'
+            : 'Review';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppVisuals.panelSoft,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: alert.color.withValues(alpha: 0.18),
+        ),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: alert.color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(alert.icon, color: alert.color, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        alert.title,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          color: AppVisuals.textForest,
+                        ),
+                      ),
+                    ),
+                    Text(
+                      status,
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: alert.color,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  alert.message,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: AppVisuals.textForestMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HarvestTimelineEntry {
+  const _HarvestTimelineEntry({
+    required this.farm,
+    required this.ageInDays,
+    required this.stage,
+    required this.targetHarvest,
+    required this.projectedYield,
+    required this.progress,
+    required this.daysToHarvest,
+  });
+
+  final Farm farm;
+  final int ageInDays;
+  final String stage;
+  final DateTime targetHarvest;
+  final double projectedYield;
+  final double progress;
+  final int daysToHarvest;
+
+  factory _HarvestTimelineEntry.fromFarm(Farm farm) {
+    final ageInDays = FarmOperationsService.cropAgeInDays(farm.date);
+    return _HarvestTimelineEntry(
+      farm: farm,
+      ageInDays: ageInDays,
+      stage: FarmOperationsService.growthStage(farm.type, ageInDays),
+      targetHarvest: FarmOperationsService.expectedHarvestDate(farm),
+      projectedYield: FarmOperationsService.projectedYieldTons(farm),
+      progress: FarmOperationsService.harvestProgress(farm.type, ageInDays),
+      daysToHarvest: FarmOperationsService.daysUntilHarvest(farm),
     );
   }
 }

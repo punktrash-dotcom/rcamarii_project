@@ -3,19 +3,21 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:speech_to_text/speech_recognition_error.dart';
 import 'package:speech_to_text/speech_recognition_result.dart';
 import 'package:speech_to_text/speech_to_text.dart';
 
-import '../screens/ftracker_splash_screen.dart';
 import '../screens/frm_logistics.dart';
 import '../screens/frm_main.dart';
+import '../screens/help_screen.dart';
 import '../screens/profit_calculator_screen.dart';
 import '../screens/scr_msoft.dart';
+import '../screens/scr_tracker.dart';
 import '../screens/scr_weather.dart';
 import '../screens/scr_workers.dart';
+import '../services/app_properties_store.dart';
 import '../services/voice_command_interpreter.dart';
+import 'app_audio_provider.dart';
 import 'app_settings_provider.dart';
 import 'navigation_provider.dart';
 
@@ -66,12 +68,13 @@ class VoiceCommandProvider extends ChangeNotifier {
       await _tts.awaitSpeakCompletion(true);
       await _tts.setSpeechRate(0.46);
       await _tts.setPitch(1.0);
-      
+
       // Load and apply normalized volume from app settings
-      final prefs = await SharedPreferences.getInstance();
-      final volume = prefs.getDouble('app_settings.audio_sounds_volume') ?? 0.75;
-      await _tts.setVolume(volume);
-      
+      final baseVolume = await AppPropertiesStore.instance
+              .getDouble('app_settings.audio_sounds_volume') ??
+          0.75;
+      await _tts.setVolume(AppAudioProvider.effectiveSpeechVolume(baseVolume));
+
       await _tts.setLanguage('en-US');
     } catch (_) {
       _statusMessage =
@@ -234,12 +237,15 @@ class VoiceCommandProvider extends ChangeNotifier {
         await stopListening();
       }
       await _tts.stop();
-      
+
       // Ensure volume is normalized to current platform settings
-      final prefs = await SharedPreferences.getInstance();
-      final volume = prefs.getDouble('app_settings.audio_sounds_volume') ?? 0.75;
-      await _tts.setVolume(volume);
-      
+      final baseVolume = await AppPropertiesStore.instance
+              .getDouble('app_settings.audio_sounds_volume') ??
+          0.75;
+      await _tts.setVolume(
+        AppAudioProvider.effectiveSpeechVolume(baseVolume),
+      );
+
       await _tts.speak(message);
     } catch (_) {
       _statusMessage = 'Unable to speak on this device.';
@@ -314,10 +320,9 @@ class VoiceCommandProvider extends ChangeNotifier {
         }
         return 'Opening worker management.';
       case VoiceCommandAction.openTracker:
-        if (context.findAncestorWidgetOfExactType<FtrackerSplashScreen>() ==
-            null) {
+        if (context.findAncestorWidgetOfExactType<ScrTracker>() == null) {
           unawaited(Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const FtrackerSplashScreen()),
+            MaterialPageRoute(builder: (_) => const ScrTracker()),
           ));
         }
         return 'Opening the financial tracker.';
@@ -335,7 +340,12 @@ class VoiceCommandProvider extends ChangeNotifier {
         final popped = await Navigator.of(context).maybePop();
         return popped ? 'Going back.' : 'There is no previous screen to open.';
       case VoiceCommandAction.help:
-        return VoiceCommandInterpreter.helpMessage;
+        if (context.findAncestorWidgetOfExactType<HelpScreen>() == null) {
+          unawaited(Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const HelpScreen()),
+          ));
+        }
+        return 'Opening help and voice command guidance.';
       case VoiceCommandAction.stopSpeaking:
         await stopSpeaking();
         return 'Voice playback stopped.';

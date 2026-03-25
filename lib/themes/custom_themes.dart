@@ -8,18 +8,18 @@ class CustomThemes {
     final scheme = ColorScheme(
       brightness: Brightness.dark,
       primary: AppVisuals.primaryGold,
-      onPrimary: AppVisuals.softWhite,
-      secondary: AppVisuals.growthGreen,
-      onSecondary: AppVisuals.textForest,
+      onPrimary: AppVisuals.deepGreen,
+      secondary: AppVisuals.accentChartBlue,
+      onSecondary: AppVisuals.softWhite,
       tertiary: AppVisuals.mintAccent,
-      onTertiary: AppVisuals.softWhite,
+      onTertiary: AppVisuals.deepGreen,
       surface: AppVisuals.surfaceGreen,
       onSurface: AppVisuals.softWhite,
       surfaceContainerHighest: AppVisuals.surfaceRaised,
-      onSurfaceVariant: const Color(0xFFC8D7CF),
+      onSurfaceVariant: const Color(0xFFF1E3BF),
       error: const Color(0xFFFF8A80),
       onError: AppVisuals.softWhite,
-      outline: AppVisuals.primaryGold.withValues(alpha: 0.28),
+      outline: AppVisuals.lightGold.withValues(alpha: 0.3),
       shadow: Colors.black,
     );
 
@@ -46,7 +46,7 @@ class CustomThemes {
       cardTheme: base.cardTheme.copyWith(
         color: scheme.surfaceContainerHighest,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        elevation: 10,
+        elevation: 0,
       ),
       textTheme: base.textTheme.apply(
         bodyColor: scheme.onSurface,
@@ -56,22 +56,22 @@ class CustomThemes {
   }
 
   static ThemeData delivery(ThemeData base) {
-    const cream = Color(0xFFF4F1E8);
+    const cream = AppVisuals.dawnMist;
     final scheme = ColorScheme(
       brightness: Brightness.light,
       primary: AppVisuals.primaryGoldDim,
-      onPrimary: AppVisuals.softWhite,
-      secondary: const Color(0xFF2D4A38),
-      onSecondary: cream,
+      onPrimary: AppVisuals.deepGreen,
+      secondary: AppVisuals.accentChartBlue,
+      onSecondary: AppVisuals.softWhite,
       tertiary: AppVisuals.mintAccent,
-      onTertiary: AppVisuals.softWhite,
+      onTertiary: AppVisuals.deepGreen,
       surface: cream,
       onSurface: AppVisuals.deepGreen,
-      surfaceContainerHighest: const Color(0xFFE8E4D9),
-      onSurfaceVariant: const Color(0xFF3D4A42),
+      surfaceContainerHighest: AppVisuals.fieldMist,
+      onSurfaceVariant: AppVisuals.textForestMuted,
       error: const Color(0xFFC62828),
       onError: Colors.white,
-      outline: const Color(0xFFC4B9A4),
+      outline: AppVisuals.panelEdge,
       shadow: const Color(0x26141D16),
     );
 
@@ -83,7 +83,7 @@ class CustomThemes {
       shadowColor: Colors.black26,
       inputDecorationTheme: base.inputDecorationTheme.copyWith(
         filled: true,
-        fillColor: Colors.white,
+        fillColor: AppVisuals.cloudGlass,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(color: scheme.primary.withValues(alpha: 0.35)),

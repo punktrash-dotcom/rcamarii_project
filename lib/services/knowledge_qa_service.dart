@@ -14,6 +14,10 @@ class KnowledgeQaService {
     'Harvest': Icons.agriculture_rounded,
     defaultCategory: Icons.auto_stories_rounded,
   };
+  static final Map<int, IconData> _iconsByCodepoint = {
+    for (final entry in categoryIcons.entries)
+      entry.value.codePoint: entry.value,
+  };
 
   static String inferCategory({
     required String topic,
@@ -89,10 +93,7 @@ class KnowledgeQaService {
   }
 
   static IconData iconFromCodepoint(int? iconCodepoint) {
-    if (iconCodepoint == null) {
-      return categoryIcons[defaultCategory]!;
-    }
-    return IconData(iconCodepoint, fontFamily: 'MaterialIcons');
+    return _iconsByCodepoint[iconCodepoint] ?? categoryIcons[defaultCategory]!;
   }
 
   Future<List<KnowledgeQaItem>> loadQaItems() async {

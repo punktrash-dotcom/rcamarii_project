@@ -11,6 +11,7 @@ import '../providers/data_provider.dart';
 import '../providers/equipment_provider.dart';
 import '../providers/supplies_provider.dart';
 import '../providers/ftracker_provider.dart';
+import '../providers/worker_provider.dart';
 import '../models/activity_model.dart';
 import '../models/work_def_model.dart';
 import '../models/supply_model.dart';
@@ -64,7 +65,6 @@ class _FrmAddJob2State extends State<FrmAddJob2> with RouteAware {
     'Note': FocusNode(),
     'save': FocusNode(),
   };
-  FocusNode? _workerAutocompleteFocusNode;
 
   // Selections
   String? _selectedFarm;
@@ -83,6 +83,7 @@ class _FrmAddJob2State extends State<FrmAddJob2> with RouteAware {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<SuppliesProvider>(context, listen: false).loadSupplies();
+      Provider.of<WorkerProvider>(context, listen: false).loadWorkers();
       _playScreenOpenAudioIfNeeded();
       if (widget.editJobId != null) {
         _loadEditData();
@@ -101,10 +102,10 @@ class _FrmAddJob2State extends State<FrmAddJob2> with RouteAware {
     }
     _playedScreenOpenAudio = true;
     await appAudio.playScreenOpenSound(
-          screenKey: 'add_job',
-          style: appSettings.audioSoundStyle,
-          enabled: appSettings.audioSoundsEnabled,
-        );
+      screenKey: 'add_job',
+      style: appSettings.audioSoundStyle,
+      enabled: appSettings.audioSoundsEnabled,
+    );
   }
 
   Future<void> _stopScreenOpenAudioIfNeeded() async {
@@ -114,9 +115,9 @@ class _FrmAddJob2State extends State<FrmAddJob2> with RouteAware {
       return;
     }
     await appAudio.stopScreenOpenSound(
-          screenKey: 'add_job',
-          style: appSettings.audioSoundStyle,
-        );
+      screenKey: 'add_job',
+      style: appSettings.audioSoundStyle,
+    );
   }
 
   @override
@@ -311,8 +312,7 @@ class _FrmAddJob2State extends State<FrmAddJob2> with RouteAware {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text('Wrong format: $message'),
         backgroundColor: Colors.redAccent));
-    final focusTarget =
-        field == 'Worker' ? _workerAutocompleteFocusNode : _focusNodes[field];
+    final focusTarget = _focusNodes[field];
     if (focusTarget != null) {
       FocusScope.of(context).requestFocus(focusTarget);
     }
@@ -863,13 +863,14 @@ class _FrmAddJob2State extends State<FrmAddJob2> with RouteAware {
   }
 
   Widget _buildFraJob(DataProvider data) {
+    final workerProvider = Provider.of<WorkerProvider>(context);
     return AbsorbPointer(
       absorbing: _isJobFrameLocked,
       child: Opacity(
         opacity: _isJobFrameLocked ? 0.4 : 1.0,
         child: Column(
           children: [
-            _buildAutocompleteField('Worker', 'Worker', data),
+            _buildWorkerDropdown(workerProvider),
             Row(
               children: [
                 Expanded(
@@ -898,55 +899,60 @@ class _FrmAddJob2State extends State<FrmAddJob2> with RouteAware {
     );
   }
 
-  Widget _buildAutocompleteField(String label, String key, DataProvider data) {
-    final activityProvider =
-        Provider.of<ActivityProvider>(context, listen: false);
-    final options =
-        activityProvider.activities.map((a) => a.worker).toSet().toList();
+  Widget _buildWorkerDropdown(WorkerProvider workerProvider) {
+    final workerNames = workerProvider.workers
+        .map((worker) => worker.name.trim())
+        .where((name) => name.isNotEmpty)
+        .toSet()
+        .toList()
+      ..sort();
+    final currentWorker = _controllers['Worker']!.text.trim();
+    final dropdownOptions = <String>[
+      if (currentWorker.isNotEmpty && !workerNames.contains(currentWorker))
+        currentWorker,
+      ...workerNames,
+    ];
+    final selectedWorker =
+        dropdownOptions.contains(currentWorker) ? currentWorker : null;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
-      child: Autocomplete<String>(
-        optionsBuilder: (textEditingValue) {
-          if (textEditingValue.text.isEmpty) {
-            return const Iterable<String>.empty();
+      child: SearchableDropdownFormField<String>(
+        initialValue: selectedWorker,
+        focusNode: _focusNodes['Worker'],
+        decoration: const InputDecoration(labelText: 'WORKER'),
+        hint: workerNames.isEmpty
+            ? const Text('Add employees first in Employees Data')
+            : null,
+        items: dropdownOptions
+            .map(
+              (workerName) => DropdownMenuItem(
+                value: workerName,
+                child: Text(workerName),
+              ),
+            )
+            .toList(),
+        onChanged: workerNames.isEmpty
+            ? null
+            : (selection) {
+                setState(() {
+                  _controllers['Worker']!.text = selection ?? '';
+                });
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    FocusScope.of(context)
+                        .requestFocus(_focusNodes['Duration']);
+                  }
+                });
+              },
+        validator: (value) {
+          if (workerNames.isEmpty) {
+            return 'Add an employee first';
           }
-          return options.where((o) =>
-              o.toLowerCase().contains(textEditingValue.text.toLowerCase()));
-        },
-        onSelected: (selection) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              setState(() {
-                _controllers[key]!.text = selection;
-              });
-              FocusScope.of(context).requestFocus(_focusNodes['Duration']);
-            }
-          });
-        },
-        fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-          _workerAutocompleteFocusNode = focusNode;
-
-          if (controller.text.isEmpty && _controllers[key]!.text.isNotEmpty) {
-            controller.text = _controllers[key]!.text;
+          if (value == null || value.trim().isEmpty) {
+            return 'Select a worker';
           }
-
-          return TextFormField(
-            stylusHandwritingEnabled: false,
-            controller: controller,
-            focusNode: focusNode,
-            decoration: InputDecoration(labelText: label.toUpperCase()),
-            onChanged: (val) {
-              _controllers[key]!.text = val;
-            },
-            onFieldSubmitted: (_) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (mounted) {
-                  FocusScope.of(context).requestFocus(_focusNodes['Duration']);
-                }
-              });
-            },
-          );
+          return null;
         },
       ),
     );

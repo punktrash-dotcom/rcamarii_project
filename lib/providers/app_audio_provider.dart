@@ -1,13 +1,17 @@
 import 'dart:async';
 import 'dart:developer' as developer;
+import 'dart:math' as math;
 
-import 'package:flutter/material.dart';
+import 'package:audio_session/audio_session.dart';
+import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 
 import 'app_settings_provider.dart';
 
 class AppAudioProvider with ChangeNotifier {
   static const _audioTimeout = Duration(seconds: 4);
+  static const _targetMeanVolumeDb = -15.0;
+  static const _estimatedSpeechMeanVolumeDb = -10.0;
   static const _screenOpenAudioMap =
       <String, ({String funnyAssetPath, String seriousAssetPath})>{
     'tab_farm': (
@@ -47,16 +51,130 @@ class AppAudioProvider with ChangeNotifier {
     funnyAssetPath: 'lib/assets/audio/funny_error.mp3',
     seriousAssetPath: 'lib/assets/audio/serious_settings.mp3',
   );
+  static const _measuredMeanVolumeDb = <String, double>{
+    'lib/assets/audio/cancel.mp3': -29.6,
+    'lib/assets/audio/english.mp3': -10.8,
+    'lib/assets/audio/funny_about.mp3': -14.9,
+    'lib/assets/audio/funny_error.mp3': -13.7,
+    'lib/assets/audio/funny_exit.mp3': -21.2,
+    'lib/assets/audio/funny_farm.wav': -13.7,
+    'lib/assets/audio/funny_ftracker.mp3': -13.5,
+    'lib/assets/audio/funny_knowledge.mp3': -10.8,
+    'lib/assets/audio/funny_profit.mp3': -16.9,
+    'lib/assets/audio/funny_reports.mp3': -16.7,
+    'lib/assets/audio/funny_settings.mp3': -13.2,
+    'lib/assets/audio/funny_sugarcalc.mp3': -13.4,
+    'lib/assets/audio/funny_supplies.mp3': -20.8,
+    'lib/assets/audio/funny_workers.mp3': -19.7,
+    'lib/assets/audio/save.mp3': -18.9,
+    'lib/assets/audio/serious_about.mp3': -21.9,
+    'lib/assets/audio/serious_addfarm.mp3': -34.3,
+    'lib/assets/audio/serious_exit.mp3': -15.1,
+    'lib/assets/audio/serious_farm.mp3': -13.5,
+    'lib/assets/audio/serious_ftracker.mp3': -23.2,
+    'lib/assets/audio/serious_knowledge.mp3': -13.4,
+    'lib/assets/audio/serious_profit.mp3': -18.0,
+    'lib/assets/audio/serious_settings.mp3': -10.0,
+    'lib/assets/audio/serious_sugarcalc.mp3': -14.1,
+    'lib/assets/audio/serious_supplies.mp3': -13.2,
+    'lib/assets/audio/serious_workers.mp3': -10.7,
+    'lib/assets/audio/tagalog.mp3': -16.9,
+    'lib/assets/audio/visayan.mp3': -14.5,
+  };
 
   AudioPlayer? _player;
   String? _currentAssetPath;
   double _volumeMultiplier = 0.75;
   int _requestId = 0;
+  Future<void>? _initialization;
 
   void updateVolume(double volume) {
     if (_volumeMultiplier == volume) return;
     _volumeMultiplier = volume;
-    _player?.setVolume(volume);
+    final player = _player;
+    final currentAssetPath = _currentAssetPath;
+    if (player != null && currentAssetPath != null) {
+      unawaited(player.setVolume(_effectiveVolumeForAsset(currentAssetPath)));
+    }
+  }
+
+  static AudioSessionConfiguration sessionConfigurationForPlatform(
+    TargetPlatform platform,
+  ) {
+    switch (platform) {
+      case TargetPlatform.iOS:
+        return const AudioSessionConfiguration(
+          avAudioSessionCategory: AVAudioSessionCategory.ambient,
+          avAudioSessionCategoryOptions:
+              AVAudioSessionCategoryOptions.mixWithOthers,
+          avAudioSessionMode: AVAudioSessionMode.defaultMode,
+        );
+      case TargetPlatform.android:
+        return const AudioSessionConfiguration(
+          androidAudioAttributes: AndroidAudioAttributes(
+            contentType: AndroidAudioContentType.sonification,
+            usage: AndroidAudioUsage.assistanceSonification,
+          ),
+          androidAudioFocusGainType:
+              AndroidAudioFocusGainType.gainTransientMayDuck,
+          androidWillPauseWhenDucked: false,
+        );
+      case TargetPlatform.fuchsia:
+      case TargetPlatform.linux:
+      case TargetPlatform.macOS:
+      case TargetPlatform.windows:
+        return const AudioSessionConfiguration();
+    }
+  }
+
+  static double normalizationMultiplierForMeanVolumeDb(double meanVolumeDb) {
+    if (meanVolumeDb <= _targetMeanVolumeDb) {
+      return 1.0;
+    }
+
+    final attenuationDb = _targetMeanVolumeDb - meanVolumeDb;
+    return math.pow(10, attenuationDb / 20).toDouble();
+  }
+
+  static double effectiveSpeechVolume(double baseVolume) {
+    return (baseVolume *
+            normalizationMultiplierForMeanVolumeDb(
+                _estimatedSpeechMeanVolumeDb))
+        .clamp(0.0, 1.0);
+  }
+
+  double normalizationMultiplierForAsset(String assetPath) {
+    final meanVolumeDb = _measuredMeanVolumeDb[assetPath];
+    if (meanVolumeDb == null || meanVolumeDb <= _targetMeanVolumeDb) {
+      return 1.0;
+    }
+
+    return normalizationMultiplierForMeanVolumeDb(meanVolumeDb);
+  }
+
+  double _effectiveVolumeForAsset(String assetPath) {
+    return (_volumeMultiplier * normalizationMultiplierForAsset(assetPath))
+        .clamp(0.0, 1.0);
+  }
+
+  Future<void> _ensureInitialized() {
+    return _initialization ??= _initialize();
+  }
+
+  Future<void> _initialize() async {
+    try {
+      final session = await AudioSession.instance;
+      await session.configure(
+        sessionConfigurationForPlatform(defaultTargetPlatform),
+      );
+    } catch (error, stackTrace) {
+      developer.log(
+        'Audio session configuration failed',
+        name: 'RCAMARii.Audio',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
   }
 
   String? assetPathForScreenOpenSound({
@@ -85,6 +203,7 @@ class AppAudioProvider with ChangeNotifier {
     final requestId = ++_requestId;
 
     try {
+      await _ensureInitialized();
       final player = _player ??= AudioPlayer();
       final shouldReloadAsset = _currentAssetPath != assetPath;
       await player.stop().timeout(_audioTimeout);
@@ -101,8 +220,7 @@ class AppAudioProvider with ChangeNotifier {
       }
 
       await player.setLoopMode(loop ? LoopMode.one : LoopMode.off);
-      // Normalized volume level to match platform expectations
-      await player.setVolume(_volumeMultiplier);
+      await player.setVolume(_effectiveVolumeForAsset(assetPath));
       await player.seek(Duration.zero).timeout(_audioTimeout);
       if (requestId != _requestId) {
         return;

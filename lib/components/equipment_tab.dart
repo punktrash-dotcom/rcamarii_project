@@ -38,6 +38,7 @@ class _EquipmentTabState extends State<EquipmentTab> {
   }
 
   Widget _buildScr11() {
+    final scheme = Theme.of(context).colorScheme;
     final provider = Provider.of<EquipmentProvider>(context);
     final equipment = provider.items;
 
@@ -51,7 +52,7 @@ class _EquipmentTabState extends State<EquipmentTab> {
             child: Text(
               'You have no Equipment yet. Click here to Add…',
               style: TextStyle(
-                  color: Colors.black,
+                  color: AppVisuals.textForest,
                   fontWeight: FontWeight.bold,
                   fontSize: 16),
               textAlign: TextAlign.center,
@@ -63,7 +64,7 @@ class _EquipmentTabState extends State<EquipmentTab> {
 
     if (provider.isLoading) {
       return const Center(
-          child: CircularProgressIndicator(color: Color(0xFF004D40)));
+          child: CircularProgressIndicator(color: AppVisuals.primaryGold));
     }
 
     return Column(
@@ -72,15 +73,15 @@ class _EquipmentTabState extends State<EquipmentTab> {
           padding: const EdgeInsets.all(12.0),
           child: OutlinedButton.icon(
             onPressed: _toggleScreen,
-            icon: const Icon(Icons.storage, color: Color(0xFF004D40)),
+            icon: const Icon(Icons.storage, color: AppVisuals.primaryGold),
             label: const Text('EQUIPMENT CATALOG',
                 style: TextStyle(
-                    color: Color(0xFF004D40),
+                    color: AppVisuals.primaryGold,
                     fontWeight: FontWeight.w900,
                     fontSize: 11,
                     letterSpacing: 1)),
             style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: Color(0xFF004D40), width: 1.5),
+              side: const BorderSide(color: AppVisuals.primaryGold, width: 1.5),
               padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
             ),
           ),
@@ -96,10 +97,11 @@ class _EquipmentTabState extends State<EquipmentTab> {
               return Card(
                 elevation: 0,
                 margin: const EdgeInsets.only(bottom: 12),
-                color: Colors.white.withValues(alpha: 0.2),
+                color: AppVisuals.cloudGlass.withValues(alpha: 0.76),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(20),
-                  side: BorderSide(color: Colors.black.withValues(alpha: 0.05)),
+                  side:
+                      BorderSide(color: scheme.outline.withValues(alpha: 0.18)),
                 ),
                 child: ListTile(
                   contentPadding:
@@ -110,25 +112,26 @@ class _EquipmentTabState extends State<EquipmentTab> {
                       isSelected
                           ? Icons.radio_button_checked_rounded
                           : Icons.radio_button_off_rounded,
-                      color:
-                          isSelected ? const Color(0xFF004D40) : Colors.black38,
+                      color: isSelected
+                          ? AppVisuals.primaryGold
+                          : AppVisuals.textForest.withValues(alpha: 0.38),
                     ),
                   ),
                   title: Text(item.name,
                       style: const TextStyle(
-                          color: Colors.black,
+                          color: AppVisuals.textForest,
                           fontWeight: FontWeight.w900,
                           fontSize: 16)),
                   subtitle: Text(
                       'Type: ${item.type}\nValue: ₱${item.total.toStringAsFixed(2)} | Qty: ${item.quantity}',
                       style: const TextStyle(
-                          color: Colors.black87,
+                          color: AppVisuals.textForestMuted,
                           height: 1.4,
                           fontSize: 13,
                           fontWeight: FontWeight.w500)),
                   trailing: IconButton(
                     icon: const Icon(Icons.add_circle_outline,
-                        color: Color(0xFF004D40), size: 24),
+                        color: AppVisuals.primaryGold, size: 24),
                     onPressed: () => _incrementQuantity(item),
                   ),
                   onTap: () => setState(() => _selectedEquipId = item.id),
@@ -142,9 +145,9 @@ class _EquipmentTabState extends State<EquipmentTab> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.1),
+            color: AppVisuals.cloudGlass.withValues(alpha: 0.4),
             border: Border(
-                top: BorderSide(color: Colors.black.withValues(alpha: 0.05))),
+                top: BorderSide(color: scheme.outline.withValues(alpha: 0.15))),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -188,6 +191,7 @@ class _EquipmentTabState extends State<EquipmentTab> {
   }
 
   Widget _buildScr22() {
+    final scheme = Theme.of(context).colorScheme;
     final data = Provider.of<DataProvider>(context);
     final types =
         data.equipmentDefs.map((e) => e['Type'] as String).toSet().toList();
@@ -200,13 +204,13 @@ class _EquipmentTabState extends State<EquipmentTab> {
           automaticallyImplyLeading: false,
           title: const Text('CATALOG BROWSER',
               style: TextStyle(
-                  color: Color(0xFFB71C1C),
+                  color: AppVisuals.brandRed,
                   fontSize: 14,
                   fontWeight: FontWeight.w900,
                   letterSpacing: 1)),
           leading: IconButton(
               icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                  color: Colors.black, size: 18),
+                  color: AppVisuals.textForest, size: 18),
               onPressed: _toggleScreen),
         ),
         Expanded(
@@ -215,10 +219,10 @@ class _EquipmentTabState extends State<EquipmentTab> {
               Container(
                 width: 120,
                 decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.05),
+                    color: AppVisuals.cloudGlass.withValues(alpha: 0.35),
                     border: Border(
                         right: BorderSide(
-                            color: Colors.black.withValues(alpha: 0.05)))),
+                            color: scheme.outline.withValues(alpha: 0.18)))),
                 child: ListView.builder(
                   itemCount: types.length,
                   itemBuilder: (context, i) {
@@ -228,14 +232,15 @@ class _EquipmentTabState extends State<EquipmentTab> {
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 16, vertical: 4),
                       tileColor: isSelected
-                          ? Colors.white.withValues(alpha: 0.1)
+                          ? AppVisuals.panelSoftAlt.withValues(alpha: 0.55)
                           : null,
                       title: Text(type.toUpperCase(),
                           style: TextStyle(
                               fontSize: 10,
                               color: isSelected
-                                  ? const Color(0xFF004D40)
-                                  : Colors.black38,
+                                  ? AppVisuals.primaryGold
+                                  : AppVisuals.textForest
+                                      .withValues(alpha: 0.38),
                               fontWeight: FontWeight.w900,
                               letterSpacing: 0.5)),
                       onTap: () => setState(() => _selectedType = type),
@@ -248,7 +253,7 @@ class _EquipmentTabState extends State<EquipmentTab> {
                     ? const Center(
                         child: Text('SELECT CATEGORY',
                             style: TextStyle(
-                                color: Colors.black26,
+                                color: AppVisuals.textForestMuted,
                                 fontWeight: FontWeight.w900,
                                 fontSize: 10,
                                 letterSpacing: 1)))
@@ -263,9 +268,11 @@ class _EquipmentTabState extends State<EquipmentTab> {
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(16),
                               side: BorderSide(
-                                  color: Colors.black.withValues(alpha: 0.05)),
+                                  color:
+                                      scheme.outline.withValues(alpha: 0.15)),
                             ),
-                            color: Colors.white.withValues(alpha: 0.1),
+                            color:
+                                AppVisuals.cloudGlass.withValues(alpha: 0.68),
                             child: Padding(
                               padding: const EdgeInsets.all(16.0),
                               child: Column(
@@ -274,21 +281,22 @@ class _EquipmentTabState extends State<EquipmentTab> {
                                   Text(def['Name'] ?? '',
                                       style: const TextStyle(
                                           fontWeight: FontWeight.w900,
-                                          color: Colors.black,
+                                          color: AppVisuals.textForest,
                                           fontSize: 14)),
                                   const SizedBox(height: 6),
                                   Text(
                                       def['Description'] ??
                                           'Tactical equipment unit.',
                                       style: const TextStyle(
-                                          fontSize: 12, color: Colors.black54)),
+                                          fontSize: 12,
+                                          color: AppVisuals.textForestMuted)),
                                   const SizedBox(height: 12),
                                   Align(
                                     alignment: Alignment.centerRight,
                                     child: IconButton(
                                       icon: const Icon(
                                           Icons.add_circle_outline_rounded,
-                                          color: Color(0xFF004D40)),
+                                          color: AppVisuals.primaryGold),
                                       onPressed: () => _addToFarm(def),
                                     ),
                                   )
@@ -310,7 +318,7 @@ class _EquipmentTabState extends State<EquipmentTab> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFFE8F0EC),
+        backgroundColor: AppVisuals.cloudGlass,
         title: Text('RESTOCK ${item.name.toUpperCase()}?',
             style: const TextStyle(
                 color: AppVisuals.textForest,
@@ -320,11 +328,11 @@ class _EquipmentTabState extends State<EquipmentTab> {
             style: TextStyle(color: AppVisuals.textForestMuted)),
         actions: [
           TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text('CANCEL',
-                  style: TextStyle(
-                      color: AppVisuals.textForest.withValues(alpha: 0.45))),
-            ),
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('CANCEL',
+                style: TextStyle(
+                    color: AppVisuals.textForest.withValues(alpha: 0.45))),
+          ),
           TextButton(
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text('CONFIRM',
@@ -346,7 +354,7 @@ class _EquipmentTabState extends State<EquipmentTab> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: const Color(0xFFE8F0EC),
+          backgroundColor: AppVisuals.cloudGlass,
           title: Text("ADD ${def['Name'].toUpperCase()}",
               style: const TextStyle(
                   color: AppVisuals.textForest,
@@ -367,8 +375,8 @@ class _EquipmentTabState extends State<EquipmentTab> {
                           color: AppVisuals.textForest.withValues(alpha: 0.65)),
                       enabledBorder: UnderlineInputBorder(
                           borderSide: BorderSide(
-                              color: AppVisuals.textForest.withValues(
-                                  alpha: 0.25))),
+                              color: AppVisuals.textForest
+                                  .withValues(alpha: 0.25))),
                     ),
                     keyboardType: TextInputType.number),
                 const SizedBox(height: 16),
@@ -383,8 +391,8 @@ class _EquipmentTabState extends State<EquipmentTab> {
                           color: AppVisuals.textForest.withValues(alpha: 0.65)),
                       enabledBorder: UnderlineInputBorder(
                           borderSide: BorderSide(
-                              color: AppVisuals.textForest.withValues(
-                                  alpha: 0.25))),
+                              color: AppVisuals.textForest
+                                  .withValues(alpha: 0.25))),
                     ),
                     keyboardType: TextInputType.number),
               ],
@@ -392,11 +400,11 @@ class _EquipmentTabState extends State<EquipmentTab> {
           ),
           actions: [
             TextButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: Text('CANCEL',
-                    style: TextStyle(
-                        color: AppVisuals.textForest.withValues(alpha: 0.45))),
-              ),
+              onPressed: () => Navigator.pop(ctx),
+              child: Text('CANCEL',
+                  style: TextStyle(
+                      color: AppVisuals.textForest.withValues(alpha: 0.45))),
+            ),
             ElevatedButton(
                 onPressed: () {
                   final quantity = int.tryParse(qController.text) ?? 1;
@@ -428,7 +436,7 @@ class _EquipmentTabState extends State<EquipmentTab> {
     final confirm = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-                backgroundColor: const Color(0xFFE8F0EC),
+                backgroundColor: AppVisuals.cloudGlass,
                 title: const Text('REMOVE EQUIPMENT?',
                     style: TextStyle(
                         color: Colors.redAccent,

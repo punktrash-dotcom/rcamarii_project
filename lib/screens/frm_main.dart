@@ -17,6 +17,7 @@ import '../providers/sugarcane_profit_provider.dart';
 import '../providers/theme_provider.dart';
 import '../services/app_localization_service.dart';
 import '../themes/app_visuals.dart';
+import '../utils/app_layout_utils.dart';
 import 'scr_msoft.dart';
 import 'tab_activities.dart';
 import 'tab_farm.dart';
@@ -159,7 +160,8 @@ class _FrmMainState extends State<FrmMain> {
                         position: Tween<Offset>(
                           begin: const Offset(0, 0.05),
                           end: Offset.zero,
-                        ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic)),
+                        ).animate(CurvedAnimation(
+                            parent: animation, curve: Curves.easeOutCubic)),
                         child: child,
                       ),
                     );
@@ -197,79 +199,112 @@ class _FrmMainState extends State<FrmMain> {
       bottom: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-        child: Column(
-          children: [
-            Row(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final shouldStack = AppLayoutUtils.shouldStackHeader(
+                  context,
+                  widthBreakpoint: 560,
+                  scaleBreakpoint: 1.08,
+                ) ||
+                constraints.maxWidth < 520;
+            final actions = <Widget>[
+              _HeaderButton(
+                icon: Icons.grid_view_rounded,
+                tooltip: context.tr('Main Hub'),
+                onTap: () => Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ScrMSoft()),
+                ),
+              ),
+              _HeaderButton(
+                icon: Icons.search_rounded,
+                tooltip: context.tr('Search'),
+                onTap: () {
+                  setState(() => _showSearch = !_showSearch);
+                  if (_showSearch) _searchFocusNode.requestFocus();
+                },
+              ),
+              _HeaderButton(
+                icon: Icons.refresh_rounded,
+                tooltip: context.tr('Refresh'),
+                onTap: _refreshAll,
+              ),
+              if (appSettings.voiceAssistantEnabled)
+                _HeaderButton(
+                  icon: Icons.mic_rounded,
+                  tooltip: context.tr('Voice'),
+                  onTap: () => voiceProvider.requestCommand(context),
+                ),
+            ];
+
+            return Column(
               children: [
-                Expanded(
-                  child: Column(
+                if (shouldStack)
+                  Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        section.$1.toUpperCase(),
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          letterSpacing: 1.5,
-                          fontWeight: FontWeight.w900,
-                          color: scheme.primary,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        section.$2,
-                        style: theme.textTheme.displaySmall?.copyWith(
-                          color: scheme.onSurface,
-                          fontSize: 24,
-                        ),
+                      _buildHeaderSection(theme, scheme, section),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: actions,
                       ),
                     ],
-                  ),
-                ),
-                Flexible(
-                  child: Wrap(
-                    alignment: WrapAlignment.end,
-                    spacing: 8,
-                    runSpacing: 8,
+                  )
+                else
+                  Row(
                     children: [
-                    _HeaderButton(
-                      icon: Icons.grid_view_rounded,
-                      tooltip: context.tr('Main Hub'),
-                      onTap: () => Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (_) => const ScrMSoft()),
+                      Expanded(
+                        child: _buildHeaderSection(theme, scheme, section),
                       ),
-                    ),
-                    _HeaderButton(
-                      icon: Icons.search_rounded,
-                      tooltip: context.tr('Search'),
-                      onTap: () {
-                        setState(() => _showSearch = !_showSearch);
-                        if (_showSearch) _searchFocusNode.requestFocus();
-                      },
-                    ),
-                    _HeaderButton(
-                      icon: Icons.refresh_rounded,
-                      tooltip: context.tr('Refresh'),
-                      onTap: _refreshAll,
-                    ),
-                    if (appSettings.voiceAssistantEnabled) ...[
-                      _HeaderButton(
-                        icon: Icons.mic_rounded,
-                        tooltip: context.tr('Voice'),
-                        onTap: () => voiceProvider.requestCommand(context),
+                      Flexible(
+                        child: Wrap(
+                          alignment: WrapAlignment.end,
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: actions,
+                        ),
                       ),
-                    ],
                     ],
                   ),
-                ),
+                if (_showSearch) ...[
+                  const SizedBox(height: 16),
+                  _buildSearchAutocomplete(theme),
+                ],
               ],
-            ),
-            if (_showSearch) ...[
-              const SizedBox(height: 16),
-              _buildSearchAutocomplete(theme),
-            ],
-          ],
+            );
+          },
         ),
       ),
+    );
+  }
+
+  Widget _buildHeaderSection(
+    ThemeData theme,
+    ColorScheme scheme,
+    (String, String) section,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          section.$1.toUpperCase(),
+          style: theme.textTheme.labelSmall?.copyWith(
+            letterSpacing: 1.5,
+            fontWeight: FontWeight.w900,
+            color: scheme.primary,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          section.$2,
+          style: theme.textTheme.displaySmall?.copyWith(
+            color: scheme.onSurface,
+            fontSize: 24,
+          ),
+        ),
+      ],
     );
   }
 
@@ -365,56 +400,56 @@ class _FrmMainState extends State<FrmMain> {
       child: Container(
         margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
         decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest.withValues(alpha: 0.9),
-        borderRadius: BorderRadius.circular(32),
-        border: Border.all(
-          color: scheme.primary.withValues(alpha: 0.2),
-          width: 1.2,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.45),
-            blurRadius: 28,
-            offset: const Offset(0, 12),
+          color: scheme.surfaceContainerHighest.withValues(alpha: 0.9),
+          borderRadius: BorderRadius.circular(32),
+          border: Border.all(
+            color: scheme.primary.withValues(alpha: 0.2),
+            width: 1.2,
           ),
-          BoxShadow(
-            color: scheme.primary.withValues(alpha: 0.09),
-            blurRadius: 22,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(8),
-        child: Row(
-          children: [
-            _NavButton(
-              icon: Icons.eco_rounded,
-              label: context.tr('Estate'),
-              selected: _selectedIndex == 0,
-              onTap: () => _onItemTapped(0),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.45),
+              blurRadius: 28,
+              offset: const Offset(0, 12),
             ),
-            _NavButton(
-              icon: Icons.analytics_rounded,
-              label: context.tr('Ledger'),
-              selected: _selectedIndex == 1,
-              onTap: () => _onItemTapped(1),
-            ),
-            _NavButton(
-              icon: Icons.inventory_2_rounded,
-              label: context.tr('Assets'),
-              selected: _selectedIndex == 2,
-              onTap: () => _onItemTapped(2),
-            ),
-            _NavButton(
-              icon: Icons.auto_stories_rounded,
-              label: context.tr('Library'),
-              selected: _selectedIndex == 3,
-              onTap: () => _onItemTapped(3),
+            BoxShadow(
+              color: scheme.primary.withValues(alpha: 0.09),
+              blurRadius: 22,
+              offset: const Offset(0, -4),
             ),
           ],
         ),
-      ),
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: Row(
+            children: [
+              _NavButton(
+                icon: Icons.eco_rounded,
+                label: context.tr('Estate'),
+                selected: _selectedIndex == 0,
+                onTap: () => _onItemTapped(0),
+              ),
+              _NavButton(
+                icon: Icons.analytics_rounded,
+                label: context.tr('Ledger'),
+                selected: _selectedIndex == 1,
+                onTap: () => _onItemTapped(1),
+              ),
+              _NavButton(
+                icon: Icons.inventory_2_rounded,
+                label: context.tr('Assets'),
+                selected: _selectedIndex == 2,
+                onTap: () => _onItemTapped(2),
+              ),
+              _NavButton(
+                icon: Icons.auto_stories_rounded,
+                label: context.tr('Library'),
+                selected: _selectedIndex == 3,
+                onTap: () => _onItemTapped(3),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -480,13 +515,15 @@ class _NavButton extends StatelessWidget {
           decoration: BoxDecoration(
             color: selected ? scheme.primary : Colors.transparent,
             borderRadius: BorderRadius.circular(24),
-            boxShadow: selected ? [
-              BoxShadow(
-                color: scheme.primary.withValues(alpha: 0.3),
-                blurRadius: 12,
-                offset: const Offset(0, 4),
-              )
-            ] : null,
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: scheme.primary.withValues(alpha: 0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    )
+                  ]
+                : null,
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,

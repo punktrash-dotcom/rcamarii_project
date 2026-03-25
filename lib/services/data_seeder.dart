@@ -2,7 +2,7 @@
 
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:csv/csv.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'app_properties_store.dart';
 import 'database_helper.dart';
 import 'knowledge_qa_service.dart';
 
@@ -22,11 +22,15 @@ class DataSeeder {
     return _seedFuture ??= _ensureSeedDataReady();
   }
 
+  static void resetForFactorySettings() {
+    _seedFuture = null;
+  }
+
   static Future<void> _ensureSeedDataReady() async {
     await _loadCsvCaches();
 
-    final prefs = await SharedPreferences.getInstance();
-    final currentVersion = prefs.getInt(_seedVersionKey) ?? 0;
+    final currentVersion =
+        await AppPropertiesStore.instance.getInt(_seedVersionKey) ?? 0;
     if (currentVersion >= _seedVersion) {
       print(
           '--- LOADDATA: Seed version is current. Skipping database refresh. ---');
@@ -34,7 +38,7 @@ class DataSeeder {
     }
 
     await _refreshSeedDataInDatabase();
-    await prefs.setInt(_seedVersionKey, _seedVersion);
+    await AppPropertiesStore.instance.setInt(_seedVersionKey, _seedVersion);
   }
 
   static Future<void> _loadCsvCaches() async {

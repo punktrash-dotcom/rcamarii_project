@@ -210,6 +210,7 @@ class _ScrWorkersState extends State<ScrWorkers> with RouteAware {
                                         padding: const EdgeInsets.only(top: 8),
                                         child: Text(
                                           'Position: ${worker.position}\n'
+                                          'Cellphone: ${worker.cellphoneNumber}\n'
                                           'Address: ${worker.address}\n'
                                           'Note: ${worker.note ?? '-'}',
                                           style: theme.textTheme.bodyMedium
@@ -373,7 +374,13 @@ class FrmAddEditWorker extends StatefulWidget {
 class _FrmAddEditWorkerState extends State<FrmAddEditWorker> {
   final _formKey = GlobalKey<FormState>();
   final Map<String, TextEditingController> _controllers = {};
-  final List<String> _fields = ['Name', 'Position', 'Address', 'Note'];
+  final List<String> _fields = [
+    'Name',
+    'Position',
+    'Cellphone Number',
+    'Address',
+    'Note',
+  ];
 
   @override
   void initState() {
@@ -387,6 +394,9 @@ class _FrmAddEditWorkerState extends State<FrmAddEditWorker> {
             break;
           case 'Position':
             initialValue = widget.worker!.position;
+            break;
+          case 'Cellphone Number':
+            initialValue = widget.worker!.cellphoneNumber;
             break;
           case 'Address':
             initialValue = widget.worker!.address;
@@ -414,6 +424,7 @@ class _FrmAddEditWorkerState extends State<FrmAddEditWorker> {
         id: widget.worker?.id,
         name: _controllers['Name']!.text,
         position: _controllers['Position']!.text,
+        cellphoneNumber: _controllers['Cellphone Number']!.text,
         address: _controllers['Address']!.text,
         note: _controllers['Note']!.text.trim().isNotEmpty
             ? _controllers['Note']!.text.trim()

@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'database_helper.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'app_properties_store.dart';
 
 class BackupService {
   static Future<String> backupData({
@@ -18,13 +18,7 @@ class BackupService {
     };
 
     if (includeSettings) {
-      final prefs = await SharedPreferences.getInstance();
-      final keys = prefs.getKeys();
-      Map<String, dynamic> settings = {};
-      for (String key in keys) {
-        settings[key] = prefs.get(key);
-      }
-      backupMap['settings'] = settings;
+      backupMap['settings'] = await AppPropertiesStore.instance.exportAll();
     }
 
     String backupPath;
@@ -78,19 +72,8 @@ class BackupService {
     });
 
     if (backupMap.containsKey('settings')) {
-      final prefs = await SharedPreferences.getInstance();
-      Map<String, dynamic> settings = backupMap['settings'];
-      settings.forEach((key, value) {
-        if (value is bool) {
-          prefs.setBool(key, value);
-        } else if (value is int) {
-          prefs.setInt(key, value);
-        } else if (value is double) {
-          prefs.setDouble(key, value);
-        } else if (value is String) {
-          prefs.setString(key, value);
-        }
-      });
+      final settings = Map<String, dynamic>.from(backupMap['settings']);
+      await AppPropertiesStore.instance.importAll(settings);
     }
   }
 

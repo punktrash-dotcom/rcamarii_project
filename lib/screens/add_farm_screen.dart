@@ -8,6 +8,7 @@ import '../providers/app_settings_provider.dart';
 import '../providers/farm_provider.dart';
 import '../services/app_route_observer.dart';
 import '../models/farm_model.dart';
+import '../themes/app_visuals.dart';
 import '../utils/validation_utils.dart';
 
 class AddFarmScreen extends StatefulWidget {
@@ -20,11 +21,11 @@ class AddFarmScreen extends StatefulWidget {
 }
 
 class _AddFarmScreenState extends State<AddFarmScreen> with RouteAware {
-  static const _scaffoldBodyTextColor = Color.fromARGB(255, 66, 99, 4);
-  static const _scaffoldFieldTextColor = Color(0xFF172017);
-  static const _scaffoldFieldFillColor = Color(0xFFF5F0E7);
-  static const _dropdownMenuColor = Color(0xFF173728);
-  static const _dropdownMenuTextColor = Color(0xFFF3F0E8);
+  static const _scaffoldBodyTextColor = AppVisuals.textForest;
+  static const _scaffoldFieldTextColor = AppVisuals.textForest;
+  static const _scaffoldFieldFillColor = AppVisuals.cloudGlass;
+  static const _dropdownMenuColor = AppVisuals.surfaceGreen;
+  static const _dropdownMenuTextColor = AppVisuals.softWhite;
 
   final _formKey = GlobalKey<FormState>();
   bool _isSaving = false;
@@ -68,8 +69,7 @@ class _AddFarmScreenState extends State<AddFarmScreen> with RouteAware {
       }
     }
     if (_isInit) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {});
       if (widget.farmID != null) {
         final farm = Provider.of<FarmProvider>(context, listen: false)
             .farms
@@ -86,8 +86,6 @@ class _AddFarmScreenState extends State<AddFarmScreen> with RouteAware {
     }
     super.didChangeDependencies();
   }
-
-
 
   Future<void> _stopScreenOpenAudioIfNeeded() async {
     final appSettings =
@@ -210,7 +208,7 @@ class _AddFarmScreenState extends State<AddFarmScreen> with RouteAware {
           Navigator.of(context).pop();
           messenger.showSnackBar(const SnackBar(
               content: Text('Farm added successfully'),
-              backgroundColor: Color(0xFF004D40),
+              backgroundColor: AppVisuals.primaryGold,
               behavior: SnackBarBehavior.floating));
         }
       } else {
@@ -219,7 +217,7 @@ class _AddFarmScreenState extends State<AddFarmScreen> with RouteAware {
           Navigator.of(context).pop();
           messenger.showSnackBar(const SnackBar(
               content: Text('Farm updated successfully'),
-              backgroundColor: Color(0xFF004D40),
+              backgroundColor: AppVisuals.primaryGold,
               behavior: SnackBarBehavior.floating));
         }
       }
@@ -236,10 +234,10 @@ class _AddFarmScreenState extends State<AddFarmScreen> with RouteAware {
     final theme = Theme.of(context);
     final isEditMode = widget.farmID != null;
     final bodyTheme = theme.copyWith(
-      canvasColor: Colors.white,
-      cardColor: Colors.white,
+      canvasColor: AppVisuals.cloudGlass,
+      cardColor: AppVisuals.cloudGlass,
       colorScheme: theme.colorScheme.copyWith(
-        surface: Colors.white,
+        surface: AppVisuals.cloudGlass,
         onSurface: _scaffoldFieldTextColor,
         onSurfaceVariant: _scaffoldBodyTextColor.withValues(alpha: 0.78),
         outline: _scaffoldBodyTextColor.withValues(alpha: 0.18),
@@ -266,12 +264,13 @@ class _AddFarmScreenState extends State<AddFarmScreen> with RouteAware {
         ),
       ),
       bottomSheetTheme: theme.bottomSheetTheme.copyWith(
-        backgroundColor: Colors.white,
+        backgroundColor: AppVisuals.cloudGlass,
         surfaceTintColor: Colors.transparent,
       ),
     );
 
     return Scaffold(
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: Text(
           isEditMode ? 'MODIFY ESTATE' : 'REGISTER ESTATE',
@@ -282,130 +281,136 @@ class _AddFarmScreenState extends State<AddFarmScreen> with RouteAware {
       ),
       body: Theme(
         data: bodyTheme,
-        child: Stack(
-          children: [
-            Container(
-              color: Colors.white.withValues(alpha: 0.95),
-              child: Form(
-                key: _formKey,
-                child: SingleChildScrollView(
-                  padding: EdgeInsets.fromLTRB(
-                    24,
-                    24,
-                    24,
-                    MediaQuery.of(context).viewInsets.bottom + 24,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // 1. CROP TYPE (Dropdown at the absolute top)
-                      _buildRow(
-                        label: 'TYPE',
-                        child: DropdownButtonFormField<String>(
-                          focusNode: _focusNodes['type'],
-                          initialValue: _selectedType,
-                          decoration: const InputDecoration(isDense: true),
-                          dropdownColor: _dropdownMenuColor,
-                          iconEnabledColor: _scaffoldBodyTextColor,
-                          selectedItemBuilder: (context) {
-                            return _farmTypes
-                                .map(
-                                  (type) => Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: Text(
-                                      type,
-                                      style: const TextStyle(
-                                        color: _scaffoldFieldTextColor,
+        child: AppBackdrop(
+          isDark: false,
+          child: Stack(
+            children: [
+              Container(
+                color: AppVisuals.cloudGlass.withValues(alpha: 0.72),
+                child: Form(
+                  key: _formKey,
+                  child: SingleChildScrollView(
+                    padding: EdgeInsets.fromLTRB(
+                      24,
+                      24,
+                      24,
+                      MediaQuery.of(context).viewInsets.bottom + 24,
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 1. CROP TYPE (Dropdown at the absolute top)
+                        _buildRow(
+                          label: 'TYPE',
+                          child: DropdownButtonFormField<String>(
+                            focusNode: _focusNodes['type'],
+                            initialValue: _selectedType,
+                            decoration: const InputDecoration(isDense: true),
+                            dropdownColor: _dropdownMenuColor,
+                            iconEnabledColor: _scaffoldBodyTextColor,
+                            selectedItemBuilder: (context) {
+                              return _farmTypes
+                                  .map(
+                                    (type) => Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text(
+                                        type,
+                                        style: const TextStyle(
+                                          color: _scaffoldFieldTextColor,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                )
-                                .toList();
-                          },
-                          items: _farmTypes
-                              .map((type) => DropdownMenuItem(
-                                    value: type,
-                                    child: Text(
-                                      type,
-                                      style: const TextStyle(
-                                        color: _dropdownMenuTextColor,
+                                  )
+                                  .toList();
+                            },
+                            items: _farmTypes
+                                .map((type) => DropdownMenuItem(
+                                      value: type,
+                                      child: Text(
+                                        type,
+                                        style: const TextStyle(
+                                          color: _dropdownMenuTextColor,
+                                        ),
                                       ),
-                                    ),
-                                  ))
-                              .toList(),
-                          onChanged: (val) {
-                            setState(() => _selectedType = val);
-                            _requestFieldFocus('name');
-                          },
+                                    ))
+                                .toList(),
+                            onChanged: (val) {
+                              setState(() => _selectedType = val);
+                              _requestFieldFocus('name');
+                            },
+                          ),
                         ),
-                      ),
 
-                      // 2. DATE PLANTED
-                      _buildRow(
-                        label: 'DATE',
-                        child: InkWell(
-                          onTap: _pickDate,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 12, vertical: 12),
-                            decoration: BoxDecoration(
-                              color: _dropdownMenuColor,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(
-                                color: _scaffoldFieldTextColor.withValues(
-                                  alpha: 0.35,
+                        // 2. DATE PLANTED
+                        _buildRow(
+                          label: 'DATE',
+                          child: InkWell(
+                            onTap: _pickDate,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 12, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: _dropdownMenuColor,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(
+                                  color: _scaffoldFieldTextColor.withValues(
+                                    alpha: 0.35,
+                                  ),
                                 ),
                               ),
-                            ),
-                            child: Row(
-                              children: [
-                                Text(
-                                  DateFormat('yyyy-MM-dd')
-                                      .format(_selectedDate),
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    color: _scaffoldFieldTextColor,
+                              child: Row(
+                                children: [
+                                  Text(
+                                    DateFormat('yyyy-MM-dd')
+                                        .format(_selectedDate),
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      color: _dropdownMenuTextColor,
+                                    ),
                                   ),
-                                ),
-                                const Spacer(),
-                                const Icon(Icons.calendar_month_rounded,
-                                    size: 18, color: _scaffoldFieldTextColor),
-                              ],
+                                  const Spacer(),
+                                  const Icon(Icons.calendar_month_rounded,
+                                      size: 18, color: _dropdownMenuTextColor),
+                                ],
+                              ),
                             ),
                           ),
                         ),
-                      ),
 
-                      // 3. TEXT FIELDS (Wrapped in Autocomplete per requirement)
-                      _buildAutocompleteRow('Farm Name', 'name', (f) => f.name,
-                          nextFieldKey: 'area'),
-                      _buildAutocompleteRow(
-                          'Area (Ha)', 'area', (f) => f.area.toString(),
-                          isNumeric: true, nextFieldKey: 'city'),
-                      _buildAutocompleteRow('City', 'city', (f) => f.city,
-                          nextFieldKey: 'province'),
-                      _buildAutocompleteRow(
-                          'Province', 'province', (f) => f.province,
-                          nextFieldKey: 'owner'),
-                      _buildAutocompleteRow('Owner', 'owner', (f) => f.owner,
-                          nextFieldKey: 'save'),
+                        // 3. TEXT FIELDS (Wrapped in Autocomplete per requirement)
+                        _buildAutocompleteRow(
+                            'Farm Name', 'name', (f) => f.name,
+                            nextFieldKey: 'area'),
+                        _buildAutocompleteRow(
+                            'Area (Ha)', 'area', (f) => f.area.toString(),
+                            isNumeric: true, nextFieldKey: 'city'),
+                        _buildAutocompleteRow('City', 'city', (f) => f.city,
+                            nextFieldKey: 'province'),
+                        _buildAutocompleteRow(
+                            'Province', 'province', (f) => f.province,
+                            nextFieldKey: 'owner'),
+                        _buildAutocompleteRow('Owner', 'owner', (f) => f.owner,
+                            nextFieldKey: 'save'),
 
-                      const SizedBox(height: 40),
-                      _buildActionButtons(isEditMode),
-                      const SizedBox(height: 100),
-                    ],
+                        const SizedBox(height: 40),
+                        _buildActionButtons(isEditMode),
+                        const SizedBox(height: 100),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-            if (_isSaving)
-              Container(
-                color: Colors.black26,
-                child: const Center(
-                  child: CircularProgressIndicator(color: Color(0xFF004D40)),
+              if (_isSaving)
+                Container(
+                  color: Colors.black26,
+                  child: const Center(
+                    child: CircularProgressIndicator(
+                      color: AppVisuals.primaryGold,
+                    ),
+                  ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );

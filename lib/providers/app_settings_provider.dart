@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
+import '../services/app_properties_store.dart';
 
 enum AppCurrency { php, usd, eur }
 
@@ -131,6 +132,10 @@ extension AudioSoundStyleX on AudioSoundStyle {
 class AppSettingsProvider with ChangeNotifier {
   static const _currencyKey = 'app_settings.currency';
   static const _launchDestinationKey = 'app_settings.launch_destination';
+  static const _userNameKey = 'app_settings.user_name';
+  static const _userSetupCompleteKey = 'app_settings.user_setup_complete';
+  static const _appLockEnabledKey = 'app_settings.app_lock_enabled';
+  static const _appPasswordKey = 'app_settings.app_password';
   static const _voiceAssistantEnabledKey =
       'app_settings.voice_assistant_enabled';
   static const _voiceResponsesEnabledKey =
@@ -142,9 +147,14 @@ class AppSettingsProvider with ChangeNotifier {
   static const _reducedMotionKey = 'app_settings.reduced_motion';
 
   late final Future<void> _ready;
+  final AppPropertiesStore _store = AppPropertiesStore.instance;
 
   AppCurrency _currency = AppCurrency.php;
   LaunchDestination _launchDestination = LaunchDestination.hub;
+  String _userName = '';
+  bool _userSetupComplete = false;
+  bool _appLockEnabled = false;
+  String _appPassword = '';
   bool _voiceAssistantEnabled = true;
   bool _voiceResponsesEnabled = true;
   bool _audioSoundsEnabled = false;
@@ -157,6 +167,12 @@ class AppSettingsProvider with ChangeNotifier {
 
   AppCurrency get currency => _currency;
   LaunchDestination get launchDestination => _launchDestination;
+  String get userName => _userName;
+  bool get hasCompletedUserSetup => _userSetupComplete;
+  bool get appLockEnabled => _appLockEnabled;
+  String get appPassword => _appPassword;
+  bool get hasAppPassword => _appPassword.isNotEmpty;
+  bool get requiresAppPassword => _appLockEnabled && hasAppPassword;
   bool get voiceAssistantEnabled => _voiceAssistantEnabled;
   bool get voiceResponsesEnabled => _voiceResponsesEnabled;
   bool get audioSoundsEnabled => _audioSoundsEnabled;
@@ -174,13 +190,65 @@ class AppSettingsProvider with ChangeNotifier {
     _ready = _load();
   }
 
+  Future<void> completeUserSetup({
+    required String userName,
+    required bool appLockEnabled,
+    String password = '',
+  }) async {
+    await updateUserAccess(
+      userName: userName,
+      appLockEnabled: appLockEnabled,
+      password: password,
+      markSetupComplete: true,
+    );
+  }
+
+  Future<void> updateUserAccess({
+    required String userName,
+    required bool appLockEnabled,
+    String password = '',
+    bool markSetupComplete = true,
+  }) async {
+    final trimmedName = userName.trim();
+    final trimmedPassword = password.trim();
+
+    _userName = trimmedName;
+    _userSetupComplete = markSetupComplete || _userSetupComplete;
+    _appLockEnabled = appLockEnabled;
+    _appPassword = appLockEnabled ? trimmedPassword : '';
+    notifyListeners();
+
+    await _store.setString(_userNameKey, _userName);
+    await _store.setBool(_userSetupCompleteKey, _userSetupComplete);
+    await _store.setBool(_appLockEnabledKey, _appLockEnabled);
+    if (_appPassword.isEmpty) {
+      await _store.remove(_appPasswordKey);
+    } else {
+      await _store.setString(_appPasswordKey, _appPassword);
+    }
+  }
+
+  Future<void> setUserName(String value) async {
+    final trimmedValue = value.trim();
+    if (trimmedValue.isEmpty || _userName == trimmedValue) return;
+
+    _userName = trimmedValue;
+    notifyListeners();
+
+    await _store.setString(_userNameKey, _userName);
+  }
+
+  bool isAppPasswordValid(String value) {
+    if (!hasAppPassword) return true;
+    return _appPassword == value;
+  }
+
   Future<void> setCurrency(AppCurrency value) async {
     if (_currency == value) return;
     _currency = value;
     notifyListeners();
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_currencyKey, value.code);
+    await _store.setString(_currencyKey, value.code);
   }
 
   Future<void> setLaunchDestination(LaunchDestination value) async {
@@ -188,8 +256,7 @@ class AppSettingsProvider with ChangeNotifier {
     _launchDestination = value;
     notifyListeners();
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_launchDestinationKey, value.code);
+    await _store.setString(_launchDestinationKey, value.code);
   }
 
   Future<void> setVoiceAssistantEnabled(bool value) async {
@@ -197,8 +264,7 @@ class AppSettingsProvider with ChangeNotifier {
     _voiceAssistantEnabled = value;
     notifyListeners();
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_voiceAssistantEnabledKey, value);
+    await _store.setBool(_voiceAssistantEnabledKey, value);
   }
 
   Future<void> setVoiceResponsesEnabled(bool value) async {
@@ -206,8 +272,7 @@ class AppSettingsProvider with ChangeNotifier {
     _voiceResponsesEnabled = value;
     notifyListeners();
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_voiceResponsesEnabledKey, value);
+    await _store.setBool(_voiceResponsesEnabledKey, value);
   }
 
   Future<void> setAudioSoundsEnabled(bool value) async {
@@ -215,8 +280,7 @@ class AppSettingsProvider with ChangeNotifier {
     _audioSoundsEnabled = value;
     notifyListeners();
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_audioSoundsEnabledKey, value);
+    await _store.setBool(_audioSoundsEnabledKey, value);
   }
 
   Future<void> setAudioSoundsVolume(double value) async {
@@ -224,8 +288,7 @@ class AppSettingsProvider with ChangeNotifier {
     _audioSoundsVolume = value;
     notifyListeners();
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setDouble(_audioSoundsVolumeKey, value);
+    await _store.setDouble(_audioSoundsVolumeKey, value);
   }
 
   Future<void> setAudioSoundStyle(AudioSoundStyle value) async {
@@ -234,8 +297,7 @@ class AppSettingsProvider with ChangeNotifier {
     selectedGlobalAudioSoundStyle = value;
     notifyListeners();
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_audioSoundStyleKey, value.code);
+    await _store.setString(_audioSoundStyleKey, value.code);
   }
 
   Future<void> setWeatherAutoRefresh(bool value) async {
@@ -243,8 +305,7 @@ class AppSettingsProvider with ChangeNotifier {
     _weatherAutoRefresh = value;
     notifyListeners();
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_weatherAutoRefreshKey, value);
+    await _store.setBool(_weatherAutoRefreshKey, value);
   }
 
   Future<void> setReducedMotion(bool value) async {
@@ -252,27 +313,39 @@ class AppSettingsProvider with ChangeNotifier {
     _reducedMotion = value;
     notifyListeners();
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_reducedMotionKey, value);
+    await _store.setBool(_reducedMotionKey, value);
   }
 
-  Future<void> _load() async {
-    final prefs = await SharedPreferences.getInstance();
+  Future<void> reload() async {
+    await _load(notify: true);
+  }
 
-    _currency = AppCurrencyX.fromCode(prefs.getString(_currencyKey));
+  Future<void> _load({bool notify = true}) async {
+    await _store.ready;
+
+    _currency = AppCurrencyX.fromCode(await _store.getString(_currencyKey));
     _launchDestination = LaunchDestinationX.fromCode(
-      prefs.getString(_launchDestinationKey),
+      await _store.getString(_launchDestinationKey),
     );
-    _voiceAssistantEnabled = prefs.getBool(_voiceAssistantEnabledKey) ?? true;
-    _voiceResponsesEnabled = prefs.getBool(_voiceResponsesEnabledKey) ?? true;
-    _audioSoundsEnabled = prefs.getBool(_audioSoundsEnabledKey) ?? false;
-    _audioSoundsVolume = prefs.getDouble(_audioSoundsVolumeKey) ?? 0.75;
+    _userName = (await _store.getString(_userNameKey))?.trim() ?? '';
+    _userSetupComplete = await _store.getBool(_userSetupCompleteKey) ?? false;
+    _appLockEnabled = await _store.getBool(_appLockEnabledKey) ?? false;
+    _appPassword =
+        _appLockEnabled ? (await _store.getString(_appPasswordKey) ?? '') : '';
+    _voiceAssistantEnabled =
+        await _store.getBool(_voiceAssistantEnabledKey) ?? true;
+    _voiceResponsesEnabled =
+        await _store.getBool(_voiceResponsesEnabledKey) ?? true;
+    _audioSoundsEnabled = await _store.getBool(_audioSoundsEnabledKey) ?? false;
+    _audioSoundsVolume = await _store.getDouble(_audioSoundsVolumeKey) ?? 0.75;
     _audioSoundStyle =
-        AudioSoundStyleX.fromCode(prefs.getString(_audioSoundStyleKey));
+        AudioSoundStyleX.fromCode(await _store.getString(_audioSoundStyleKey));
     selectedGlobalAudioSoundStyle = _audioSoundStyle;
-    _weatherAutoRefresh = prefs.getBool(_weatherAutoRefreshKey) ?? true;
-    _reducedMotion = prefs.getBool(_reducedMotionKey) ?? false;
+    _weatherAutoRefresh = await _store.getBool(_weatherAutoRefreshKey) ?? true;
+    _reducedMotion = await _store.getBool(_reducedMotionKey) ?? false;
 
-    notifyListeners();
+    if (notify) {
+      notifyListeners();
+    }
   }
 }

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../providers/app_settings_provider.dart';
 import '../providers/voice_command_provider.dart';
 import '../themes/app_visuals.dart';
+import '../utils/app_layout_utils.dart';
 
 class ModernScreenShell extends StatelessWidget {
   final String title;
@@ -59,63 +60,62 @@ class ModernScreenShell extends StatelessWidget {
               FrostedPanel(
                 radius: 30,
                 color: isDark
-                    ? scheme.surfaceContainerHighest.withValues(alpha: 0.97)
-                    : scheme.surface.withValues(alpha: 0.96),
+                    ? scheme.surfaceContainerHighest.withValues(alpha: 0.92)
+                    : AppVisuals.cloudGlass.withValues(alpha: 0.9),
                 padding: headerPadding,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final shouldStack = AppLayoutUtils.shouldStackHeader(
+                          context,
+                          widthBreakpoint: 560,
+                          scaleBreakpoint: 1.08,
+                        ) ||
+                        constraints.maxWidth < 520;
+                    final headerActions = <Widget>[
+                      if (actionBadge != null) actionBadge!,
+                      if (showVoiceButton && appSettings.voiceAssistantEnabled)
+                        _buildVoiceAction(context, theme),
+                    ];
+
+                    if (shouldStack) {
+                      return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          if (headerTopContent != null) ...[
-                            headerTopContent!,
-                            SizedBox(height: headerTopContentGap),
-                          ],
-                          if (subtitle.trim().isNotEmpty) ...[
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: scheme.primary.withValues(alpha: 0.14),
-                                borderRadius: BorderRadius.circular(999),
-                                border: Border.all(
-                                  color: scheme.primary.withValues(alpha: 0.35),
-                                ),
-                              ),
-                              child: Text(
-                                subtitle.toUpperCase(),
-                                style: _buildSubtitleStyle(theme),
-                              ),
+                          _buildHeaderText(theme, scheme),
+                          if (headerActions.isNotEmpty) ...[
+                            const SizedBox(height: 14),
+                            Wrap(
+                              spacing: 10,
+                              runSpacing: 10,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: headerActions,
                             ),
-                            SizedBox(height: titleGap),
                           ],
-                          Text(
-                            title,
-                            style: _buildTitleStyle(theme),
+                        ],
+                      );
+                    }
+
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: _buildHeaderText(theme, scheme),
+                        ),
+                        if (headerActions.isNotEmpty) ...[
+                          const SizedBox(width: 12),
+                          Flexible(
+                            child: Wrap(
+                              alignment: WrapAlignment.end,
+                              spacing: 10,
+                              runSpacing: 10,
+                              crossAxisAlignment: WrapCrossAlignment.center,
+                              children: headerActions,
+                            ),
                           ),
                         ],
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Flexible(
-                      child: Wrap(
-                        alignment: WrapAlignment.end,
-                        spacing: 10,
-                        runSpacing: 10,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          if (actionBadge != null) actionBadge!,
-                          if (showVoiceButton &&
-                              appSettings.voiceAssistantEnabled)
-                            _buildVoiceAction(context, theme),
-                        ],
-                      ),
-                    ),
-                  ],
+                      ],
+                    );
+                  },
                 ),
               ),
               SizedBox(height: headerGap),
@@ -123,7 +123,9 @@ class ModernScreenShell extends StatelessWidget {
                 child: FrostedPanel(
                   radius: 34,
                   padding: bodyPadding,
-                  color: scheme.surface.withValues(alpha: isDark ? 0.88 : 0.92),
+                  color: isDark
+                      ? scheme.surface.withValues(alpha: 0.78)
+                      : AppVisuals.cloudGlass.withValues(alpha: 0.84),
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(26),
                     child: child,
@@ -134,6 +136,42 @@ class ModernScreenShell extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildHeaderText(ThemeData theme, ColorScheme scheme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (headerTopContent != null) ...[
+          headerTopContent!,
+          SizedBox(height: headerTopContentGap),
+        ],
+        if (subtitle.trim().isNotEmpty) ...[
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 10,
+              vertical: 6,
+            ),
+            decoration: BoxDecoration(
+              color: scheme.primary.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(
+                color: scheme.primary.withValues(alpha: 0.35),
+              ),
+            ),
+            child: Text(
+              subtitle.toUpperCase(),
+              style: _buildSubtitleStyle(theme),
+            ),
+          ),
+          SizedBox(height: titleGap),
+        ],
+        Text(
+          title,
+          style: _buildTitleStyle(theme),
+        ),
+      ],
     );
   }
 
@@ -157,7 +195,7 @@ class ModernScreenShell extends StatelessWidget {
     final base = theme.textTheme.bodySmall?.copyWith(
       letterSpacing: 1.2,
       fontWeight: FontWeight.w800,
-      color: AppVisuals.warmOffWhite.withValues(alpha: 0.8),
+      color: theme.colorScheme.onPrimary.withValues(alpha: 0.84),
     );
     if (subtitleStyleOverride != null) {
       return base?.merge(subtitleStyleOverride) ?? subtitleStyleOverride;

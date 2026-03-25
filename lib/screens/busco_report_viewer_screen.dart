@@ -79,14 +79,16 @@ class _BuscoReportViewerScreenState extends State<BuscoReportViewerScreen> {
                   title: 'Official BUSCO Report',
                   subtitle: 'Tap to expand and zoom',
                   assetPath: _reportAssetPath,
-                  onTap: () => _openFullScreen(_reportAssetPath, 'Actual Report'),
+                  onTap: () =>
+                      _openFullScreen(_reportAssetPath, 'Actual Report'),
                 ),
                 const SizedBox(height: 32),
                 Row(
                   children: [
                     Expanded(
                         child: Divider(
-                            color: AppVisuals.textForest.withValues(alpha: 0.1))),
+                            color:
+                                AppVisuals.textForest.withValues(alpha: 0.1))),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Text(
@@ -101,7 +103,8 @@ class _BuscoReportViewerScreenState extends State<BuscoReportViewerScreen> {
                     ),
                     Expanded(
                         child: Divider(
-                            color: AppVisuals.textForest.withValues(alpha: 0.1))),
+                            color:
+                                AppVisuals.textForest.withValues(alpha: 0.1))),
                   ],
                 ),
                 const SizedBox(height: 24),
@@ -137,8 +140,8 @@ class _BuscoReportViewerScreenState extends State<BuscoReportViewerScreen> {
       decoration: BoxDecoration(
         color: _surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-            color: AppVisuals.primaryGold.withValues(alpha: 0.15)),
+        border:
+            Border.all(color: AppVisuals.primaryGold.withValues(alpha: 0.15)),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.4),
@@ -249,9 +252,9 @@ class _FullScreenViewer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppVisuals.deepGreen,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFE8F0EC),
+        backgroundColor: AppVisuals.cloudGlass,
         foregroundColor: AppVisuals.textForest,
         elevation: 0,
         leading: IconButton(

@@ -26,17 +26,10 @@ class ChartsScreen extends StatefulWidget {
 }
 
 class _ChartsScreenState extends State<ChartsScreen> {
-  static const revenueColor = Color(0xFF67FFB8);
-  static const expenseColor = Color(0xFFFF6B81);
-  static const netColor = Color(0xFF18F2FF);
-  static const categoryColors = [
-    Color(0xFF18F2FF),
-    Color(0xFF67FFB8),
-    Color(0xFFFFC857),
-    Color(0xFFFF6B81),
-    Color(0xFF9A7CFF),
-    Color(0xFF4FF7D8),
-  ];
+  static const revenueColor = AppVisuals.chartRevenue;
+  static const expenseColor = AppVisuals.chartExpense;
+  static const netColor = AppVisuals.chartNet;
+  static const categoryColors = AppVisuals.chartPalette;
 
   final DateFormat dateLabel = DateFormat('MMM d, y');
   final DateFormat dateTimeLabel = DateFormat('MMM d, y h:mm a');
@@ -624,7 +617,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
       decoration: reportCardDecoration(scheme).copyWith(
         gradient: LinearGradient(
           colors: [
-            const Color(0xFF1A3A34),
+            AppVisuals.surfaceGreen,
             scheme.surface,
           ],
           begin: Alignment.topLeft,
@@ -648,15 +641,15 @@ class _ChartsScreenState extends State<ChartsScreen> {
                   width: 54,
                   height: 54,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF39C6A2).withValues(alpha: 0.14),
+                    color: AppVisuals.chartNet.withValues(alpha: 0.14),
                     borderRadius: BorderRadius.circular(18),
                     border: Border.all(
-                      color: const Color(0xFF39C6A2).withValues(alpha: 0.3),
+                      color: AppVisuals.chartNet.withValues(alpha: 0.3),
                     ),
                   ),
                   child: const Icon(
                     Icons.assessment_rounded,
-                    color: Color(0xFF39C6A2),
+                    color: AppVisuals.chartNet,
                     size: 28,
                   ),
                 ),
@@ -668,7 +661,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
                       Text(
                         'BUSCO REPORT ANALYSIS',
                         style: TextStyle(
-                          color: const Color(0xFF39C6A2),
+                          color: AppVisuals.chartNet,
                           fontSize: 10,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 1.2,
@@ -719,8 +712,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
       decoration: BoxDecoration(
         color: scheme.onSurface.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-            color: scheme.onSurface.withValues(alpha: 0.1)),
+        border: Border.all(color: scheme.onSurface.withValues(alpha: 0.1)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -959,7 +951,8 @@ class _ChartsScreenState extends State<ChartsScreen> {
                               return LineTooltipItem(
                                 '${point.label}\n$seriesLabel ${currency.format(spot.y)}',
                                 TextStyle(
-                                  color: spot.bar.color ?? AppVisuals.textForest,
+                                  color:
+                                      spot.bar.color ?? AppVisuals.textForest,
                                   fontWeight: FontWeight.w700,
                                 ),
                               );
@@ -1390,8 +1383,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
         Flexible(
           child: Text(
             label,
-            style: TextStyle(
-                color: fg.withValues(alpha: 0.82), fontSize: 12),
+            style: TextStyle(color: fg.withValues(alpha: 0.82), fontSize: 12),
             overflow: TextOverflow.ellipsis,
           ),
         ),
@@ -1427,14 +1419,16 @@ class _ChartsScreenState extends State<ChartsScreen> {
       borderRadius: BorderRadius.circular(28),
       gradient: LinearGradient(
         colors: [
-          scheme.surface.withValues(alpha: 0.96),
-          const Color(0xFF071524),
+          scheme.surface.withValues(alpha: 0.98),
+          Color.alphaBlend(
+            AppVisuals.brandBlue.withValues(alpha: 0.1),
+            AppVisuals.surfaceInset,
+          ),
         ],
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
       ),
-      border: Border.all(
-          color: scheme.primary.withValues(alpha: 0.14)),
+      border: Border.all(color: scheme.primary.withValues(alpha: 0.14)),
       boxShadow: [
         BoxShadow(
           color: scheme.primary.withValues(alpha: 0.08),

@@ -1,18 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../models/def_sup_model.dart';
 import '../models/supply_model.dart';
-import '../providers/data_provider.dart';
 import '../providers/supplies_provider.dart';
-import '../screens/frm_add_def_sup_screen.dart';
 import '../screens/frm_add_sup_screen.dart';
 import '../themes/app_visuals.dart';
 
 class SuppliesTab extends StatefulWidget {
-  final SuppliesTabController? controller;
-
-  const SuppliesTab({super.key, this.controller});
+  const SuppliesTab({super.key});
 
   @override
   State<SuppliesTab> createState() => _SuppliesTabState();
@@ -20,32 +15,12 @@ class SuppliesTab extends StatefulWidget {
 
 class _SuppliesTabState extends State<SuppliesTab>
     with TickerProviderStateMixin {
-  bool _showScr2 = false;
-
-  void _toggleScr(bool showScr2) => setState(() => _showScr2 = showScr2);
-
   @override
   void initState() {
     super.initState();
-    widget.controller?.bind(_toggleScr);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<SuppliesProvider>(context, listen: false).loadSupplies();
     });
-  }
-
-  @override
-  void didUpdateWidget(covariant SuppliesTab oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.controller != widget.controller) {
-      oldWidget.controller?.bind(null);
-      widget.controller?.bind(_toggleScr);
-    }
-  }
-
-  @override
-  void dispose() {
-    widget.controller?.bind(null);
-    super.dispose();
   }
 
   @override
@@ -59,7 +34,7 @@ class _SuppliesTabState extends State<SuppliesTab>
           Expanded(
             child: Container(
               color: scheme.surfaceContainerHighest.withValues(alpha: 0.28),
-              child: _showScr2 ? _buildScr2() : _buildScr1(),
+              child: _buildScr1(),
             ),
           ),
         ],
@@ -191,128 +166,6 @@ class _SuppliesTabState extends State<SuppliesTab>
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildScr2() {
-    final scheme = Theme.of(context).colorScheme;
-    final dataProvider = Provider.of<DataProvider>(context);
-    final defSups = dataProvider.defSups;
-    final groupedSupplies = <String, List<DefSup>>{};
-
-    for (final item in defSups) {
-      groupedSupplies.putIfAbsent(item.type, () => []).add(item);
-    }
-    final types = groupedSupplies.keys.toList();
-
-    return Column(
-      children: [
-        AppBar(
-          title: const Text(
-            'CATALOG BROWSER',
-            style: TextStyle(
-              color: AppVisuals.primaryGold,
-              fontWeight: FontWeight.w900,
-              fontSize: 14,
-              letterSpacing: 1,
-            ),
-          ),
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          automaticallyImplyLeading: false,
-          leading: IconButton(
-            icon: Icon(
-              Icons.arrow_back_ios_new_rounded,
-              color: scheme.onSurface,
-              size: 18,
-            ),
-            onPressed: () => _toggleScr(false),
-          ),
-          actions: [
-            IconButton(
-              icon: Icon(Icons.add_box_outlined, color: scheme.secondary),
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const FrmAddDefSupScreen()),
-              ),
-            ),
-          ],
-        ),
-        if (types.isNotEmpty)
-          DefaultTabController(
-            length: types.length,
-            child: Expanded(
-              child: Column(
-                children: [
-                  TabBar(
-                    isScrollable: true,
-                    indicatorColor: scheme.primary,
-                    labelColor: scheme.primary,
-                    unselectedLabelColor: scheme.onSurfaceVariant,
-                    tabs: types.map((t) => Tab(text: t.toUpperCase())).toList(),
-                  ),
-                  Expanded(
-                    child: TabBarView(
-                      children: types.map((type) {
-                        final items = groupedSupplies[type]!;
-                        return ListView.builder(
-                          padding: const EdgeInsets.all(16),
-                          itemCount: items.length,
-                          itemBuilder: (ctx, i) {
-                            final item = items[i];
-                            return Card(
-                              elevation: 0,
-                              color: scheme.surfaceContainerHighest.withValues(
-                                alpha: 0.88,
-                              ),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(16),
-                                side: BorderSide(
-                                  color: scheme.outline.withValues(alpha: 0.35),
-                                ),
-                              ),
-                              child: ListTile(
-                                title: Text(
-                                  item.name,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.w900,
-                                    color: scheme.onSurface,
-                                    fontSize: 14,
-                                  ),
-                                ),
-                                subtitle: Text(
-                                  _catalogSubtitle(item),
-                                  style: TextStyle(
-                                    color: scheme.onSurfaceVariant,
-                                    fontSize: 12,
-                                  ),
-                                ),
-                                trailing: Icon(
-                                  Icons.add_circle_outline,
-                                  color: scheme.primary,
-                                  size: 20,
-                                ),
-                              ),
-                            );
-                          },
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          )
-        else
-          Expanded(
-            child: Center(
-              child: Text(
-                'Database empty',
-                style: TextStyle(color: scheme.onSurfaceVariant),
-              ),
-            ),
-          ),
-      ],
     );
   }
 
@@ -478,39 +331,6 @@ class _SuppliesTabState extends State<SuppliesTab>
       await provider.deleteSupply(supplyId);
       setState(() {});
     }
-  }
-
-  String _catalogSubtitle(DefSup item) {
-    final lines = <String>[];
-    final description = item.description.trim();
-    if (description.isNotEmpty) {
-      lines.add(description);
-    }
-    lines.add(_catalogPriceLabel(item));
-    return lines.join('\n');
-  }
-
-  String _catalogPriceLabel(DefSup item) {
-    if (item.cost > 0) {
-      return 'Price: \u20B1${item.cost.toStringAsFixed(2)}';
-    }
-    return 'Price: No price yet';
-  }
-}
-
-class SuppliesTabController {
-  void Function(bool)? _handler;
-
-  void bind(void Function(bool)? handler) {
-    _handler = handler;
-  }
-
-  void showDatabase() {
-    _handler?.call(true);
-  }
-
-  void showInventory() {
-    _handler?.call(false);
   }
 }
 

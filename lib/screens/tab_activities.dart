@@ -24,7 +24,7 @@ class _TabActivitiesState extends State<TabActivities>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
   String _searchQuery = '';
-  final String _sortMode = 'Date';
+  String _sortMode = 'Date';
   String? _selectedWorkDefId;
   String? _selectedActivityId;
 
@@ -62,18 +62,21 @@ class _TabActivitiesState extends State<TabActivities>
     final farmProvider = Provider.of<FarmProvider>(context);
     final activityProvider = Provider.of<ActivityProvider>(context);
     final currency = Provider.of<AppSettingsProvider>(context).currencyFormat;
-    final filteredActivities = _filteredActivities(farmProvider, activityProvider);
+    final filteredActivities =
+        _filteredActivities(farmProvider, activityProvider);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (nav.farmIdToFilter == null) return;
       try {
-        final farm = farmProvider.farms.firstWhere((f) => f.id == nav.farmIdToFilter);
+        final farm =
+            farmProvider.farms.firstWhere((f) => f.id == nav.farmIdToFilter);
         if (_searchQuery != farm.name) {
           setState(() {
             _searchQuery = farm.name;
             _selectedActivityId = null;
           });
         }
+        nav.clearFarmFilter();
       } catch (_) {}
     });
 
@@ -99,7 +102,8 @@ class _TabActivitiesState extends State<TabActivities>
                     child: TabBarView(
                       controller: _tabController,
                       children: [
-                        _buildActivityLedger(theme, filteredActivities, currency),
+                        _buildActivityLedger(
+                            theme, filteredActivities, currency),
                         _buildWorkDefinitions(theme),
                       ],
                     ),
@@ -113,11 +117,14 @@ class _TabActivitiesState extends State<TabActivities>
     );
   }
 
-  List<Activity> _filteredActivities(FarmProvider farmProvider, ActivityProvider activityProvider) {
+  List<Activity> _filteredActivities(
+      FarmProvider farmProvider, ActivityProvider activityProvider) {
     final filteredActivities = List<Activity>.from(activityProvider.activities);
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase();
-      filteredActivities.removeWhere((act) => !act.farm.toLowerCase().contains(query) && !act.name.toLowerCase().contains(query));
+      filteredActivities.removeWhere((act) =>
+          !act.farm.toLowerCase().contains(query) &&
+          !act.name.toLowerCase().contains(query));
     }
     if (_sortMode == 'Date') {
       filteredActivities.sort((a, b) => b.date.compareTo(a.date));
@@ -127,8 +134,10 @@ class _TabActivitiesState extends State<TabActivities>
     return filteredActivities;
   }
 
-  Widget _buildActivityMetrics(ThemeData theme, List<Activity> activities, NumberFormat currency) {
-    final totalAmount = activities.fold<double>(0, (sum, act) => sum + act.total);
+  Widget _buildActivityMetrics(
+      ThemeData theme, List<Activity> activities, NumberFormat currency) {
+    final totalAmount =
+        activities.fold<double>(0, (sum, act) => sum + act.total);
     return Row(
       children: [
         Expanded(
@@ -173,6 +182,21 @@ class _TabActivitiesState extends State<TabActivities>
                 onTap:
                     _selectedActivityId == null ? () {} : _editSelectedActivity,
                 enabled: _selectedActivityId != null,
+              ),
+              const SizedBox(width: 10),
+              _ActionButton(
+                icon: Icons.delete_rounded,
+                label: context.tr('Delete'),
+                onTap: _selectedActivityId == null
+                    ? () {}
+                    : _deleteSelectedActivity,
+                enabled: _selectedActivityId != null,
+              ),
+              const SizedBox(width: 10),
+              _ActionButton(
+                icon: Icons.filter_alt_rounded,
+                label: context.tr('Filter'),
+                onTap: _openFilterSheet,
               ),
               const SizedBox(width: 10),
               _ActionButton(
@@ -235,8 +259,12 @@ class _TabActivitiesState extends State<TabActivities>
     );
   }
 
-  Widget _buildActivityLedger(ThemeData theme, List<Activity> activities, NumberFormat currency) {
-    if (activities.isEmpty) return _buildEmptyState(theme, Icons.history_rounded, context.tr('No activities found.'));
+  Widget _buildActivityLedger(
+      ThemeData theme, List<Activity> activities, NumberFormat currency) {
+    if (activities.isEmpty) {
+      return _buildEmptyState(
+          theme, Icons.history_rounded, context.tr('No activities found.'));
+    }
 
     return ListView.builder(
       padding: const EdgeInsets.only(top: 8, bottom: 20),
@@ -246,16 +274,21 @@ class _TabActivitiesState extends State<TabActivities>
         final isSelected = _selectedActivityId == act.jobId;
 
         return GestureDetector(
-          onTap: () => setState(() => _selectedActivityId = isSelected ? null : act.jobId),
+          onTap: () => setState(
+              () => _selectedActivityId = isSelected ? null : act.jobId),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 300),
             margin: const EdgeInsets.only(bottom: 16),
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: isSelected ? AppVisuals.surfaceGreen : AppVisuals.surfaceGreen.withValues(alpha: 0.5),
+              color: isSelected
+                  ? AppVisuals.surfaceGreen
+                  : AppVisuals.surfaceGreen.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(28),
               border: Border.all(
-                color: isSelected ? AppVisuals.primaryGold : AppVisuals.textForest.withValues(alpha: 0.05),
+                color: isSelected
+                    ? AppVisuals.primaryGold
+                    : AppVisuals.textForest.withValues(alpha: 0.05),
                 width: 1.5,
               ),
             ),
@@ -264,26 +297,44 @@ class _TabActivitiesState extends State<TabActivities>
                 Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: isSelected ? AppVisuals.primaryGold : AppVisuals.textForest.withValues(alpha: 0.05),
+                    color: isSelected
+                        ? AppVisuals.primaryGold
+                        : AppVisuals.textForest.withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(18),
                   ),
-                  child: Icon(Icons.assignment_rounded, color: isSelected ? AppVisuals.deepGreen : AppVisuals.primaryGold, size: 24),
+                  child: Icon(Icons.assignment_rounded,
+                      color: isSelected
+                          ? AppVisuals.deepGreen
+                          : AppVisuals.primaryGold,
+                      size: 24),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(act.name, style: theme.textTheme.titleMedium?.copyWith(color: AppVisuals.textForest, fontWeight: FontWeight.w900)),
-                      Text(act.farm, style: theme.textTheme.bodySmall?.copyWith(color: AppVisuals.textForest.withValues(alpha: 0.4))),
+                      Text(act.name,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                              color: AppVisuals.textForest,
+                              fontWeight: FontWeight.w900)),
+                      Text(act.farm,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                              color: AppVisuals.textForest
+                                  .withValues(alpha: 0.4))),
                     ],
                   ),
                 ),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(currency.format(act.total), style: theme.textTheme.titleMedium?.copyWith(color: AppVisuals.primaryGold, fontWeight: FontWeight.w900)),
-                    Text(DateFormat('MMM d').format(act.date), style: theme.textTheme.labelSmall?.copyWith(color: AppVisuals.textForest.withValues(alpha: 0.3))),
+                    Text(currency.format(act.total),
+                        style: theme.textTheme.titleMedium?.copyWith(
+                            color: AppVisuals.primaryGold,
+                            fontWeight: FontWeight.w900)),
+                    Text(DateFormat('MMM d').format(act.date),
+                        style: theme.textTheme.labelSmall?.copyWith(
+                            color:
+                                AppVisuals.textForest.withValues(alpha: 0.3))),
                   ],
                 ),
               ],
@@ -298,7 +349,10 @@ class _TabActivitiesState extends State<TabActivities>
     final dataProvider = Provider.of<DataProvider>(context);
     final workDefs = dataProvider.workDefs;
 
-    if (workDefs.isEmpty) return _buildEmptyState(theme, Icons.task_rounded, context.tr('No tasks defined.'));
+    if (workDefs.isEmpty) {
+      return _buildEmptyState(
+          theme, Icons.task_rounded, context.tr('No tasks defined.'));
+    }
 
     return ListView.builder(
       padding: const EdgeInsets.only(top: 8, bottom: 20),
@@ -308,24 +362,39 @@ class _TabActivitiesState extends State<TabActivities>
         final isSelected = _selectedWorkDefId == def.id;
 
         return GestureDetector(
-          onTap: () => setState(() => _selectedWorkDefId = isSelected ? null : def.id),
+          onTap: () =>
+              setState(() => _selectedWorkDefId = isSelected ? null : def.id),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 300),
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             decoration: BoxDecoration(
-              color: isSelected ? AppVisuals.surfaceGreen : AppVisuals.surfaceGreen.withValues(alpha: 0.4),
+              color: isSelected
+                  ? AppVisuals.surfaceGreen
+                  : AppVisuals.surfaceGreen.withValues(alpha: 0.4),
               borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: isSelected ? AppVisuals.primaryGold : AppVisuals.textForest.withValues(alpha: 0.05)),
+              border: Border.all(
+                  color: isSelected
+                      ? AppVisuals.primaryGold
+                      : AppVisuals.textForest.withValues(alpha: 0.05)),
             ),
             child: Row(
               children: [
-                Icon(Icons.label_important_rounded, color: isSelected ? AppVisuals.primaryGold : AppVisuals.textForest.withValues(alpha: 0.2), size: 20),
+                Icon(Icons.label_important_rounded,
+                    color: isSelected
+                        ? AppVisuals.primaryGold
+                        : AppVisuals.textForest.withValues(alpha: 0.2),
+                    size: 20),
                 const SizedBox(width: 16),
                 Expanded(
-                  child: Text(def.name, style: theme.textTheme.titleMedium?.copyWith(color: AppVisuals.textForest, fontWeight: FontWeight.w700)),
+                  child: Text(def.name,
+                      style: theme.textTheme.titleMedium?.copyWith(
+                          color: AppVisuals.textForest,
+                          fontWeight: FontWeight.w700)),
                 ),
-                if (isSelected) const Icon(Icons.check_circle_rounded, color: AppVisuals.primaryGold, size: 20),
+                if (isSelected)
+                  const Icon(Icons.check_circle_rounded,
+                      color: AppVisuals.primaryGold, size: 20),
               ],
             ),
           ),
@@ -339,51 +408,275 @@ class _TabActivitiesState extends State<TabActivities>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 64, color: AppVisuals.primaryGold.withValues(alpha: 0.1)),
+          Icon(icon,
+              size: 64, color: AppVisuals.primaryGold.withValues(alpha: 0.1)),
           const SizedBox(height: 16),
-          Text(message, style: theme.textTheme.bodyMedium?.copyWith(color: AppVisuals.textForest.withValues(alpha: 0.3))),
+          Text(message,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                  color: AppVisuals.textForest.withValues(alpha: 0.3))),
         ],
       ),
     );
   }
 
-  void _openNewJobOrderForm() => Navigator.push(context, MaterialPageRoute(builder: (_) => const FrmAddJob2()));
-  void _openAddWorkDefinitionForm() => Navigator.push(context, MaterialPageRoute(builder: (_) => const FrmAddWorkDefScreen()));
+  void _openNewJobOrderForm() => Navigator.push(
+      context, MaterialPageRoute(builder: (_) => const FrmAddJob2()));
+  void _openAddWorkDefinitionForm() => Navigator.push(
+      context, MaterialPageRoute(builder: (_) => const FrmAddWorkDefScreen()));
   void _editSelectedActivity() {
-    final activityProvider = Provider.of<ActivityProvider>(context, listen: false);
-    final activity = activityProvider.activities.firstWhere((a) => a.jobId == _selectedActivityId);
-    Navigator.push(context, MaterialPageRoute(builder: (_) => FrmAddJob2(editJobId: activity.jobId)));
+    final activityProvider =
+        Provider.of<ActivityProvider>(context, listen: false);
+    final activity = activityProvider.activities
+        .firstWhere((a) => a.jobId == _selectedActivityId);
+    Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (_) => FrmAddJob2(editJobId: activity.jobId)));
   }
+
   void _editSelectedWorkDef() {
     final dataProvider = Provider.of<DataProvider>(context, listen: false);
-    final workDef = dataProvider.workDefs.firstWhere((w) => w.id == _selectedWorkDefId);
-    Navigator.push(context, MaterialPageRoute(builder: (_) => FrmAddWorkDefScreen(workDefId: workDef.id)));
+    final workDef =
+        dataProvider.workDefs.firstWhere((w) => w.id == _selectedWorkDefId);
+    Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (_) => FrmAddWorkDefScreen(workDefId: workDef.id)));
   }
-  void _resetFilters() => setState(() { _searchQuery = ''; _selectedActivityId = null; });
+
+  Future<void> _deleteSelectedActivity() async {
+    final jobId = _selectedActivityId;
+    if (jobId == null) return;
+
+    final activityProvider =
+        Provider.of<ActivityProvider>(context, listen: false);
+    final activity = activityProvider.getActivityById(jobId);
+    if (activity == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(context.tr('Delete job?')),
+          content: Text(
+            context.tr(
+              'This will permanently delete {job}.',
+              {'job': activity.name},
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(context.tr('Cancel')),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(context.tr('Delete')),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
+    await activityProvider.deleteActivity(jobId);
+    if (!mounted) return;
+
+    setState(() {
+      _selectedActivityId = null;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          context.tr(
+            'Deleted {job}.',
+            {'job': activity.name},
+          ),
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> _openFilterSheet() async {
+    final searchController = TextEditingController(text: _searchQuery);
+    var draftQuery = _searchQuery;
+    var draftSortMode = _sortMode;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) {
+        final theme = Theme.of(context);
+        final scheme = theme.colorScheme;
+
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                8,
+                20,
+                24 + MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    context.tr('Filter activities'),
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w900,
+                      color: scheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    context.tr(
+                      'Search by farm or job name, then choose how the ledger should be ordered.',
+                    ),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: searchController,
+                    decoration: InputDecoration(
+                      labelText: context.tr('Search'),
+                      hintText: context.tr('Type a farm or job name'),
+                      prefixIcon: const Icon(Icons.search_rounded),
+                      suffixIcon: draftQuery.isEmpty
+                          ? null
+                          : IconButton(
+                              onPressed: () {
+                                searchController.clear();
+                                setModalState(() => draftQuery = '');
+                              },
+                              icon: const Icon(Icons.close_rounded),
+                            ),
+                    ),
+                    onChanged: (value) =>
+                        setModalState(() => draftQuery = value),
+                  ),
+                  const SizedBox(height: 18),
+                  Text(
+                    context.tr('Sort by'),
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: scheme.onSurface,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: ['Date', 'Farm'].map((mode) {
+                      final selected = draftSortMode == mode;
+                      return ChoiceChip(
+                        label: Text(context.tr(mode)),
+                        selected: selected,
+                        onSelected: (_) {
+                          setModalState(() => draftSortMode = mode);
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            searchController.clear();
+                            setModalState(() {
+                              draftQuery = '';
+                              draftSortMode = 'Date';
+                            });
+                          },
+                          icon: const Icon(Icons.restart_alt_rounded),
+                          label: Text(context.tr('Reset')),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: () {
+                            setState(() {
+                              _searchQuery = draftQuery.trim();
+                              _sortMode = draftSortMode;
+                              _selectedActivityId = null;
+                            });
+                            Navigator.pop(context);
+                          },
+                          icon: const Icon(Icons.check_rounded),
+                          label: Text(context.tr('Apply')),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+
+    searchController.dispose();
+  }
+
+  void _resetFilters() => setState(() {
+        _searchQuery = '';
+        _sortMode = 'Date';
+        _selectedActivityId = null;
+      });
 }
 
 class _MetricCard extends StatelessWidget {
   final String label;
   final String value;
   final IconData icon;
-  const _MetricCard({required this.label, required this.value, required this.icon});
+  static const _metricMaroon = AppVisuals.deepGreen;
+  const _MetricCard(
+      {required this.label, required this.value, required this.icon});
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppVisuals.surfaceGreen.withValues(alpha: 0.6),
+        color: _metricMaroon,
         borderRadius: BorderRadius.circular(28),
-        border: Border.all(color: AppVisuals.textForest.withValues(alpha: 0.05)),
+        border: Border.all(
+          color: AppVisuals.mintAccent.withValues(alpha: 0.18),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: _metricMaroon.withValues(alpha: 0.28),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: AppVisuals.primaryGold, size: 24),
+          Icon(icon, color: AppVisuals.lightGold, size: 24),
           const SizedBox(height: 12),
-          Text(label.toUpperCase(), style: Theme.of(context).textTheme.labelSmall?.copyWith(color: AppVisuals.textForest.withValues(alpha: 0.3), letterSpacing: 1.2, fontWeight: FontWeight.w800, fontSize: 9)),
+          Text(label.toUpperCase(),
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: AppVisuals.mintAccent.withValues(alpha: 0.88),
+                  letterSpacing: 1.2,
+                  fontWeight: FontWeight.w800,
+                  fontSize: 9)),
           const SizedBox(height: 4),
-          Text(value, style: Theme.of(context).textTheme.titleLarge?.copyWith(color: AppVisuals.textForest, fontWeight: FontWeight.w900)),
+          Text(value,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: AppVisuals.softWhite, fontWeight: FontWeight.w900)),
         ],
       ),
     );
@@ -396,7 +689,12 @@ class _ActionButton extends StatelessWidget {
   final VoidCallback onTap;
   final bool enabled;
   final bool isPrimary;
-  const _ActionButton({required this.icon, required this.label, required this.onTap, this.enabled = true, this.isPrimary = false});
+  const _ActionButton(
+      {required this.icon,
+      required this.label,
+      required this.onTap,
+      this.enabled = true,
+      this.isPrimary = false});
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);

@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../providers/app_settings_provider.dart';
 import '../providers/farm_provider.dart';
 import '../providers/weather_provider.dart';
+import '../themes/app_visuals.dart';
 
 class ScrWeather extends StatefulWidget {
   const ScrWeather({super.key});
@@ -67,63 +68,75 @@ class _ScrWeatherState extends State<ScrWeather> {
     final weatherProvider = Provider.of<WeatherProvider>(context);
     final appSettings = Provider.of<AppSettingsProvider>(context);
     final theme = Theme.of(context);
-    const accentColor = Color(0xFFB4F5A4);
+    final accentColor = AppVisuals.accentChartBlue;
     final hasData =
         !weatherProvider.isLoading && weatherProvider.weatherData != null;
     final reduceMotion = appSettings.reducedMotion;
 
     return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        iconTheme: const IconThemeData(color: accentColor),
-        title: const Text('Weather Intelligence',
+        iconTheme: IconThemeData(color: accentColor),
+        title: Text('Weather Intelligence',
             style: TextStyle(color: accentColor, fontWeight: FontWeight.w700)),
         leading: IconButton(
-          icon:
-              const Icon(Icons.arrow_back_ios_new_rounded, color: accentColor),
+          icon: Icon(Icons.arrow_back_ios_new_rounded, color: accentColor),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
           IconButton(
             onPressed: _refreshWeather,
-            icon: const Icon(Icons.refresh_rounded, color: accentColor),
+            icon: Icon(Icons.refresh_rounded, color: accentColor),
             tooltip: 'Refresh weather',
           ),
         ],
       ),
-      body: Focus(
-        focusNode: _focusNode,
-        child: AnimatedContainer(
-          duration:
-              reduceMotion ? Duration.zero : const Duration(milliseconds: 600),
-          curve: Curves.easeOutCubic,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: hasData
-                  ? [
-                      accentColor.withValues(alpha: 0.32),
-                      accentColor.withValues(alpha: 0.16),
-                      theme.colorScheme.surface
-                    ]
-                  : [theme.colorScheme.surface, theme.colorScheme.surface],
+      body: AppBackdrop(
+        isDark: theme.brightness == Brightness.dark,
+        orbTopLeftColor: AppVisuals.brandBlue.withValues(alpha: 0.28),
+        orbTopRightColor: AppVisuals.brandRed.withValues(alpha: 0.18),
+        orbBottomLeftColor: AppVisuals.brandGreen.withValues(alpha: 0.2),
+        child: Focus(
+          focusNode: _focusNode,
+          child: AnimatedContainer(
+            duration: reduceMotion
+                ? Duration.zero
+                : const Duration(milliseconds: 600),
+            curve: Curves.easeOutCubic,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: hasData
+                    ? [
+                        accentColor.withValues(alpha: 0.2),
+                        AppVisuals.panelSoftAlt.withValues(alpha: 0.18),
+                        Colors.transparent,
+                      ]
+                    : [Colors.transparent, Colors.transparent],
+              ),
             ),
-          ),
-          child: Center(
-            child: AnimatedSwitcher(
-              duration: reduceMotion
-                  ? Duration.zero
-                  : const Duration(milliseconds: 450),
-              switchInCurve: Curves.easeOut,
-              switchOutCurve: Curves.easeIn,
-              child: _buildBodyContent(
-                weatherProvider,
-                accentColor,
-                appSettings.weatherAutoRefresh,
+            child: Center(
+              child: FrostedPanel(
+                radius: 34,
+                color: theme.brightness == Brightness.dark
+                    ? AppVisuals.surfaceGreen.withValues(alpha: 0.72)
+                    : AppVisuals.cloudGlass.withValues(alpha: 0.8),
+                child: AnimatedSwitcher(
+                  duration: reduceMotion
+                      ? Duration.zero
+                      : const Duration(milliseconds: 450),
+                  switchInCurve: Curves.easeOut,
+                  switchOutCurve: Curves.easeIn,
+                  child: _buildBodyContent(
+                    weatherProvider,
+                    accentColor,
+                    appSettings.weatherAutoRefresh,
+                  ),
+                ),
               ),
             ),
           ),

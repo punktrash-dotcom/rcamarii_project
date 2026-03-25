@@ -23,7 +23,22 @@ class PdfHandbookViewerScreen extends StatelessWidget {
       ),
       body: PdfViewer.asset(
         assetPath,
+        params: const PdfViewerParams(
+          margin: 0,
+          pageAnchor: PdfPageAnchor.all,
+          pageAnchorEnd: PdfPageAnchor.all,
+          calculateInitialZoom: _fitWholePage,
+        ),
       ),
     );
+  }
+
+  static double _fitWholePage(
+    PdfDocument document,
+    PdfViewerController controller,
+    double fitZoom,
+    double coverZoom,
+  ) {
+    return fitZoom;
   }
 }

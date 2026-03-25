@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../services/guideline_localization_service.dart';
+import '../services/app_properties_store.dart';
 
 class GuidelineLanguageProvider with ChangeNotifier {
   static const String _languageKey = 'guideline_language';
 
   GuidelineLanguage _selectedLanguage = GuidelineLanguage.english;
+  final AppPropertiesStore _store = AppPropertiesStore.instance;
 
   GuidelineLanguage get selectedLanguage => _selectedLanguage;
 
@@ -20,13 +21,16 @@ class GuidelineLanguageProvider with ChangeNotifier {
     _selectedLanguage = language;
     notifyListeners();
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_languageKey, _toCode(language));
+    await _store.setString(_languageKey, _toCode(language));
+  }
+
+  Future<void> reload() async {
+    await _loadLanguage();
   }
 
   Future<void> _loadLanguage() async {
-    final prefs = await SharedPreferences.getInstance();
-    _selectedLanguage = _fromCode(prefs.getString(_languageKey));
+    await _store.ready;
+    _selectedLanguage = _fromCode(await _store.getString(_languageKey));
     notifyListeners();
   }
 

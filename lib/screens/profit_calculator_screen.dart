@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/delivery_model.dart';
 import '../models/ftracker_model.dart';
@@ -15,9 +14,11 @@ import '../providers/app_settings_provider.dart';
 import '../providers/delivery_provider.dart';
 import '../providers/ftracker_provider.dart';
 import '../providers/sugarcane_profit_provider.dart';
+import '../services/app_properties_store.dart';
 import '../services/app_route_observer.dart';
 import '../themes/app_visuals.dart';
 import '../widgets/searchable_dropdown.dart';
+import 'harvest_profit_calculator_screen.dart';
 
 enum ProfitSourceMode { manualTrial, recentDelivery, pendingDelivery }
 
@@ -33,9 +34,9 @@ class ProfitCalculatorScreen extends StatefulWidget {
 class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
     with RouteAware {
   static const _lastTransactionKey = 'profit_calculator_last_transaction_v1';
-  static const _screenBackground = Color(0xFFD8E8E0);
-  static const _surfaceCard = Color(0xFFE8F0EC);
-  static const _surfaceRaised = Color(0xFFDDE8E3);
+  static const _screenBackground = AppVisuals.fieldMist;
+  static const _surfaceCard = AppVisuals.cloudGlass;
+  static const _surfaceRaised = AppVisuals.panelSoftAlt;
   static const _accentPrimary = AppVisuals.growthGreen;
   static const _accentSecondary = AppVisuals.accentChartBlue;
   static const _accentTertiary = AppVisuals.primaryGold;
@@ -54,15 +55,17 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
   final TextEditingController _productionCostsController =
       TextEditingController();
   final ScrollController _scrollController = ScrollController();
+  final AppPropertiesStore _store = AppPropertiesStore.instance;
 
   late final List<TextEditingController> _controllers;
-  late final Future<SharedPreferences> _prefsFuture;
   _SavedProfitEntry? _savedEntry;
   _ProfitBreakdown? _lastSavedProjection;
   bool _isApplyingSavedEntry = false;
   bool _isLoadingDeliverySources = false;
   ProfitSourceMode _sourceMode = ProfitSourceMode.manualTrial;
   int? _selectedDeliveryId;
+  AppAudioProvider? _appAudio;
+  AppSettingsProvider? _appSettings;
   bool _playedScreenOpenAudio = false;
   bool _isRouteObserverSubscribed = false;
 
@@ -79,7 +82,6 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
   @override
   void initState() {
     super.initState();
-    _prefsFuture = SharedPreferences.getInstance();
     _controllers = [
       _netTonsCaneController,
       _lkgPerTcController,
@@ -105,28 +107,36 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
     if (!mounted || _playedScreenOpenAudio) {
       return;
     }
-    final appSettings =
-        Provider.of<AppSettingsProvider>(context, listen: false);
+    final appSettings = _appSettings;
+    final appAudio = _appAudio;
+    if (appSettings == null || appAudio == null) {
+      return;
+    }
     _playedScreenOpenAudio = true;
-    await context.read<AppAudioProvider>().playScreenOpenSound(
-          screenKey: 'profit',
-          style: appSettings.audioSoundStyle,
-          enabled: appSettings.audioSoundsEnabled,
-        );
+    await appAudio.playScreenOpenSound(
+      screenKey: 'profit',
+      style: appSettings.audioSoundStyle,
+      enabled: appSettings.audioSoundsEnabled,
+    );
   }
 
   Future<void> _stopScreenOpenAudioIfNeeded() async {
-    final appSettings =
-        Provider.of<AppSettingsProvider>(context, listen: false);
-    await context.read<AppAudioProvider>().stopScreenOpenSound(
-          screenKey: 'profit',
-          style: appSettings.audioSoundStyle,
-        );
+    final appSettings = _appSettings;
+    final appAudio = _appAudio;
+    if (appSettings == null || appAudio == null) {
+      return;
+    }
+    await appAudio.stopScreenOpenSound(
+      screenKey: 'profit',
+      style: appSettings.audioSoundStyle,
+    );
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _appAudio = Provider.of<AppAudioProvider?>(context, listen: false);
+    _appSettings = Provider.of<AppSettingsProvider?>(context, listen: false);
     if (!_isRouteObserverSubscribed) {
       final route = ModalRoute.of(context);
       if (route is PageRoute<dynamic>) {
@@ -224,8 +234,7 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
       _cleanNumber(_productionCostsController.text).isNotEmpty;
 
   Future<void> _loadSavedEntry() async {
-    final prefs = await _prefsFuture;
-    final raw = prefs.getString(_lastTransactionKey);
+    final raw = await _store.getString(_lastTransactionKey);
     if (raw == null || raw.isEmpty) {
       return;
     }
@@ -241,7 +250,7 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
         _savedEntry = savedEntry;
       });
     } catch (_) {
-      await prefs.remove(_lastTransactionKey);
+      await _store.remove(_lastTransactionKey);
     }
   }
 
@@ -277,8 +286,7 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
   }
 
   Future<void> _persistSavedEntry(_SavedProfitEntry entry) async {
-    final prefs = await _prefsFuture;
-    await prefs.setString(_lastTransactionKey, jsonEncode(entry.toJson()));
+    await _store.setString(_lastTransactionKey, jsonEncode(entry.toJson()));
 
     if (!mounted) {
       return;
@@ -694,37 +702,41 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: scheme.surfaceContainerHighest.withValues(alpha: 0.82),
-        labelStyle: TextStyle(color: AppVisuals.textForest.withValues(alpha: 0.65)),
+        labelStyle:
+            TextStyle(color: AppVisuals.textForest.withValues(alpha: 0.65)),
         floatingLabelStyle: const TextStyle(
           color: AppVisuals.textForest,
           fontWeight: FontWeight.w700,
         ),
-        hintStyle: TextStyle(color: AppVisuals.textForest.withValues(alpha: 0.38)),
+        hintStyle:
+            TextStyle(color: AppVisuals.textForest.withValues(alpha: 0.38)),
         prefixStyle: const TextStyle(color: AppVisuals.textForest),
-        suffixStyle: TextStyle(color: AppVisuals.textForest.withValues(alpha: 0.72)),
+        suffixStyle:
+            TextStyle(color: AppVisuals.textForest.withValues(alpha: 0.72)),
         prefixIconColor: AppVisuals.textForest.withValues(alpha: 0.72),
         suffixIconColor: AppVisuals.textForest.withValues(alpha: 0.72),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
-          borderSide: BorderSide(
-              color: AppVisuals.textForest.withValues(alpha: 0.14)),
+          borderSide:
+              BorderSide(color: AppVisuals.textForest.withValues(alpha: 0.14)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
-          borderSide: BorderSide(
-              color: AppVisuals.textForest.withValues(alpha: 0.45)),
+          borderSide:
+              BorderSide(color: AppVisuals.textForest.withValues(alpha: 0.45)),
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(18),
-          borderSide: BorderSide(
-              color: AppVisuals.textForest.withValues(alpha: 0.16)),
+          borderSide:
+              BorderSide(color: AppVisuals.textForest.withValues(alpha: 0.16)),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: AppVisuals.textForest,
           backgroundColor: AppVisuals.textForest.withValues(alpha: 0.04),
-          side: BorderSide(color: AppVisuals.textForest.withValues(alpha: 0.14)),
+          side:
+              BorderSide(color: AppVisuals.textForest.withValues(alpha: 0.14)),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
@@ -735,8 +747,10 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
         style: FilledButton.styleFrom(
           foregroundColor: scheme.onPrimary,
           backgroundColor: scheme.primary.withValues(alpha: 0.92),
-          disabledForegroundColor: AppVisuals.textForest.withValues(alpha: 0.38),
-          disabledBackgroundColor: AppVisuals.textForest.withValues(alpha: 0.08),
+          disabledForegroundColor:
+              AppVisuals.textForest.withValues(alpha: 0.38),
+          disabledBackgroundColor:
+              AppVisuals.textForest.withValues(alpha: 0.08),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
           ),
@@ -908,80 +922,147 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
 
   Widget _buildHeader(ThemeData theme) {
     final scheme = theme.colorScheme;
-
-    return Row(
-      children: [
-        Material(
-          color: Colors.transparent,
-          child: InkWell(
+    final compactHeader = MediaQuery.sizeOf(context).width < 430;
+    final backButton = Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: () => Navigator.of(context).maybePop(),
+        child: Ink(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: scheme.surface.withValues(alpha: 0.72),
             borderRadius: BorderRadius.circular(18),
-            onTap: () => Navigator.of(context).maybePop(),
-            child: Ink(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              decoration: BoxDecoration(
-                color: scheme.surface.withValues(alpha: 0.72),
-                borderRadius: BorderRadius.circular(18),
-                border:
-                    Border.all(color: scheme.onSurface.withValues(alpha: 0.08)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.08),
-                    blurRadius: 16,
-                    offset: const Offset(0, 8),
-                  ),
-                ],
-              ),
-              child: Icon(
-                Icons.arrow_back_ios_new_rounded,
-                size: 18,
-                color: scheme.onSurface,
-              ),
+            border: Border.all(
+              color: scheme.onSurface.withValues(alpha: 0.08),
             ),
-          ),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'LIVE SUGARCANE ESTIMATE',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  letterSpacing: 1.4,
-                  fontWeight: FontWeight.w800,
-                  color: scheme.onSurface.withValues(alpha: 0.68),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Profit Calculator',
-                style: theme.textTheme.headlineMedium?.copyWith(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
-                  color: scheme.onSurface,
-                ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 16,
+                offset: const Offset(0, 8),
               ),
             ],
           ),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: AppVisuals.textForest.withValues(alpha: 0.06),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-                color: AppVisuals.textForest.withValues(alpha: 0.12)),
+          child: Icon(
+            Icons.arrow_back_ios_new_rounded,
+            size: 18,
+            color: scheme.onSurface,
           ),
-          child: Text(
-            'Philippines',
-            style: theme.textTheme.labelMedium?.copyWith(
-              color: scheme.onSurface,
-              fontWeight: FontWeight.w800,
-            ),
+        ),
+      ),
+    );
+    final titleBlock = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'LIVE SUGARCANE ESTIMATE',
+          style: theme.textTheme.bodySmall?.copyWith(
+            letterSpacing: 1.4,
+            fontWeight: FontWeight.w800,
+            color: scheme.onSurface.withValues(alpha: 0.68),
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Profit Calculator',
+          style: theme.textTheme.headlineMedium?.copyWith(
+            fontSize: 24,
+            fontWeight: FontWeight.w900,
+            color: scheme.onSurface,
           ),
         ),
       ],
     );
+    final locationBadge = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppVisuals.textForest.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppVisuals.textForest.withValues(alpha: 0.12),
+        ),
+      ),
+      child: Text(
+        'Philippines',
+        style: theme.textTheme.labelMedium?.copyWith(
+          color: scheme.onSurface,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (compactHeader) ...[
+          Row(
+            children: [
+              backButton,
+              const Spacer(),
+              locationBadge,
+            ],
+          ),
+          const SizedBox(height: 14),
+          titleBlock,
+        ] else
+          Row(
+            children: [
+              backButton,
+              const SizedBox(width: 14),
+              Expanded(child: titleBlock),
+              const SizedBox(width: 12),
+              locationBadge,
+            ],
+          ),
+        const SizedBox(height: 14),
+        Text(
+          'Select crop',
+          style: theme.textTheme.bodySmall?.copyWith(
+            letterSpacing: 1.1,
+            fontWeight: FontWeight.w800,
+            color: scheme.onSurface.withValues(alpha: 0.68),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            ChoiceChip(
+              key: const ValueKey('profitCalculator.crop.sugarcane'),
+              label: const Text('Sugarcane'),
+              selected: true,
+              onSelected: (_) {},
+            ),
+            ChoiceChip(
+              key: const ValueKey('profitCalculator.crop.rice'),
+              label: const Text('Rice'),
+              selected: false,
+              onSelected: (_) => _openHarvestCalculator(HarvestCrop.rice),
+            ),
+            ChoiceChip(
+              key: const ValueKey('profitCalculator.crop.corn'),
+              label: const Text('Corn'),
+              selected: false,
+              onSelected: (_) => _openHarvestCalculator(HarvestCrop.corn),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Future<void> _openHarvestCalculator(HarvestCrop crop) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => HarvestProfitCalculatorScreen(initialCrop: crop),
+      ),
+    );
+    if (!mounted) {
+      return;
+    }
+    setState(() {});
   }
 
   Widget _buildHeroCard(
@@ -1037,8 +1118,8 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(30),
-        border: Border.all(
-            color: AppVisuals.textForest.withValues(alpha: 0.14)),
+        border:
+            Border.all(color: AppVisuals.textForest.withValues(alpha: 0.14)),
         boxShadow: [
           BoxShadow(
             color: scheme.primary.withValues(alpha: 0.18),
@@ -1148,8 +1229,8 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
       decoration: BoxDecoration(
         color: AppVisuals.textForest.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-            color: AppVisuals.textForest.withValues(alpha: 0.12)),
+        border:
+            Border.all(color: AppVisuals.textForest.withValues(alpha: 0.12)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1658,8 +1739,8 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
       decoration: BoxDecoration(
         color: scheme.surfaceContainerHighest.withValues(alpha: 0.46),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-            color: AppVisuals.textForest.withValues(alpha: 0.08)),
+        border:
+            Border.all(color: AppVisuals.textForest.withValues(alpha: 0.08)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

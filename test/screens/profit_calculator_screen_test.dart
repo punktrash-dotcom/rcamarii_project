@@ -4,6 +4,7 @@ import 'package:nmd/models/ftracker_model.dart';
 import 'package:nmd/models/sugarcane_profit_model.dart';
 import 'package:nmd/providers/app_settings_provider.dart';
 import 'package:nmd/providers/sugarcane_profit_provider.dart';
+import 'package:nmd/screens/harvest_profit_calculator_screen.dart';
 import 'package:nmd/screens/profit_calculator_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -58,6 +59,10 @@ void main() {
   }
 
   String metricText(WidgetTester tester, String key) {
+    return tester.widget<Text>(find.byKey(ValueKey(key))).data ?? '';
+  }
+
+  String harvestMetricText(WidgetTester tester, String key) {
     return tester.widget<Text>(find.byKey(ValueKey(key))).data ?? '';
   }
 
@@ -137,10 +142,6 @@ void main() {
     expect(find.text('Projected Net Profit'), findsOneWidget);
     expect(find.text('Trial / Manual'), findsNothing);
     expect(netProfitText(tester), '${peso}0.00');
-    expect(
-      tester.widget<Text>(find.text('Profit Calculator')).style?.color,
-      Colors.white,
-    );
 
     await enterValue(tester, 'profitCalculator.netTonsCane', '100');
     await enterValue(tester, 'profitCalculator.lkgPerTc', '1.9');
@@ -276,6 +277,69 @@ void main() {
     await enterValue(tester, 'profitCalculator.productionCosts', '2000');
 
     expect(netProfitText(tester), '${peso}6,850.00');
+  });
+
+  testWidgets(
+      'selecting rice opens the harvest calculator and computes deduction-based profit',
+      (tester) async {
+    await pumpCalculator(tester);
+
+    await tester.tap(find.byKey(const ValueKey('profitCalculator.crop.rice')));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(HarvestProfitCalculatorScreen), findsOneWidget);
+    expect(find.text('Harvest Profit Calculator'), findsOneWidget);
+
+    await enterValue(tester, 'harvestProfitCalculator.yieldKg', '5000');
+    await enterValue(tester, 'harvestProfitCalculator.pricePerKg', '18');
+    await enterValue(tester, 'harvestProfitCalculator.deductionPercent', '10');
+    await enterValue(
+        tester, 'harvestProfitCalculator.productionCosts', '45000');
+
+    expect(
+      harvestMetricText(tester, 'harvestProfitCalculator.payableYield'),
+      '4500.00 kg',
+    );
+    expect(
+      harvestMetricText(tester, 'harvestProfitCalculator.totalRevenue'),
+      '${peso}81,000.00',
+    );
+    expect(
+      harvestMetricText(tester, 'harvestProfitCalculator.netProfit'),
+      '${peso}36,000.00',
+    );
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('harvestProfitCalculator.crop.corn')),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('harvestProfitCalculator.crop.corn')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('CORN PER-HARVEST ESTIMATE'), findsOneWidget);
+  });
+
+  testWidgets('calculator headers stay stable on a narrow phone viewport',
+      (tester) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await pumpCalculator(tester);
+    expect(tester.takeException(), isNull);
+
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('profitCalculator.crop.rice')),
+    );
+    await tester.tap(find.byKey(const ValueKey('profitCalculator.crop.rice')));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(HarvestProfitCalculatorScreen), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }
 

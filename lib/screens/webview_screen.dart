@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
+import '../themes/app_visuals.dart';
+
 class WebViewScreen extends StatefulWidget {
   final String url;
 
@@ -37,7 +39,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
   void _initController() {
     _controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
-      ..setBackgroundColor(const Color(0xFFF3F5F7))
+      ..setBackgroundColor(AppVisuals.dawnMist)
       ..setNavigationDelegate(
         NavigationDelegate(
           onPageStarted: (String url) {
@@ -116,7 +118,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
             onPressed: _closeScreen,
           ),
           title: const Text('Knowledge Center'),
-          backgroundColor: const Color(0xFF004D40),
+          backgroundColor: AppVisuals.primaryGold,
           bottom: _isLoading
               ? const PreferredSize(
                   preferredSize: Size.fromHeight(2),
@@ -165,7 +167,10 @@ class _WebViewScreenState extends State<WebViewScreen> {
               Text(
                 'The WebView component is optimized for Android and iOS mobile devices. Please test on a mobile emulator or physical device to view: \n\n${widget.url}',
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.black54, fontSize: 13),
+                style: const TextStyle(
+                  color: AppVisuals.textForestMuted,
+                  fontSize: 13,
+                ),
               ),
               const SizedBox(height: 32),
               ElevatedButton(
@@ -181,7 +186,7 @@ class _WebViewScreenState extends State<WebViewScreen> {
     return Stack(
       children: [
         ColoredBox(
-          color: const Color(0xFFF3F5F7),
+          color: AppVisuals.dawnMist,
           child: _controller == null
               ? const SizedBox.expand()
               : WebViewWidget(controller: _controller!),

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
+import '../services/app_properties_store.dart';
 
 class ThemeProvider with ChangeNotifier {
   static const themeStatusKey = 'THEME_STATUS';
   bool _darkTheme = false;
+  final AppPropertiesStore _store = AppPropertiesStore.instance;
 
   bool get darkTheme => _darkTheme;
 
@@ -19,13 +21,16 @@ class ThemeProvider with ChangeNotifier {
   }
 
   Future<void> _saveTheme(bool isDark) async {
-    final prefs = await SharedPreferences.getInstance();
-    prefs.setBool(themeStatusKey, isDark);
+    await _store.setBool(themeStatusKey, isDark);
+  }
+
+  Future<void> reload() async {
+    await _initTheme();
   }
 
   Future<void> _initTheme() async {
-    final prefs = await SharedPreferences.getInstance();
-    _darkTheme = prefs.getBool(themeStatusKey) ?? false;
+    await _store.ready;
+    _darkTheme = await _store.getBool(themeStatusKey) ?? false;
 
     // Safety check: ensure notifyListeners() is called after the build frame
     Future.microtask(() => notifyListeners());

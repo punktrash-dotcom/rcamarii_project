@@ -60,7 +60,7 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              backgroundColor: const Color(0xFFE8F0EC),
+              backgroundColor: AppVisuals.cloudGlass,
               title: const Text('Add New Category',
                   style: TextStyle(color: AppVisuals.textForest)),
               content: SingleChildScrollView(
@@ -74,7 +74,8 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen> {
                       decoration: InputDecoration(
                         labelText: 'Category Name',
                         labelStyle: TextStyle(
-                            color: AppVisuals.textForest.withValues(alpha: 0.55)),
+                            color:
+                                AppVisuals.textForest.withValues(alpha: 0.55)),
                         enabledBorder: UnderlineInputBorder(
                             borderSide: BorderSide(
                                 color: AppVisuals.textForest
@@ -151,13 +152,11 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen> {
     final isDark = themeProvider.darkTheme;
 
     return Scaffold(
-      backgroundColor:
-          isDark ? const Color(0xFFD8E8E0) : Colors.grey[200],
+      backgroundColor: isDark ? AppVisuals.surfaceGreen : AppVisuals.dawnMist,
       appBar: AppBar(
         title: const Text('Manage Categories',
             style: TextStyle(
-                color: AppVisuals.textForest,
-                fontWeight: FontWeight.bold)),
+                color: AppVisuals.textForest, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         centerTitle: true,
@@ -175,7 +174,7 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen> {
         itemBuilder: (context, index) {
           final category = _categories[index];
           return Card(
-            color: const Color(0xFFE8F0EC),
+            color: AppVisuals.cloudGlass,
             margin: const EdgeInsets.symmetric(vertical: 8),
             elevation: 1,
             shape:

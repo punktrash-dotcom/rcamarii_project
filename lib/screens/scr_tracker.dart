@@ -15,8 +15,8 @@ import '../services/app_localization_service.dart';
 import '../services/app_route_observer.dart';
 import '../themes/app_visuals.dart';
 import '../themes/custom_themes.dart';
+import '../utils/app_layout_utils.dart';
 import 'scr_new_transaction.dart';
-import 'charts_screen.dart';
 
 class ScrTracker extends StatefulWidget {
   const ScrTracker({super.key});
@@ -48,10 +48,7 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
 
     Future.delayed(const Duration(milliseconds: 50), () {
       if (!mounted) return;
-      if (index == 1) {
-        Navigator.push(context,
-            MaterialPageRoute(builder: (context) => const ChartsScreen()));
-      } else if (index == 2) {
+      if (index == 2) {
         // Return to Operational Hub
         Navigator.of(context).pop();
       } else {
@@ -76,7 +73,7 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
           builder: (context, setDialogState) {
             final scheme = Theme.of(context).colorScheme;
             return AlertDialog(
-              backgroundColor: const Color(0xFFE8F0EC),
+              backgroundColor: AppVisuals.cloudGlass,
               title: Text(context.tr('Edit Profile'),
                   style: const TextStyle(color: AppVisuals.textForest)),
               content: SingleChildScrollView(
@@ -221,7 +218,13 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
         return Scaffold(
           backgroundColor: colorScheme.surface,
           appBar: AppBar(
-            toolbarHeight: 80,
+            toolbarHeight: AppLayoutUtils.shouldStackHeader(
+              context,
+              widthBreakpoint: 420,
+              scaleBreakpoint: 1.12,
+            )
+                ? 96
+                : 80,
             backgroundColor: Colors.transparent,
             elevation: 0,
             leading: IconButton(
@@ -230,38 +233,22 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
               onPressed: () => Navigator.of(context).pop(),
               tooltip: context.tr('Back to Hub'),
             ),
-            title: Row(
-              children: [
-                CircleAvatar(
-                  radius: 25,
-                  backgroundColor: colorScheme.primary,
-                  backgroundImage: profileProvider.imagePath != null
-                      ? FileImage(File(profileProvider.imagePath!))
-                      : null,
-                  child: profileProvider.imagePath == null
-                      ? Icon(Icons.person, color: colorScheme.onPrimary)
-                      : null,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(context.tr('Good Afternoon,'),
-                          style: TextStyle(
-                              color:
-                                  colorScheme.onSurface.withValues(alpha: 0.7),
-                              fontSize: 14)),
-                      Text(profileProvider.userName,
-                          style: TextStyle(
-                              color: colorScheme.onSurface,
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold),
-                          overflow: TextOverflow.ellipsis),
-                    ],
-                  ),
-                ),
-              ],
+            titleSpacing: 0,
+            title: LayoutBuilder(
+              builder: (context, constraints) {
+                final shouldStack = AppLayoutUtils.shouldStackHeader(
+                      context,
+                      widthBreakpoint: 420,
+                      scaleBreakpoint: 1.12,
+                    ) ||
+                    constraints.maxWidth < 210;
+                return _buildProfileTitle(
+                  colorScheme,
+                  appSettings,
+                  profileProvider,
+                  shouldStack: shouldStack,
+                );
+              },
             ),
             actions: [
               if (appSettings.voiceAssistantEnabled)
@@ -378,11 +365,6 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
                     label: context.tr('Home'),
                     index: 0,
                     scheme: colorScheme),
-                _buildBottomNavItem(
-                    icon: Icons.analytics,
-                    label: context.tr('Analytics'),
-                    index: 1,
-                    scheme: colorScheme),
                 const SizedBox(width: 40),
                 _buildBottomNavItem(
                     icon: Icons.hub_rounded,
@@ -394,6 +376,82 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
           ),
         );
       }),
+    );
+  }
+
+  Widget _buildProfileTitle(
+    ColorScheme colorScheme,
+    AppSettingsProvider appSettings,
+    ProfileProvider profileProvider, {
+    required bool shouldStack,
+  }) {
+    final displayName = appSettings.userName.trim().isNotEmpty
+        ? appSettings.userName.trim()
+        : profileProvider.userName;
+    final greeting = Text(
+      context.tr('Good Afternoon,'),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        color: colorScheme.onSurface.withValues(alpha: 0.7),
+        fontSize: 14,
+      ),
+    );
+    final name = Text(
+      displayName,
+      maxLines: shouldStack ? 2 : 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        color: colorScheme.onSurface,
+        fontSize: 20,
+        fontWeight: FontWeight.bold,
+      ),
+    );
+    final avatar = CircleAvatar(
+      radius: 25,
+      backgroundColor: colorScheme.primary,
+      backgroundImage: profileProvider.imagePath != null
+          ? FileImage(File(profileProvider.imagePath!))
+          : null,
+      child: profileProvider.imagePath == null
+          ? Icon(Icons.person, color: colorScheme.onPrimary)
+          : null,
+    );
+
+    if (shouldStack) {
+      return Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              avatar,
+              const SizedBox(width: 12),
+              Flexible(child: greeting),
+            ],
+          ),
+          const SizedBox(height: 4),
+          name,
+        ],
+      );
+    }
+
+    return Row(
+      children: [
+        avatar,
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              greeting,
+              name,
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -410,6 +468,7 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
 
   Widget _buildBalanceCard(double balance, double income, double expense,
       NumberFormat format, ColorScheme colors) {
+    final balanceColor = expense > income ? Colors.redAccent : Colors.green;
     return FractionallySizedBox(
       widthFactor: 1,
       child: Container(
@@ -446,7 +505,7 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
                   : balanceText;
               return Text(displayBalance,
                   style: TextStyle(
-                      color: colors.onSurface,
+                      color: balanceColor,
                       fontSize: 36,
                       fontWeight: FontWeight.bold));
             }),

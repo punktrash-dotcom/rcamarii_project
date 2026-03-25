@@ -10,6 +10,7 @@ import '../services/data_seeder.dart';
 import '../services/database_helper.dart';
 import '../services/weekly_price_refresh_service.dart';
 import '../themes/app_visuals.dart';
+import '../widgets/user_access_dialogs.dart';
 import 'scr_msoft.dart';
 
 const String _kSplashLogoPng = 'lib/assets/images/rcamarii_logo_splash.png';
@@ -18,10 +19,16 @@ final _splashBackground = LinearGradient(
   begin: Alignment.topLeft,
   end: Alignment.bottomRight,
   colors: [
-    AppVisuals.deepGreen,
-    const Color(0xFF0C1812),
-    AppVisuals.surfaceRaised,
-    const Color(0xFF152A1F),
+    AppVisuals.dawnMist,
+    AppVisuals.fieldMist,
+    Color.alphaBlend(
+      AppVisuals.mintAccent.withValues(alpha: 0.32),
+      AppVisuals.cloudGlass,
+    ),
+    Color.alphaBlend(
+      AppVisuals.skyMist.withValues(alpha: 0.28),
+      AppVisuals.dawnMist,
+    ),
   ],
   stops: const [0.0, 0.35, 0.72, 1.0],
 );
@@ -35,7 +42,7 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
-  static const Duration _minimumLaunchDelay = Duration(milliseconds: 1400);
+  static const Duration _minimumLaunchDelay = Duration(milliseconds: 450);
 
   late AnimationController _entranceController;
   late AnimationController _ambientController;
@@ -74,8 +81,8 @@ class _SplashScreenState extends State<SplashScreen>
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final reduce =
-          Provider.of<AppSettingsProvider>(context, listen: false).reducedMotion;
+      final reduce = Provider.of<AppSettingsProvider>(context, listen: false)
+          .reducedMotion;
       if (!reduce) {
         _ambientController.repeat(reverse: true);
       }
@@ -89,6 +96,7 @@ class _SplashScreenState extends State<SplashScreen>
     final appSettings =
         Provider.of<AppSettingsProvider>(context, listen: false);
     final launchDelay = Future.delayed(_minimumLaunchDelay);
+    var completedSetupThisLaunch = false;
 
     await Future.wait([
       appSettings.ready,
@@ -97,6 +105,31 @@ class _SplashScreenState extends State<SplashScreen>
 
     await launchDelay;
     if (!mounted) return;
+
+    if (!appSettings.hasCompletedUserSetup) {
+      final setupResult = await showFirstRunSetupDialog(context);
+      if (!mounted || setupResult == null) return;
+
+      await appSettings.completeUserSetup(
+        userName: setupResult.userName,
+        appLockEnabled: setupResult.appLockEnabled,
+        password: setupResult.password,
+      );
+      completedSetupThisLaunch = true;
+    }
+
+    if (!mounted) return;
+
+    if (!completedSetupThisLaunch && appSettings.requiresAppPassword) {
+      final unlocked = await showPasswordVerificationDialog(
+        context,
+        expectedPassword: appSettings.appPassword,
+        title: 'Unlock RCAMARii',
+        message: 'Enter your password to continue to the dashboard.',
+        allowCancel: false,
+      );
+      if (!mounted || !unlocked) return;
+    }
 
     const Widget nextScreen = ScrMSoft();
 
@@ -108,10 +141,9 @@ class _SplashScreenState extends State<SplashScreen>
       context,
       PageRouteBuilder(
         pageBuilder: (c, a1, a2) => nextScreen,
-        transitionsBuilder: (c, anim, a2, child) =>
-            appSettings.reducedMotion
-                ? child
-                : FadeTransition(opacity: anim, child: child),
+        transitionsBuilder: (c, anim, a2, child) => appSettings.reducedMotion
+            ? child
+            : FadeTransition(opacity: anim, child: child),
         transitionDuration: transitionDuration,
       ),
     );
@@ -145,125 +177,137 @@ class _SplashScreenState extends State<SplashScreen>
 
     return Scaffold(
       body: AppBackdrop(
-        isDark: true,
+        isDark: false,
         backgroundGradient: _splashBackground,
-        orbTopLeftColor: AppVisuals.primaryGold.withValues(alpha: 0.12),
-        orbTopRightColor: AppVisuals.mintAccent.withValues(alpha: 0.08),
-        orbBottomLeftColor: AppVisuals.surfaceGreen.withValues(alpha: 0.15),
-        orbBottomRightColor: AppVisuals.primaryGoldDim.withValues(alpha: 0.06),
+        orbTopLeftColor: AppVisuals.brandRed.withValues(alpha: 0.12),
+        orbTopRightColor: AppVisuals.mintAccent.withValues(alpha: 0.14),
+        orbBottomLeftColor: AppVisuals.brandBlue.withValues(alpha: 0.1),
+        orbBottomRightColor: AppVisuals.lightGold.withValues(alpha: 0.08),
         child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Positioned(
-                top: -80,
-                right: -60,
-                child: IgnorePointer(
-                  child: Container(
-                    width: 220,
-                    height: 220,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(
-                        colors: [
-                          AppVisuals.primaryGold.withValues(alpha: 0.07),
-                          Colors.transparent,
-                        ],
-                      ),
+          fit: StackFit.expand,
+          children: [
+            Positioned(
+              top: -80,
+              right: -60,
+              child: IgnorePointer(
+                child: Container(
+                  width: 220,
+                  height: 220,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        AppVisuals.brandRed.withValues(alpha: 0.08),
+                        Colors.transparent,
+                      ],
                     ),
                   ),
                 ),
               ),
-              SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Column(
-                    children: [
-                      const Spacer(flex: 2),
-                      AnimatedBuilder(
-                        animation: Listenable.merge([
-                          _entranceController,
-                          _ambientController,
-                        ]),
-                        builder: (context, child) {
-                          final pulse = reduceMotion ? 1.0 : _pulseAnimation.value;
-                          final dy = reduceMotion ? 0.0 : _slideAnimation.value;
-                          return FadeTransition(
-                            opacity: _fadeAnimation,
-                            child: Transform.translate(
-                              offset: Offset(0, dy),
-                              child: Transform.scale(
-                                scale: pulse,
-                                child: child,
+            ),
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 560),
+                    child: Column(
+                      children: [
+                        const Spacer(flex: 2),
+                        AnimatedBuilder(
+                          animation: Listenable.merge([
+                            _entranceController,
+                            _ambientController,
+                          ]),
+                          builder: (context, child) {
+                            final pulse =
+                                reduceMotion ? 1.0 : _pulseAnimation.value;
+                            final dy =
+                                reduceMotion ? 0.0 : _slideAnimation.value;
+                            return FadeTransition(
+                              opacity: _fadeAnimation,
+                              child: Transform.translate(
+                                offset: Offset(0, dy),
+                                child: Transform.scale(
+                                  scale: pulse,
+                                  child: child,
+                                ),
                               ),
-                            ),
-                          );
-                        },
-                        child: _buildLogoHero(context, theme),
-                      ),
-                      const Spacer(flex: 1),
-                      FadeTransition(
-                        opacity: _fadeAnimation,
-                        child: _buildBrandBlock(context, theme),
-                      ),
-                      const Spacer(flex: 2),
-                      FadeTransition(
-                        opacity: _fadeAnimation,
-                        child: _buildLoadingStrip(reduceMotion),
-                      ),
-                      SizedBox(height: 20 + bottomPad),
-                      FadeTransition(
-                        opacity: _fadeAnimation,
-                        child: _buildFooter(context, theme),
-                      ),
-                      const SizedBox(height: 12),
-                    ],
+                            );
+                          },
+                          child: _buildLogoHero(context, theme),
+                        ),
+                        const SizedBox(height: 28),
+                        FadeTransition(
+                          opacity: _fadeAnimation,
+                          child: _buildBrandBlock(context, theme),
+                        ),
+                        const SizedBox(height: 28),
+                        FadeTransition(
+                          opacity: _fadeAnimation,
+                          child: _buildLoadingStrip(reduceMotion),
+                        ),
+                        const Spacer(),
+                        FadeTransition(
+                          opacity: _fadeAnimation,
+                          child: _buildFooter(context, theme),
+                        ),
+                        SizedBox(height: 12 + bottomPad),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
+      ),
     );
   }
 
   Widget _buildLogoHero(BuildContext context, ThemeData theme) {
     final w = MediaQuery.sizeOf(context).width;
-    final logoW = math.min(w * 0.82, 340.0);
+    final logoW = math.min(w * 0.72, 280.0);
 
     return Semantics(
       label: 'RCAMARii',
       child: Container(
         width: logoW,
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(40),
+          borderRadius: BorderRadius.circular(34),
           border: Border.all(
-            color: AppVisuals.primaryGold.withValues(alpha: 0.22),
-            width: 1.2,
+            color: AppVisuals.mintAccent.withValues(alpha: 0.7),
+            width: 1.1,
           ),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.45),
-              blurRadius: 40,
-              offset: const Offset(0, 22),
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 28,
+              offset: const Offset(0, 18),
             ),
             BoxShadow(
-              color: AppVisuals.primaryGold.withValues(alpha: 0.12),
-              blurRadius: 32,
+              color: AppVisuals.brandRed.withValues(alpha: 0.12),
+              blurRadius: 22,
               spreadRadius: -4,
+            ),
+            BoxShadow(
+              color: AppVisuals.brandBlue.withValues(alpha: 0.08),
+              blurRadius: 18,
+              spreadRadius: -8,
             ),
           ],
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              AppVisuals.surfaceGreen.withValues(alpha: 0.55),
-              AppVisuals.deepGreen.withValues(alpha: 0.92),
+              AppVisuals.brandWhite,
+              AppVisuals.fieldMist,
             ],
           ),
         ),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(26),
+          borderRadius: BorderRadius.circular(22),
           child: Image.asset(
             _kSplashLogoPng,
             fit: BoxFit.contain,
@@ -279,11 +323,11 @@ class _SplashScreenState extends State<SplashScreen>
     return Container(
       height: 120,
       alignment: Alignment.center,
-      color: AppVisuals.surfaceInset,
+      color: AppVisuals.cloudGlass,
       child: Icon(
         Icons.eco_rounded,
         size: 64,
-        color: AppVisuals.primaryGold.withValues(alpha: 0.85),
+        color: AppVisuals.brandRed.withValues(alpha: 0.85),
       ),
     );
   }
@@ -291,13 +335,32 @@ class _SplashScreenState extends State<SplashScreen>
   Widget _buildBrandBlock(BuildContext context, ThemeData theme) {
     return Column(
       children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          decoration: BoxDecoration(
+            color: AppVisuals.brandWhite.withValues(alpha: 0.92),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: AppVisuals.mintAccent.withValues(alpha: 0.8),
+            ),
+          ),
+          child: Text(
+            'COMMAND CENTER STARTUP',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: AppVisuals.brandGreen,
+              letterSpacing: 1.5,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
         ShaderMask(
           blendMode: BlendMode.srcIn,
           shaderCallback: (bounds) => const LinearGradient(
             colors: [
-              AppVisuals.lightGold,
-              AppVisuals.primaryGold,
-              AppVisuals.primaryGoldDim,
+              AppVisuals.brandRed,
+              AppVisuals.brandGreen,
+              AppVisuals.brandBlue,
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -315,10 +378,12 @@ class _SplashScreenState extends State<SplashScreen>
         ),
         const SizedBox(height: 8),
         Text(
-          context.tr('Field intelligence for farms, crews, logistics, supplies, and profit.'),
+          context.tr(
+            'Preparing records, weather context, knowledge tools, and finance controls for a smooth handoff into the hub.',
+          ),
           textAlign: TextAlign.center,
           style: theme.textTheme.bodyLarge?.copyWith(
-            color: AppVisuals.textMuted,
+            color: AppVisuals.textForestMuted,
             height: 1.5,
             fontWeight: FontWeight.w500,
           ),
@@ -330,20 +395,20 @@ class _SplashScreenState extends State<SplashScreen>
           runSpacing: 8,
           children: [
             _SplashChip(
-              icon: Icons.eco_rounded,
-              label: context.tr('Farm'),
+              icon: Icons.dns_rounded,
+              label: context.tr('Records'),
             ),
             _SplashChip(
-              icon: Icons.local_shipping_rounded,
-              label: context.tr('Logistics'),
+              icon: Icons.cloud_sync_rounded,
+              label: context.tr('Weather'),
             ),
             _SplashChip(
-              icon: Icons.calculate_rounded,
-              label: context.tr('Profit'),
+              icon: Icons.auto_stories_rounded,
+              label: context.tr('Knowledge'),
             ),
             _SplashChip(
-              icon: Icons.auto_awesome_rounded,
-              label: context.tr('Copilot'),
+              icon: Icons.account_balance_wallet_rounded,
+              label: context.tr('Finance'),
             ),
           ],
         ),
@@ -357,11 +422,11 @@ class _SplashScreenState extends State<SplashScreen>
         ClipRRect(
           borderRadius: BorderRadius.circular(999),
           child: SizedBox(
-            height: 4,
+            height: 5,
             child: LinearProgressIndicator(
-              backgroundColor: AppVisuals.textForest.withValues(alpha: 0.08),
+              backgroundColor: AppVisuals.mintAccent.withValues(alpha: 0.3),
               valueColor: AlwaysStoppedAnimation<Color>(
-                AppVisuals.primaryGold.withValues(alpha: 0.88),
+                AppVisuals.brandRed.withValues(alpha: 0.92),
               ),
             ),
           ),
@@ -369,7 +434,7 @@ class _SplashScreenState extends State<SplashScreen>
         if (!reduceMotion) ...[
           const SizedBox(height: 10),
           _ShimmerDots(
-            color: AppVisuals.primaryGold.withValues(alpha: 0.5),
+            color: AppVisuals.brandBlue.withValues(alpha: 0.55),
           ),
         ],
       ],
@@ -377,13 +442,19 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   Widget _buildFooter(BuildContext context, ThemeData theme) {
+    final appSettings = Provider.of<AppSettingsProvider>(context);
+    final userName = appSettings.userName.trim();
+    final launchMessage = userName.isEmpty
+        ? 'Launching your farm workspace'
+        : 'Launching your farm workspace, $userName';
+
     return Column(
       children: [
         Text(
-          context.tr('RCAMARii is tuning your farm command center'),
+          launchMessage,
           textAlign: TextAlign.center,
           style: theme.textTheme.bodyMedium?.copyWith(
-            color: AppVisuals.textForest.withValues(alpha: 0.55),
+            color: AppVisuals.textForestMuted,
             fontWeight: FontWeight.w600,
           ),
         ),
@@ -392,7 +463,7 @@ class _SplashScreenState extends State<SplashScreen>
           context.tr('FIELD INTELLIGENCE BY NOMAD TECHNOLOGIES'),
           textAlign: TextAlign.center,
           style: theme.textTheme.labelSmall?.copyWith(
-            color: AppVisuals.textForest.withValues(alpha: 0.28),
+            color: AppVisuals.textMuted,
             letterSpacing: 2.4,
             fontWeight: FontWeight.w800,
           ),
@@ -477,21 +548,22 @@ class _SplashChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: AppVisuals.textForest.withValues(alpha: 0.06),
+        color: AppVisuals.brandWhite.withValues(alpha: 0.94),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
-          color: AppVisuals.primaryGold.withValues(alpha: 0.18),
+          color: AppVisuals.panelEdge,
         ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 15, color: AppVisuals.primaryGold.withValues(alpha: 0.95)),
+          Icon(icon,
+              size: 15, color: AppVisuals.brandBlue.withValues(alpha: 0.95)),
           const SizedBox(width: 6),
           Text(
             label,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppVisuals.textForest.withValues(alpha: 0.88),
+                  color: AppVisuals.textForest,
                   fontWeight: FontWeight.w800,
                 ),
           ),

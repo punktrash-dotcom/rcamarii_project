@@ -8,6 +8,7 @@ import '../providers/supplies_provider.dart';
 import '../providers/ftracker_provider.dart';
 import '../services/database_helper.dart';
 import '../services/transaction_log_service.dart';
+import '../themes/app_visuals.dart';
 import '../utils/validation_utils.dart';
 import '../widgets/searchable_dropdown.dart';
 
@@ -150,7 +151,7 @@ class _FrmAddSupScreenState extends State<FrmAddSupScreen>
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Entry finalized & Financial Record updated'),
-          backgroundColor: Color(0xFF004D40)));
+          backgroundColor: AppVisuals.primaryGold));
       Navigator.pop(context);
     }
   }
