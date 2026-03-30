@@ -95,10 +95,10 @@ class _ExitScreenState extends State<ExitScreen> with RouteAware {
         children: [
           // STRETCHED BACKGROUND IMAGE
           Image.asset(
-            'lib/assets/splak_screen.jpg',
-            fit: BoxFit.fill, // Stretches to fill the whole screen
+            'lib/assets/images/splak_screen.jpg',
+            fit: BoxFit.cover,
           ),
-          Container(color: Colors.black.withValues(alpha: 0.28)),
+          Container(color: Colors.black.withValues(alpha: 0.20)),
           Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,

@@ -66,7 +66,7 @@ class _ScrNewTransactionState extends State<ScrNewTransaction> {
       builder: (context) {
         final noteController = TextEditingController(text: _note);
         return AlertDialog(
-          backgroundColor: AppVisuals.cloudGlass,
+          backgroundColor: AppVisuals.glass(AppVisuals.cloudGlass, alpha: 0.74),
           title: const Text('Note:',
               style: TextStyle(color: AppVisuals.textForest)),
           content: SingleChildScrollView(
@@ -237,7 +237,7 @@ class _ScrNewTransactionState extends State<ScrNewTransaction> {
                       Container(
                         margin: const EdgeInsets.symmetric(horizontal: 24),
                         decoration: BoxDecoration(
-                          color: AppVisuals.cloudGlass,
+                          color: AppVisuals.glass(AppVisuals.cloudGlass, alpha: 0.74),
                           borderRadius: BorderRadius.circular(24),
                           border: Border.all(
                               color: AppVisuals.textForest
@@ -511,7 +511,7 @@ class _ScrNewTransactionState extends State<ScrNewTransaction> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: AppVisuals.cloudGlass,
+          color: AppVisuals.glass(AppVisuals.cloudGlass, alpha: 0.74),
           borderRadius: BorderRadius.circular(16),
           border:
               Border.all(color: AppVisuals.textForest.withValues(alpha: 0.1)),
@@ -530,3 +530,4 @@ class _ScrNewTransactionState extends State<ScrNewTransaction> {
     );
   }
 }
+

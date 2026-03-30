@@ -6,6 +6,7 @@ import '../providers/app_settings_provider.dart';
 import '../providers/data_provider.dart';
 import '../providers/delivery_provider.dart';
 import '../providers/equipment_provider.dart';
+import '../providers/farm_income_provider.dart';
 import '../providers/farm_provider.dart';
 import '../providers/ftracker_provider.dart';
 import '../providers/navigation_provider.dart';
@@ -17,7 +18,11 @@ import '../providers/sugarcane_profit_provider.dart';
 import '../providers/theme_provider.dart';
 import '../services/app_localization_service.dart';
 import '../themes/app_visuals.dart';
-import '../utils/app_layout_utils.dart';
+import 'add_farm_screen.dart';
+import 'frm_add_delivery.dart';
+import 'frm_add_job2.dart';
+import 'frm_logistics.dart';
+import 'frm_add_sup_screen.dart';
 import 'scr_msoft.dart';
 import 'tab_activities.dart';
 import 'tab_farm.dart';
@@ -50,12 +55,13 @@ class _FrmMainState extends State<FrmMain> {
     TabActivities(),
     TabSupplies(),
     TabKnowledge(),
+    FrmLogistics(),
   ];
 
   @override
   void initState() {
     super.initState();
-    _selectedIndex = widget.initialTab;
+    _selectedIndex = widget.initialTab.clamp(0, _tabs.length - 1);
 
     _searchFocusNode.addListener(() {
       if (!_searchFocusNode.hasFocus) {
@@ -99,6 +105,7 @@ class _FrmMainState extends State<FrmMain> {
     final supplies = Provider.of<SuppliesProvider>(context, listen: false);
     final deliveries = Provider.of<DeliveryProvider>(context, listen: false);
     final workers = Provider.of<WorkerProvider>(context, listen: false);
+    final farmIncome = Provider.of<FarmIncomeProvider>(context, listen: false);
     final profits =
         Provider.of<SugarcaneProfitProvider>(context, listen: false);
     final ftracker = Provider.of<FtrackerProvider>(context, listen: false);
@@ -111,6 +118,7 @@ class _FrmMainState extends State<FrmMain> {
       supplies.loadSupplies(),
       deliveries.loadDeliveries(),
       workers.loadWorkers(),
+      farmIncome.loadRecords(),
       profits.loadProfitRecords(),
       ftracker.loadFtrackerRecords(),
       data.loadDefSupsFromDb(),
@@ -142,11 +150,20 @@ class _FrmMainState extends State<FrmMain> {
     }
 
     return Scaffold(
+      extendBody: true,
+      appBar: _buildTopAppBar(theme),
+      floatingActionButton: _buildFab(theme),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      bottomNavigationBar: _buildBottomAppBar(theme),
       body: AppBackdrop(
         isDark: isDarkMode,
         child: Column(
           children: [
-            _buildHeader(theme),
+            if (_showSearch)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                child: _buildSearchAutocomplete(theme),
+              ),
             Expanded(
               child: ClipRect(
                 child: AnimatedSwitcher(
@@ -167,114 +184,106 @@ class _FrmMainState extends State<FrmMain> {
                     );
                   },
                   child: SizedBox.expand(
-                    child: KeyedSubtree(
-                      key: ValueKey<int>(_selectedIndex),
-                      child: _tabs[_selectedIndex],
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(0, 8, 0, 20),
+                      child: KeyedSubtree(
+                        key: ValueKey<int>(_selectedIndex),
+                        child: _tabs[_selectedIndex],
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-            _buildBottomDock(theme),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHeader(ThemeData theme) {
+  PreferredSizeWidget _buildTopAppBar(ThemeData theme) {
     final scheme = theme.colorScheme;
-    final voiceProvider =
-        Provider.of<VoiceCommandProvider>(context, listen: false);
     final appSettings = Provider.of<AppSettingsProvider>(context);
     final sections = [
       (context.tr('Estate'), context.tr('Farm Hub')),
       (context.tr('Ledger'), context.tr('Operations')),
       (context.tr('Assets'), context.tr('Inventory')),
-      (context.tr('Library'), context.tr('Knowledge')),
+      (context.tr('Knowledge'), context.tr('Library')),
+      (context.tr('Logistics'), context.tr('Deliveries')),
     ];
     final section = sections[_selectedIndex];
 
-    return SafeArea(
-      bottom: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 12),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final shouldStack = AppLayoutUtils.shouldStackHeader(
-                  context,
-                  widthBreakpoint: 560,
-                  scaleBreakpoint: 1.08,
-                ) ||
-                constraints.maxWidth < 520;
-            final actions = <Widget>[
-              _HeaderButton(
-                icon: Icons.grid_view_rounded,
-                tooltip: context.tr('Main Hub'),
-                onTap: () => Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ScrMSoft()),
-                ),
+    return AppBar(
+      elevation: 0,
+      scrolledUnderElevation: 0,
+      toolbarHeight: 72,
+      backgroundColor: scheme.primary,
+      surfaceTintColor: Colors.transparent,
+      titleSpacing: 20,
+      title: _buildHeaderSection(theme, scheme, section),
+      actions: [
+        PopupMenuButton<_FrmMainOverflowAction>(
+          tooltip: context.tr('More'),
+          icon: Icon(
+            Icons.more_vert_rounded,
+            color: scheme.onPrimary,
+          ),
+          onSelected: _handleOverflowAction,
+          itemBuilder: (context) => [
+            PopupMenuItem(
+              value: _FrmMainOverflowAction.refresh,
+              child: Text(context.tr('Refresh')),
+            ),
+            if (appSettings.voiceAssistantEnabled)
+              PopupMenuItem(
+                value: _FrmMainOverflowAction.voice,
+                child: Text(context.tr('Voice')),
               ),
-              _HeaderButton(
-                icon: Icons.search_rounded,
-                tooltip: context.tr('Search'),
-                onTap: () {
-                  setState(() => _showSearch = !_showSearch);
-                  if (_showSearch) _searchFocusNode.requestFocus();
-                },
-              ),
-              _HeaderButton(
-                icon: Icons.refresh_rounded,
-                tooltip: context.tr('Refresh'),
-                onTap: _refreshAll,
-              ),
-              if (appSettings.voiceAssistantEnabled)
-                _HeaderButton(
-                  icon: Icons.mic_rounded,
-                  tooltip: context.tr('Voice'),
-                  onTap: () => voiceProvider.requestCommand(context),
-                ),
-            ];
-
-            return Column(
+          ],
+        ),
+        const SizedBox(width: 8),
+      ],
+      bottom: PreferredSize(
+        preferredSize: const Size.fromHeight(64),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
               children: [
-                if (shouldStack)
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _buildHeaderSection(theme, scheme, section),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: actions,
-                      ),
-                    ],
-                  )
-                else
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildHeaderSection(theme, scheme, section),
-                      ),
-                      Flexible(
-                        child: Wrap(
-                          alignment: WrapAlignment.end,
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: actions,
-                        ),
-                      ),
-                    ],
-                  ),
-                if (_showSearch) ...[
-                  const SizedBox(height: 16),
-                  _buildSearchAutocomplete(theme),
-                ],
+                _TopTabButton(
+                  icon: Icons.eco_rounded,
+                  tooltip: context.tr('Estate'),
+                  selected: _selectedIndex == 0,
+                  onTap: () => _onItemTapped(0),
+                ),
+                _TopTabButton(
+                  icon: Icons.analytics_rounded,
+                  tooltip: context.tr('Activities'),
+                  selected: _selectedIndex == 1,
+                  onTap: () => _onItemTapped(1),
+                ),
+                _TopTabButton(
+                  icon: Icons.inventory_2_rounded,
+                  tooltip: context.tr('Supplies'),
+                  selected: _selectedIndex == 2,
+                  onTap: () => _onItemTapped(2),
+                ),
+                _TopTabButton(
+                  icon: Icons.auto_stories_rounded,
+                  tooltip: context.tr('Knowledge'),
+                  selected: _selectedIndex == 3,
+                  onTap: () => _onItemTapped(3),
+                ),
+                _TopTabButton(
+                  icon: Icons.local_shipping_rounded,
+                  tooltip: context.tr('Deliveries'),
+                  selected: _selectedIndex == 4,
+                  onTap: () => _onItemTapped(4),
+                ),
               ],
-            );
-          },
+            ),
+          ),
         ),
       ),
     );
@@ -293,14 +302,14 @@ class _FrmMainState extends State<FrmMain> {
           style: theme.textTheme.labelSmall?.copyWith(
             letterSpacing: 1.5,
             fontWeight: FontWeight.w900,
-            color: scheme.primary,
+            color: scheme.tertiary,
           ),
         ),
         const SizedBox(height: 2),
         Text(
           section.$2,
           style: theme.textTheme.displaySmall?.copyWith(
-            color: scheme.onSurface,
+            color: scheme.onPrimary,
             fontSize: 24,
           ),
         ),
@@ -359,10 +368,10 @@ class _FrmMainState extends State<FrmMain> {
       fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
         return Container(
           decoration: BoxDecoration(
-            color: scheme.surfaceContainerHighest.withValues(alpha: 0.9),
+            color: scheme.surface,
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
-              color: scheme.outline.withValues(alpha: 0.4),
+              color: scheme.tertiary.withValues(alpha: 0.75),
             ),
           ),
           child: TextField(
@@ -393,160 +402,252 @@ class _FrmMainState extends State<FrmMain> {
     );
   }
 
-  Widget _buildBottomDock(ThemeData theme) {
+  Widget _buildFab(ThemeData theme) {
     final scheme = theme.colorScheme;
+    return FloatingActionButton(
+      onPressed: _handleAddAction,
+      backgroundColor: scheme.secondary,
+      foregroundColor: scheme.onSecondary,
+      elevation: 4,
+      child: const Icon(Icons.add_rounded, size: 28),
+    );
+  }
+
+  Widget _buildBottomAppBar(ThemeData theme) {
     return SafeArea(
       top: false,
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(20, 0, 20, 16),
-        decoration: BoxDecoration(
-          color: scheme.surfaceContainerHighest.withValues(alpha: 0.9),
-          borderRadius: BorderRadius.circular(32),
-          border: Border.all(
-            color: scheme.primary.withValues(alpha: 0.2),
-            width: 1.2,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.45),
-              blurRadius: 28,
-              offset: const Offset(0, 12),
+      child: BottomAppBar(
+        height: 76,
+        notchMargin: 8,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        color: AppVisuals.surfaceInset.withValues(alpha: 0.96),
+        surfaceTintColor: Colors.transparent,
+        shape: const CircularNotchedRectangle(),
+        child: Row(
+          children: [
+            IconButton(
+              tooltip: context.tr('More actions'),
+              onPressed: _openBottomDrawer,
+              icon: Icon(
+                Icons.menu_rounded,
+                color: AppVisuals.softWhite.withValues(alpha: 0.92),
+              ),
             ),
-            BoxShadow(
-              color: scheme.primary.withValues(alpha: 0.09),
-              blurRadius: 22,
-              offset: const Offset(0, -4),
+            const Spacer(),
+            IconButton(
+              tooltip: context.tr('Search'),
+              onPressed: () {
+                setState(() => _showSearch = !_showSearch);
+                if (_showSearch) {
+                  _searchFocusNode.requestFocus();
+                }
+              },
+              icon: Icon(
+                _showSearch ? Icons.close_rounded : Icons.search_rounded,
+                color: AppVisuals.softWhite.withValues(alpha: 0.92),
+              ),
             ),
           ],
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: Row(
-            children: [
-              _NavButton(
-                icon: Icons.eco_rounded,
-                label: context.tr('Estate'),
-                selected: _selectedIndex == 0,
-                onTap: () => _onItemTapped(0),
-              ),
-              _NavButton(
-                icon: Icons.analytics_rounded,
-                label: context.tr('Ledger'),
-                selected: _selectedIndex == 1,
-                onTap: () => _onItemTapped(1),
-              ),
-              _NavButton(
-                icon: Icons.inventory_2_rounded,
-                label: context.tr('Assets'),
-                selected: _selectedIndex == 2,
-                onTap: () => _onItemTapped(2),
-              ),
-              _NavButton(
-                icon: Icons.auto_stories_rounded,
-                label: context.tr('Library'),
-                selected: _selectedIndex == 3,
-                onTap: () => _onItemTapped(3),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
+
+  Future<void> _handleAddAction() async {
+    switch (_selectedIndex) {
+      case 0:
+        await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AddFarmScreen()),
+        );
+        break;
+      case 1:
+        await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const FrmAddJob2()),
+        );
+        break;
+      case 2:
+        await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const FrmAddSupScreen()),
+        );
+        break;
+      case 3:
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              context.tr('No add action is available in the knowledge tab.'),
+            ),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        break;
+      case 4:
+        await Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const FrmAddDelivery()),
+        );
+        break;
+    }
+  }
+
+  Future<void> _openBottomDrawer() async {
+    final selectedFarm =
+        Provider.of<FarmProvider>(context, listen: false).selectedFarm;
+    final sheetContext = context;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      backgroundColor:
+          Theme.of(context).colorScheme.surfaceContainerHighest.withValues(
+                alpha: 0.96,
+              ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.tips_and_updates_rounded),
+                  title: Text(
+                    context.tr('Recommendations and Tips'),
+                  ),
+                  subtitle: Text(
+                    selectedFarm == null
+                        ? context.tr('Open the knowledge tab')
+                        : selectedFarm.name,
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _onItemTapped(3);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.save_rounded),
+                  title: Text(context.tr('Save changes')),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _saveChanges();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.undo_rounded),
+                  title: Text(context.tr('Undo changes')),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _undoChanges();
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.exit_to_app_rounded),
+                  title: Text(context.tr('Exit main tab form')),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _exitToScrMsoft(sheetContext);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _saveChanges() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          context.tr('Changes are saved from each form as you submit them.'),
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> _undoChanges() async {
+    setState(() {
+      _showSearch = false;
+      _searchAutocompleteController.clear();
+    });
+    await _refreshAll();
+  }
+
+  void _exitToScrMsoft(BuildContext parentContext) {
+    if (Navigator.of(parentContext).canPop()) {
+      Navigator.of(parentContext).pop();
+      return;
+    }
+
+    Navigator.pushReplacement(
+      parentContext,
+      MaterialPageRoute(builder: (_) => const ScrMSoft()),
+    );
+  }
+
+  void _handleOverflowAction(_FrmMainOverflowAction action) {
+    switch (action) {
+      case _FrmMainOverflowAction.refresh:
+        _refreshAll();
+        break;
+      case _FrmMainOverflowAction.voice:
+        Provider.of<VoiceCommandProvider>(context, listen: false)
+            .requestCommand(context);
+        break;
+    }
+  }
 }
 
-class _HeaderButton extends StatelessWidget {
+enum _FrmMainOverflowAction { refresh, voice }
+
+class _TopTabButton extends StatelessWidget {
   final IconData icon;
   final String tooltip;
-  final VoidCallback onTap;
-
-  const _HeaderButton({
-    required this.icon,
-    required this.tooltip,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Tooltip(
-      message: tooltip,
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            color: scheme.surfaceContainerHighest.withValues(alpha: 0.9),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: scheme.outline.withValues(alpha: 0.35)),
-          ),
-          child: Icon(icon, color: scheme.primary, size: 22),
-        ),
-      ),
-    );
-  }
-}
-
-class _NavButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
   final bool selected;
   final VoidCallback onTap;
 
-  const _NavButton({
+  const _TopTabButton({
     required this.icon,
-    required this.label,
+    required this.tooltip,
     required this.selected,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeOutQuint,
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: selected ? scheme.primary : Colors.transparent,
-            borderRadius: BorderRadius.circular(24),
-            boxShadow: selected
-                ? [
-                    BoxShadow(
-                      color: scheme.primary.withValues(alpha: 0.3),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    )
-                  ]
-                : null,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                icon,
-                size: 24,
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: Tooltip(
+        message: tooltip,
+        child: GestureDetector(
+          onTap: onTap,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOutCubic,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: selected
+                  ? AppVisuals.softWhite.withValues(alpha: 0.16)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
                 color: selected
-                    ? scheme.onPrimary
-                    : scheme.onSurfaceVariant.withValues(alpha: 0.7),
+                    ? AppVisuals.softWhite.withValues(alpha: 0.42)
+                    : AppVisuals.softWhite.withValues(alpha: 0.18),
               ),
-              if (selected) ...[
-                const SizedBox(height: 4),
-                Text(
-                  label,
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    fontWeight: FontWeight.w900,
-                    color: scheme.onPrimary,
-                    fontSize: 10,
-                  ),
-                ),
-              ],
-            ],
+            ),
+            child: Icon(
+              icon,
+              size: 20,
+              color: selected
+                  ? AppVisuals.softWhite
+                  : AppVisuals.softWhite.withValues(alpha: 0.78),
+            ),
           ),
         ),
       ),

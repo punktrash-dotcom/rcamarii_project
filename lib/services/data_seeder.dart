@@ -43,10 +43,12 @@ class DataSeeder {
 
   static Future<void> _loadCsvCaches() async {
     if (workDefsCsvData.isEmpty) {
-      workDefsCsvData = await _loadCsvAsMap('lib/assets/workdefs.csv');
+      workDefsCsvData =
+          await _loadCsvAsMap('lib/assets/handbooks/workdefs.csv');
     }
     if (supplyPriceCsvData.isEmpty) {
-      supplyPriceCsvData = await _loadCsvAsMap('lib/assets/supply_price.csv');
+      supplyPriceCsvData =
+          await _loadCsvAsMap('lib/assets/handbooks/supply_price.csv');
       for (var item in supplyPriceCsvData) {
         if (item['Cost'] != null) {
           final rawCost = item['Cost']
@@ -62,11 +64,13 @@ class DataSeeder {
       }
     }
     if (equipmentCsvData.isEmpty) {
-      equipmentCsvData = await _loadCsvAsMap('lib/assets/equipment.csv');
+      equipmentCsvData =
+          await _loadCsvAsMap('lib/assets/handbooks/equipment.csv');
     }
     if (sugarcaneMasterQaCsvData.isEmpty) {
-      final rawData =
-          await rootBundle.loadString('lib/assets/sugarcane_master_ph.csv');
+      final rawData = await rootBundle.loadString(
+        'lib/assets/handbooks/sugarcane_master_ph.csv',
+      );
       final listData = const CsvToListConverter().convert(rawData);
       sugarcaneMasterQaCsvData = [];
 

@@ -20,6 +20,7 @@ import '../services/app_route_observer.dart';
 import '../services/transaction_log_service.dart';
 import '../utils/validation_utils.dart';
 import '../widgets/searchable_dropdown.dart';
+import 'scr_workers.dart';
 
 class FrmAddJob2 extends StatefulWidget {
   final String? editJobId;
@@ -32,9 +33,13 @@ class FrmAddJob2 extends StatefulWidget {
 }
 
 class _FrmAddJob2State extends State<FrmAddJob2> with RouteAware {
+  static const String _kAddWorkerOption = '__add_worker__';
+  static const String _kManualWorkerOption = '__manual_worker__';
+
   // Logical Variables
   String _rdo = ''; // Manual or Equipment
   bool _isJobFrameLocked = true;
+  bool _manualWorkerEntryEnabled = false;
   String _wName = '';
   double? _hectareRate;
   WorkDef? _selectedManualWorkDef;
@@ -177,6 +182,7 @@ class _FrmAddJob2State extends State<FrmAddJob2> with RouteAware {
       _selectedFarm = job.farm;
       _rdo = job.labor;
       _wName = job.name;
+      _manualWorkerEntryEnabled = true;
       _selectedBox = job.name;
       _selectedManualWorkDef = matchedWorkDef;
       _selectedRntl = job.labor == 'Equipment' ? job.costType : null;
@@ -319,6 +325,13 @@ class _FrmAddJob2State extends State<FrmAddJob2> with RouteAware {
   }
 
   void _saveAction() async {
+    final shouldContinue = await _promptToAddManualWorkerIfNeeded();
+    if (!shouldContinue) {
+      return;
+    }
+    if (!mounted) {
+      return;
+    }
     if (!_runCheckData()) return;
 
     final costAmount = _isOwnedEquipmentJob
@@ -652,7 +665,7 @@ class _FrmAddJob2State extends State<FrmAddJob2> with RouteAware {
       width: double.infinity,
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest,
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.74),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: scheme.primary.withValues(alpha: 0.18)),
       ),
@@ -907,37 +920,67 @@ class _FrmAddJob2State extends State<FrmAddJob2> with RouteAware {
         .toList()
       ..sort();
     final currentWorker = _controllers['Worker']!.text.trim();
+    final showManualEntry = _manualWorkerEntryEnabled ||
+        workerNames.isEmpty ||
+        (currentWorker.isNotEmpty && !workerNames.contains(currentWorker));
     final dropdownOptions = <String>[
-      if (currentWorker.isNotEmpty && !workerNames.contains(currentWorker))
-        currentWorker,
       ...workerNames,
+      _kManualWorkerOption,
+      _kAddWorkerOption,
     ];
     final selectedWorker =
         dropdownOptions.contains(currentWorker) ? currentWorker : null;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
-      child: SearchableDropdownFormField<String>(
-        initialValue: selectedWorker,
-        focusNode: _focusNodes['Worker'],
-        decoration: const InputDecoration(labelText: 'WORKER'),
-        hint: workerNames.isEmpty
-            ? const Text('Add employees first in Employees Data')
-            : null,
-        items: dropdownOptions
-            .map(
-              (workerName) => DropdownMenuItem(
-                value: workerName,
-                child: Text(workerName),
+      child: Column(
+        children: [
+          SearchableDropdownFormField<String>(
+            initialValue: selectedWorker,
+            focusNode: _focusNodes['Worker'],
+            decoration: const InputDecoration(labelText: 'WORKER'),
+            hint: Text(
+              workerNames.isEmpty
+                  ? 'No employees yet. Add one or enter a name manually'
+                  : 'Select a worker, enter manually, or add a new employee',
+            ),
+            items: dropdownOptions
+                .map(
+                  (workerName) => DropdownMenuItem(
+                    value: workerName,
+                    child: Text(_workerDropdownLabel(workerName)),
+                  ),
+                )
+                .toList(),
+            onChanged: (selection) =>
+                _handleWorkerSelection(selection, workerProvider),
+            validator: (_) {
+              if (_controllers['Worker']!.text.trim().isEmpty) {
+                return 'Select or enter a worker';
+              }
+              return null;
+            },
+          ),
+          if (showManualEntry) ...[
+            const SizedBox(height: 12),
+            TextFormField(
+              stylusHandwritingEnabled: false,
+              controller: _controllers['Worker'],
+              focusNode: _focusNodes['Worker'],
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
+                labelText: 'WORKER NAME',
+                helperText:
+                    'Manual entry is allowed. You can add this name to Employees after typing it.',
               ),
-            )
-            .toList(),
-        onChanged: workerNames.isEmpty
-            ? null
-            : (selection) {
-                setState(() {
-                  _controllers['Worker']!.text = selection ?? '';
-                });
+              onChanged: (_) {
+                if (!_manualWorkerEntryEnabled) {
+                  setState(() {
+                    _manualWorkerEntryEnabled = true;
+                  });
+                }
+              },
+              onFieldSubmitted: (_) {
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   if (mounted) {
                     FocusScope.of(context)
@@ -945,17 +988,133 @@ class _FrmAddJob2State extends State<FrmAddJob2> with RouteAware {
                   }
                 });
               },
-        validator: (value) {
-          if (workerNames.isEmpty) {
-            return 'Add an employee first';
-          }
-          if (value == null || value.trim().isEmpty) {
-            return 'Select a worker';
-          }
-          return null;
-        },
+            ),
+          ],
+        ],
       ),
     );
+  }
+
+  String _workerDropdownLabel(String workerName) {
+    switch (workerName) {
+      case _kManualWorkerOption:
+        return 'Enter employee name manually';
+      case _kAddWorkerOption:
+        return 'Add a new employee';
+      default:
+        return workerName;
+    }
+  }
+
+  Future<void> _handleWorkerSelection(
+    String? selection,
+    WorkerProvider workerProvider,
+  ) async {
+    if (selection == null) {
+      return;
+    }
+    if (selection == _kManualWorkerOption) {
+      setState(() {
+        _manualWorkerEntryEnabled = true;
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          FocusScope.of(context).requestFocus(_focusNodes['Worker']);
+        }
+      });
+      return;
+    }
+    if (selection == _kAddWorkerOption) {
+      await _openAddWorkerScreen(
+        initialName: _controllers['Worker']!.text.trim(),
+        workerProvider: workerProvider,
+      );
+      return;
+    }
+
+    setState(() {
+      _manualWorkerEntryEnabled = false;
+      _controllers['Worker']!.text = selection;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        FocusScope.of(context).requestFocus(_focusNodes['Duration']);
+      }
+    });
+  }
+
+  Future<bool> _promptToAddManualWorkerIfNeeded() async {
+    final rawWorker = _controllers['Worker']!.text.trim();
+    if (rawWorker.isEmpty) {
+      return true;
+    }
+
+    final normalizedWorker = ValidationUtils.toTitleCase(rawWorker);
+    _controllers['Worker']!.text = normalizedWorker;
+    final workerProvider = Provider.of<WorkerProvider>(context, listen: false);
+    final workerExists = workerProvider.workers.any(
+      (worker) =>
+          worker.name.trim().toLowerCase() == normalizedWorker.toLowerCase(),
+    );
+    if (workerExists) {
+      return true;
+    }
+
+    final shouldAdd = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('Add this worker to Employees?'),
+            content: Text(
+              '$normalizedWorker is not in the employee database yet. Do you want to add a new employee record now?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('No'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Yes'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (!shouldAdd) {
+      return true;
+    }
+
+    await _openAddWorkerScreen(
+      initialName: normalizedWorker,
+      workerProvider: workerProvider,
+    );
+    return true;
+  }
+
+  Future<void> _openAddWorkerScreen({
+    required WorkerProvider workerProvider,
+    String? initialName,
+  }) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => FrmAddEditWorker(initialName: initialName),
+      ),
+    );
+    await workerProvider.loadWorkers();
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _manualWorkerEntryEnabled =
+          _controllers['Worker']!.text.trim().isNotEmpty &&
+              !workerProvider.workers.any(
+                (worker) =>
+                    worker.name.trim().toLowerCase() ==
+                    _controllers['Worker']!.text.trim().toLowerCase(),
+              );
+    });
   }
 
   Widget _buildJobField(String label,

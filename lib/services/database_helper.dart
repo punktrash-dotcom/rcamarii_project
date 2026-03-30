@@ -6,8 +6,7 @@ import 'package:path_provider/path_provider.dart';
 
 class DatabaseHelper {
   static const _databaseName = 'RcamariiFarm.db';
-  static const _databaseVersion =
-      46; // Incremented for employee cellphone field
+  static const _databaseVersion = 47; // Incremented for farm income tracking
 
   // Table Names Constants
   static const tableFarms = 'Farms';
@@ -16,6 +15,7 @@ class DatabaseHelper {
   static const tableFtracker = 'Ftracker';
   static const tableDeliveries = 'Deliveries';
   static const tableProduceDeliveries = 'ProduceDeliveries';
+  static const tableFarmIncome = 'FarmIncome';
   static const tableSugarcaneProfits = 'SugarcaneProfits';
   static const tableEquipment = 'Equipment';
   static const tableWorkers = 'Employees';
@@ -102,6 +102,10 @@ class DatabaseHelper {
     if (oldVersion < 46) {
       await _ensureEmployeesSchema(db);
     }
+
+    if (oldVersion < 47) {
+      await _createFarmIncomeTable(db);
+    }
   }
 
   Future _onOpen(Database db) async {
@@ -110,6 +114,7 @@ class DatabaseHelper {
     await _ensureActivitiesSchema(db);
     await _createSugarcaneProfitsTable(db);
     await _createProduceDeliveriesTable(db);
+    await _createFarmIncomeTable(db);
     await _createQaTable(db);
     await _createQaCategoryIconsTable(db);
     await _createAppPropertiesTable(db);
@@ -135,6 +140,7 @@ class DatabaseHelper {
       tableSupplies,
       tableDeliveries,
       tableProduceDeliveries,
+      tableFarmIncome,
       tableWorkers,
       'WorkersDB',
     ];
@@ -509,6 +515,23 @@ class DatabaseHelper {
     print("   -> Table '$tableProduceDeliveries' created.");
   }
 
+  Future<void> _createFarmIncomeTable(DatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $tableFarmIncome(
+        FarmIncomeID INTEGER PRIMARY KEY AUTOINCREMENT,
+        IncomeNo TEXT NOT NULL,
+        Date TEXT NOT NULL,
+        IncomeType TEXT NOT NULL,
+        AssetName TEXT NOT NULL,
+        ClientName TEXT NOT NULL,
+        Amount REAL NOT NULL,
+        Note TEXT,
+        CreatedAt TEXT NOT NULL
+      )
+    ''');
+    print("   -> Table '$tableFarmIncome' created.");
+  }
+
   Future<void> _recreateProduceDeliveriesTableWithExpenseBreakdown(
       Database db) async {
     final columns =
@@ -766,6 +789,7 @@ class DatabaseHelper {
     await _createFtrackerTable(db);
     await _createDeliveriesTable(db);
     await _createProduceDeliveriesTable(db);
+    await _createFarmIncomeTable(db);
     await _createSugarcaneProfitsTable(db);
     await _createEquipmentTable(db);
     await _createEmployeesTable(db);

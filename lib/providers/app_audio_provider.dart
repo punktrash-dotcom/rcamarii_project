@@ -205,28 +205,31 @@ class AppAudioProvider with ChangeNotifier {
     try {
       await _ensureInitialized();
       final player = _player ??= AudioPlayer();
-      final shouldReloadAsset = _currentAssetPath != assetPath;
-      await player.stop().timeout(_audioTimeout);
+
+      // If already playing the same asset, just ensure it's playing and return
+      if (_currentAssetPath == assetPath && player.playing) {
+        return;
+      }
+
+      await player.stop();
       if (requestId != _requestId) {
         return;
       }
 
-      if (shouldReloadAsset) {
-        await player.setAsset(assetPath).timeout(_audioTimeout);
-        _currentAssetPath = assetPath;
-        if (requestId != _requestId) {
-          return;
-        }
+      await player.setAsset(assetPath);
+      _currentAssetPath = assetPath;
+      if (requestId != _requestId) {
+        return;
       }
 
       await player.setLoopMode(loop ? LoopMode.one : LoopMode.off);
       await player.setVolume(_effectiveVolumeForAsset(assetPath));
-      await player.seek(Duration.zero).timeout(_audioTimeout);
+      await player.seek(Duration.zero);
       if (requestId != _requestId) {
         return;
       }
 
-      await player.play().timeout(_audioTimeout);
+      unawaited(player.play());
     } catch (error, stackTrace) {
       developer.log(
         'Shared audio playback failed',
@@ -289,7 +292,7 @@ class AppAudioProvider with ChangeNotifier {
 
     _requestId++;
     try {
-      await player.stop().timeout(_audioTimeout);
+      await player.stop();
     } catch (error, stackTrace) {
       developer.log(
         'Shared audio stop failed',
@@ -332,7 +335,7 @@ class AppAudioProvider with ChangeNotifier {
     }
 
     try {
-      await player.stop().timeout(_audioTimeout);
+      await player.stop();
     } catch (error, stackTrace) {
       developer.log(
         'Shared audio stop failed',

@@ -60,7 +60,7 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              backgroundColor: AppVisuals.cloudGlass,
+              backgroundColor: AppVisuals.glass(AppVisuals.cloudGlass, alpha: 0.74),
               title: const Text('Add New Category',
                   style: TextStyle(color: AppVisuals.textForest)),
               content: SingleChildScrollView(
@@ -174,7 +174,7 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen> {
         itemBuilder: (context, index) {
           final category = _categories[index];
           return Card(
-            color: AppVisuals.cloudGlass,
+            color: AppVisuals.glass(AppVisuals.cloudGlass, alpha: 0.74),
             margin: const EdgeInsets.symmetric(vertical: 8),
             elevation: 1,
             shape:
@@ -197,3 +197,4 @@ class _ManageCategoriesScreenState extends State<ManageCategoriesScreen> {
     );
   }
 }
+

@@ -42,6 +42,9 @@ dependencies:
   flutter_tts: ^4.2.5
   audio_session: ^0.2.2
   just_audio: ^0.10.5
+  just_audio_platform_interface: ^4.3.0
+  just_audio_media_kit: ^2.1.0
+  media_kit_libs_windows_audio: ^1.0.9
   flutter_svg: ^2.0.17
 
 dev_dependencies:
@@ -53,38 +56,40 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "lib/assets/icons/icon.png"
+  image_path: "lib/assets/icons/Untitled-2.png"
   remove_alpha_ios: true
+  web:
+    generate: true
+    image_path: "lib/assets/icons/Untitled-2.png"
+    background_color: "#ffffff"
+    theme_color: "#ffffff"
+  windows:
+    generate: true
+    image_path: "lib/assets/icons/Untitled-2.png"
+    icon_size: 48
+  macos:
+    generate: true
+    image_path: "lib/assets/icons/Untitled-2.png"
 
 flutter:
   uses-material-design: true
 
   assets:
-    - lib/assets/advanced_sugarcane_farming_handbook.pdf
     - lib/assets/audio/
-    - lib/assets/all_rice.pdf
-    - lib/assets/all_sugarcane.docx
-    - lib/assets/all_sugarcane.pdf
-    - lib/assets/background.png
-    - lib/assets/equipment.csv
+    - lib/assets/handbooks/
     - lib/assets/images/
     - lib/assets/icons/iconic.png
     - lib/assets/rcamarii_logo.png
     - lib/assets/fonts/
     - lib/assets/rcamarii_logo.png
-    - lib/assets/splak_screen.jpg
-    - lib/assets/sugarcane_master_ph.csv
-    - lib/assets/supply_price.csv
-    - lib/assets/tagalog_sugarcane_handbook.docx
-    - lib/assets/visayan_sugarcane_handbook.docx
-    - lib/assets/workdefs.csv
+    - lib/assets/reports/
 
 flutter_native_splash:
   color: "#FAFAFA"
-  image: lib/assets/images/rcamarii_logo_splash.png
+  image: lib/assets/images/logo2.png
 
   android_12:
-    image: lib/assets/images/rcamarii_logo_splash.png
+    image: lib/assets/images/logo2.png
     color: "#FAFAFA"
 
   ios: true

@@ -100,13 +100,13 @@ class _ScrWorkersState extends State<ScrWorkers> with RouteAware {
           'Employees Data',
           style: theme.textTheme.headlineMedium?.copyWith(
             fontWeight: FontWeight.w900,
-            color: scheme.onSurface,
+            color: scheme.onPrimary,
             fontFamily: 'Georgia',
           ),
         ),
-        backgroundColor: scheme.surface.withValues(alpha: isDark ? 0.94 : 0.98),
+        backgroundColor: scheme.primary.withValues(alpha: isDark ? 0.92 : 0.94),
         surfaceTintColor: Colors.transparent,
-        foregroundColor: scheme.onSurface,
+        foregroundColor: scheme.onPrimary,
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
@@ -116,13 +116,18 @@ class _ScrWorkersState extends State<ScrWorkers> with RouteAware {
       ),
       body: AppBackdrop(
         isDark: isDark,
+        backgroundImageAsset: 'lib/assets/images/green5.jfif',
+        backgroundImageOpacity: isDark ? 0.26 : 0.38,
+        imageScrimColor: isDark
+            ? Colors.black.withValues(alpha: 0.2)
+            : AppVisuals.softWhite.withValues(alpha: 0.08),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
           child: Column(
             children: [
               FrostedPanel(
                 radius: 24,
-                color: scheme.surface.withValues(alpha: isDark ? 0.88 : 0.95),
+                color: scheme.surface.withValues(alpha: isDark ? 0.58 : 0.62),
                 child: ElevatedButton.icon(
                   onPressed: () => _showAddEditScreen(),
                   icon: const Icon(Icons.person_add_rounded),
@@ -146,7 +151,7 @@ class _ScrWorkersState extends State<ScrWorkers> with RouteAware {
                 child: FrostedPanel(
                   radius: 28,
                   padding: const EdgeInsets.all(12),
-                  color: scheme.surface.withValues(alpha: isDark ? 0.88 : 0.95),
+                  color: scheme.surface.withValues(alpha: isDark ? 0.58 : 0.62),
                   child: workers.isEmpty
                       ? Center(
                           child: Text(
@@ -166,7 +171,9 @@ class _ScrWorkersState extends State<ScrWorkers> with RouteAware {
                           itemBuilder: (ctx, i) {
                             final worker = workers[i];
                             return Card(
-                              color: scheme.surface,
+                              color: scheme.surface.withValues(
+                                alpha: isDark ? 0.6 : 0.64,
+                              ),
                               margin: const EdgeInsets.only(bottom: 12),
                               elevation: 0,
                               shape: RoundedRectangleBorder(
@@ -364,8 +371,9 @@ class _ScrWorkersState extends State<ScrWorkers> with RouteAware {
 
 class FrmAddEditWorker extends StatefulWidget {
   final Worker? worker;
+  final String? initialName;
 
-  const FrmAddEditWorker({super.key, this.worker});
+  const FrmAddEditWorker({super.key, this.worker, this.initialName});
 
   @override
   State<FrmAddEditWorker> createState() => _FrmAddEditWorkerState();
@@ -405,6 +413,8 @@ class _FrmAddEditWorkerState extends State<FrmAddEditWorker> {
             initialValue = widget.worker!.note ?? '';
             break;
         }
+      } else if (field == 'Name') {
+        initialValue = widget.initialName ?? '';
       }
       _controllers[field] = TextEditingController(text: initialValue);
     }
@@ -497,21 +507,26 @@ class _FrmAddEditWorkerState extends State<FrmAddEditWorker> {
           widget.worker == null ? 'Register Employee' : 'Modify Record',
           style: theme.textTheme.titleLarge?.copyWith(
             fontWeight: FontWeight.w900,
-            color: scheme.onSurface,
+            color: scheme.onPrimary,
           ),
         ),
-        backgroundColor: scheme.surface.withValues(alpha: isDark ? 0.94 : 0.98),
+        backgroundColor: scheme.primary.withValues(alpha: isDark ? 0.92 : 0.94),
         surfaceTintColor: Colors.transparent,
-        foregroundColor: scheme.onSurface,
+        foregroundColor: scheme.onPrimary,
         centerTitle: true,
       ),
       body: AppBackdrop(
         isDark: isDark,
+        backgroundImageAsset: 'lib/assets/images/green5.jfif',
+        backgroundImageOpacity: isDark ? 0.18 : 0.28,
+        imageScrimColor: isDark
+            ? Colors.black.withValues(alpha: 0.2)
+            : AppVisuals.softWhite.withValues(alpha: 0.08),
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: FrostedPanel(
             radius: 28,
-            color: scheme.surface.withValues(alpha: isDark ? 0.9 : 0.96),
+            color: scheme.surface.withValues(alpha: isDark ? 0.6 : 0.64),
             child: Form(
               key: _formKey,
               child: Column(
@@ -547,7 +562,7 @@ class _FrmAddEditWorkerState extends State<FrmAddEditWorker> {
                               ),
                               filled: true,
                               fillColor: scheme.surfaceContainerHighest
-                                  .withValues(alpha: 0.9),
+                                  .withValues(alpha: 0.54),
                             ),
                             validator: field == 'Note'
                                 ? null

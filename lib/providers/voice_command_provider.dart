@@ -16,9 +16,11 @@ import '../screens/scr_tracker.dart';
 import '../screens/scr_weather.dart';
 import '../screens/scr_workers.dart';
 import '../services/app_properties_store.dart';
+import '../services/guideline_localization_service.dart';
 import '../services/voice_command_interpreter.dart';
 import 'app_audio_provider.dart';
 import 'app_settings_provider.dart';
+import 'guideline_language_provider.dart';
 import 'navigation_provider.dart';
 
 class VoiceCommandProvider extends ChangeNotifier {
@@ -32,7 +34,9 @@ class VoiceCommandProvider extends ChangeNotifier {
   String _lastCommand = '';
   String _transcript = '';
   String _statusMessage = 'Tap the microphone to start listening.';
+  List<LocaleName> _availableLocales = const [];
   String? _preferredLocaleId;
+  String? _systemLocaleId;
 
   String get lastCommand => _lastCommand;
   String get transcript => _transcript;
@@ -42,20 +46,25 @@ class VoiceCommandProvider extends ChangeNotifier {
   bool get speechAvailable => _speechAvailable;
 
   Future<void> ensureInitialized() async {
-    if (_isInitialized) return;
+    if (_isInitialized && _speechAvailable) return;
 
     _attachTtsHandlers();
 
     try {
+      final hasPermission = await _speech.hasPermission;
       _speechAvailable = await _speech.initialize(
         onError: _handleSpeechError,
         onStatus: _handleSpeechStatus,
         debugLogging: false,
       );
       if (_speechAvailable) {
-        final locales = await _speech.locales();
-        _preferredLocaleId = _pickPreferredLocale(locales);
+        _availableLocales = await _speech.locales();
+        _systemLocaleId = (await _speech.systemLocale())?.localeId;
+        _preferredLocaleId = _pickPreferredLocale(_availableLocales);
         _statusMessage = 'Voice assistant ready.';
+      } else if (!hasPermission) {
+        _statusMessage =
+            'Microphone permission is blocked. Enable it in your device settings.';
       } else {
         _statusMessage = 'Speech recognition is not available on this device.';
       }
@@ -93,6 +102,11 @@ class VoiceCommandProvider extends ChangeNotifier {
   }) async {
     final appSettings =
         Provider.of<AppSettingsProvider>(context, listen: false);
+    final selectedLanguage =
+        Provider.of<GuidelineLanguageProvider>(
+          context,
+          listen: false,
+        ).selectedLanguage;
     if (!appSettings.voiceAssistantEnabled) {
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
@@ -105,6 +119,10 @@ class VoiceCommandProvider extends ChangeNotifier {
     }
 
     await ensureInitialized();
+    _preferredLocaleId = _pickPreferredLocale(
+      _availableLocales,
+      language: selectedLanguage,
+    );
     clearDraft(notify: false);
     final rootContext = context;
     final effectiveSpeakResponse =
@@ -140,21 +158,38 @@ class VoiceCommandProvider extends ChangeNotifier {
       await stopSpeaking();
     }
 
+    if (_speech.isListening) {
+      await _speech.stop();
+    }
+
     _transcript = '';
-    _statusMessage = 'Listening...';
+    _statusMessage = 'Listening for your command...';
     notifyListeners();
 
-    await _speech.listen(
-      onResult: _handleSpeechResult,
-      listenFor: const Duration(seconds: 20),
-      pauseFor: const Duration(seconds: 4),
-      localeId: _preferredLocaleId,
-      listenOptions: SpeechListenOptions(
-        partialResults: true,
-        cancelOnError: true,
-        listenMode: ListenMode.confirmation,
-      ),
-    );
+    try {
+      await _speech.listen(
+        onResult: _handleSpeechResult,
+        listenFor: const Duration(seconds: 30),
+        pauseFor: const Duration(seconds: 6),
+        localeId: _preferredLocaleId,
+        listenOptions: SpeechListenOptions(
+          partialResults: true,
+          cancelOnError: true,
+          listenMode: ListenMode.dictation,
+        ),
+      );
+
+      if (!_speech.isListening && _transcript.trim().isEmpty) {
+        _statusMessage =
+            'Voice capture did not start. Check microphone permission and try again.';
+        notifyListeners();
+      }
+    } catch (_) {
+      _isListening = false;
+      _statusMessage =
+          'Unable to start voice capture. Check microphone permission and try again.';
+      notifyListeners();
+    }
   }
 
   Future<void> stopListening() async {
@@ -369,13 +404,26 @@ class VoiceCommandProvider extends ChangeNotifier {
   void _handleSpeechResult(SpeechRecognitionResult result) {
     _transcript = result.recognizedWords.trim();
     _lastCommand = _transcript;
-    _statusMessage = result.finalResult ? 'Command captured.' : 'Listening...';
+    _statusMessage = result.finalResult
+        ? 'Command captured.'
+        : 'Listening for your command...';
     notifyListeners();
   }
 
   void _handleSpeechError(SpeechRecognitionError error) {
     _isListening = false;
-    _statusMessage = 'Voice error: ${error.errorMsg}';
+    _statusMessage = switch (error.errorMsg) {
+      'error_permission' =>
+        'Microphone permission is blocked. Enable it in device settings.',
+      'error_no_match' =>
+        'I could not understand that. Try again and speak closer to the microphone.',
+      'error_speech_timeout' =>
+        'I did not hear anything. Try again and start speaking right away.',
+      'error_language_not_supported' ||
+      'error_language_unavailable' =>
+        'This speech language is unavailable on this device. Try switching device language support.',
+      _ => 'Voice error: ${error.errorMsg}',
+    };
     notifyListeners();
   }
 
@@ -383,21 +431,65 @@ class VoiceCommandProvider extends ChangeNotifier {
     _isListening = status == 'listening';
     if (!_isListening && _transcript.trim().isNotEmpty) {
       _statusMessage = 'Review the command and press run.';
+    } else if (!_isListening && status == 'done') {
+      _statusMessage = 'I did not catch that. Tap Listen and speak clearly.';
     }
     notifyListeners();
   }
 
-  String? _pickPreferredLocale(List<LocaleName> locales) {
-    const candidates = ['en_PH', 'en-US', 'en_US', 'fil_PH'];
-    for (final candidate in candidates) {
-      for (final locale in locales) {
-        if (locale.localeId == candidate) {
-          return locale.localeId;
+  String? _pickPreferredLocale(
+    List<LocaleName> locales, {
+    GuidelineLanguage? language,
+  }) {
+    if (locales.isEmpty) return null;
+
+    String normalize(String value) =>
+        value.trim().toLowerCase().replaceAll('-', '_');
+
+    String? matchExact(List<String> candidates) {
+      for (final candidate in candidates) {
+        final normalizedCandidate = normalize(candidate);
+        for (final locale in locales) {
+          if (normalize(locale.localeId) == normalizedCandidate) {
+            return locale.localeId;
+          }
         }
       }
+      return null;
     }
-    if (locales.isEmpty) return null;
-    return locales.first.localeId;
+
+    String? matchPrefix(List<String> languageCodes) {
+      for (final code in languageCodes) {
+        final normalizedCode = normalize(code);
+        for (final locale in locales) {
+          final localeId = normalize(locale.localeId);
+          if (localeId == normalizedCode ||
+              localeId.startsWith('${normalizedCode}_')) {
+            return locale.localeId;
+          }
+        }
+      }
+      return null;
+    }
+
+    final exactCandidates = switch (language) {
+      GuidelineLanguage.tagalog => ['fil_PH', 'fil-PH', 'tl_PH', 'tl-PH'],
+      GuidelineLanguage.visayan => ['ceb_PH', 'ceb-PH', 'fil_PH', 'en_PH'],
+      GuidelineLanguage.english || null => ['en_PH', 'en-PH', 'en_US', 'en-US'],
+    };
+    final prefixCandidates = switch (language) {
+      GuidelineLanguage.tagalog => ['fil', 'tl', 'en'],
+      GuidelineLanguage.visayan => ['ceb', 'fil', 'en'],
+      GuidelineLanguage.english || null => ['en', 'fil'],
+    };
+
+    return matchExact(exactCandidates) ??
+        matchExact([
+          if (_systemLocaleId != null) _systemLocaleId!,
+        ]) ??
+        matchPrefix(prefixCandidates) ??
+        matchPrefix(['en', 'fil']) ??
+        locales.first.localeId;
   }
 
   void _attachTtsHandlers() {
@@ -454,6 +546,10 @@ class _VoiceCommandSheetState extends State<_VoiceCommandSheet> {
     super.initState();
     final voice = Provider.of<VoiceCommandProvider>(context, listen: false);
     _controller = TextEditingController(text: voice.transcript);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(voice.startListening());
+    });
   }
 
   @override

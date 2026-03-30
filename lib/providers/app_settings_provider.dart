@@ -259,6 +259,18 @@ class AppSettingsProvider with ChangeNotifier {
     await _store.setString(_launchDestinationKey, value.code);
   }
 
+  Future<void> setAppLockEnabled(bool value) async {
+    if (_appLockEnabled == value) return;
+    if (value && !hasAppPassword) {
+      throw StateError('Cannot enable app lock without a saved password.');
+    }
+
+    _appLockEnabled = value;
+    notifyListeners();
+
+    await _store.setBool(_appLockEnabledKey, value);
+  }
+
   Future<void> setVoiceAssistantEnabled(bool value) async {
     if (_voiceAssistantEnabled == value) return;
     _voiceAssistantEnabled = value;
@@ -330,8 +342,7 @@ class AppSettingsProvider with ChangeNotifier {
     _userName = (await _store.getString(_userNameKey))?.trim() ?? '';
     _userSetupComplete = await _store.getBool(_userSetupCompleteKey) ?? false;
     _appLockEnabled = await _store.getBool(_appLockEnabledKey) ?? false;
-    _appPassword =
-        _appLockEnabled ? (await _store.getString(_appPasswordKey) ?? '') : '';
+    _appPassword = await _store.getString(_appPasswordKey) ?? '';
     _voiceAssistantEnabled =
         await _store.getBool(_voiceAssistantEnabledKey) ?? true;
     _voiceResponsesEnabled =

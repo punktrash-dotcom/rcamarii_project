@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter/material.dart';
+import 'package:just_audio_media_kit/just_audio_media_kit.dart';
+import 'package:just_audio_platform_interface/just_audio_platform_interface.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:provider/provider.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
@@ -9,6 +11,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'providers/activity_provider.dart';
 import 'providers/data_provider.dart';
 import 'providers/equipment_provider.dart';
+import 'providers/farm_income_provider.dart';
 import 'providers/farm_provider.dart';
 import 'providers/supplies_provider.dart';
 import 'providers/weather_provider.dart';
@@ -22,9 +25,11 @@ import 'providers/guideline_language_provider.dart';
 import 'providers/sugarcane_profit_provider.dart';
 
 import 'screens/splash_screen.dart';
+import 'services/app_defaults_service.dart';
 import 'services/app_properties_store.dart';
 import 'services/app_localization_service.dart';
 import 'services/app_route_observer.dart';
+import 'services/safe_just_audio_platform.dart';
 import 'themes/app_visuals.dart';
 import 'utils/app_layout_utils.dart';
 import 'providers/ftracker_provider.dart';
@@ -44,7 +49,14 @@ Future<void> main() async {
     databaseFactory = databaseFactoryFfi;
   }
 
+  if (Platform.isWindows) {
+    JustAudioMediaKit.ensureInitialized(windows: true);
+    final justAudioPlatform = JustAudioPlatform.instance;
+    JustAudioPlatform.instance = SafeJustAudioPlatform(justAudioPlatform);
+  }
+
   await AppPropertiesStore.instance.ready;
+  await AppDefaultsService.ensureDefaults();
 
   runApp(const MyApp());
 }
@@ -62,6 +74,7 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => WeatherProvider()),
         ChangeNotifierProvider(create: (_) => ActivityProvider()),
         ChangeNotifierProvider(create: (_) => EquipmentProvider()),
+        ChangeNotifierProvider(create: (_) => FarmIncomeProvider()),
         ChangeNotifierProvider(create: (_) => SearchProvider()),
         ChangeNotifierProvider(create: (_) => NavigationProvider()),
         ChangeNotifierProvider(create: (_) => WorkerProvider()),

@@ -7,14 +7,20 @@ import '../screens/frm_add_sup_screen.dart';
 import '../themes/app_visuals.dart';
 
 class SuppliesTab extends StatefulWidget {
-  const SuppliesTab({super.key});
+  final String? selectedSupplyId;
+  final ValueChanged<String?>? onSelectedSupplyChanged;
+
+  const SuppliesTab({
+    super.key,
+    this.selectedSupplyId,
+    this.onSelectedSupplyChanged,
+  });
 
   @override
   State<SuppliesTab> createState() => _SuppliesTabState();
 }
 
-class _SuppliesTabState extends State<SuppliesTab>
-    with TickerProviderStateMixin {
+class _SuppliesTabState extends State<SuppliesTab> {
   @override
   void initState() {
     super.initState();
@@ -76,7 +82,7 @@ class _SuppliesTabState extends State<SuppliesTab>
             itemCount: supplies.length,
             itemBuilder: (context, index) {
               final item = supplies[index];
-              return _buildSupplyCard(item, provider);
+              return _buildSupplyCard(item);
             },
           ),
         ),
@@ -84,115 +90,138 @@ class _SuppliesTabState extends State<SuppliesTab>
     );
   }
 
-  Widget _buildSupplyCard(Supply item, SuppliesProvider provider) {
+  Widget _buildSupplyCard(Supply item) {
     final scheme = Theme.of(context).colorScheme;
+    final isSelected = widget.selectedSupplyId == item.id;
 
-    return Card(
-      elevation: 0,
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      color: scheme.surfaceContainerHighest.withValues(alpha: 0.92),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
-        side: BorderSide(color: scheme.outline.withValues(alpha: 0.35)),
-      ),
-      child: Column(
-        children: [
-          ListTile(
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            title: Text(
-              item.name,
-              style: TextStyle(
-                color: scheme.onSurface,
-                fontWeight: FontWeight.w900,
-                fontSize: 16,
-              ),
-            ),
-            subtitle: Text(
-              'Quantity: ${item.quantity}\nTotal Value: \u20B1${item.total.toStringAsFixed(2)}',
-              style: TextStyle(
-                color: scheme.onSurfaceVariant,
-                height: 1.4,
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  constraints:
-                      const BoxConstraints.tightFor(width: 32, height: 32),
-                  padding: EdgeInsets.zero,
-                  onPressed: () => _handleResupply(item),
-                  icon: Icon(
-                    Icons.add_shopping_cart_rounded,
-                    color: scheme.primary,
-                    size: 20,
-                  ),
-                  tooltip: 'Resupply',
+    return GestureDetector(
+      onTap: () => widget.onSelectedSupplyChanged
+          ?.call(isSelected ? null : item.id),
+      child: Card(
+        elevation: 0,
+        margin: const EdgeInsets.symmetric(vertical: 8),
+        color: isSelected
+            ? scheme.primaryContainer.withValues(alpha: 0.46)
+            : scheme.surfaceContainerHighest.withValues(alpha: 0.92),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(
+            color: isSelected
+                ? scheme.primary.withValues(alpha: 0.7)
+                : scheme.outline.withValues(alpha: 0.35),
+            width: isSelected ? 1.6 : 1,
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            ListTile(
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              leading: IconButton(
+                onPressed: () => widget.onSelectedSupplyChanged
+                    ?.call(isSelected ? null : item.id),
+                icon: Icon(
+                  isSelected
+                      ? Icons.radio_button_checked_rounded
+                      : Icons.radio_button_off_rounded,
+                  color: isSelected ? scheme.primary : scheme.onSurfaceVariant,
                 ),
-                PopupMenuButton<SupplyCardAction>(
-                  padding: EdgeInsets.zero,
-                  icon: Icon(Icons.more_vert, color: scheme.onSurfaceVariant),
-                  onSelected: (action) =>
-                      _handleCardAction(action, item, provider),
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(
-                      value: SupplyCardAction.addNew,
-                      child: Text(
-                        'Add New',
-                        style: TextStyle(fontWeight: FontWeight.w600),
-                      ),
+              ),
+              title: Text(
+                item.name,
+                style: TextStyle(
+                  color: scheme.onSurface,
+                  fontWeight: FontWeight.w900,
+                  fontSize: 16,
+                ),
+              ),
+              subtitle: Text(
+                'Quantity: ${item.quantity}\nTotal Value: \u20B1${item.total.toStringAsFixed(2)}',
+                style: TextStyle(
+                  color: scheme.onSurfaceVariant,
+                  height: 1.4,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    constraints:
+                        const BoxConstraints.tightFor(width: 32, height: 32),
+                    padding: EdgeInsets.zero,
+                    onPressed: () => _handleResupply(item),
+                    icon: Icon(
+                      Icons.add_shopping_cart_rounded,
+                      color: scheme.primary,
+                      size: 20,
                     ),
-                    PopupMenuItem(
-                      value: SupplyCardAction.edit,
-                      child: Text(
-                        'Edit',
-                        style: TextStyle(fontWeight: FontWeight.w600),
-                      ),
+                    tooltip: 'Resupply',
+                  ),
+                ],
+              ),
+            ),
+            if (isSelected) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _SupplyFieldRow(label: 'Name', value: item.name),
+                    _SupplyFieldRow(
+                      label: 'Description',
+                      value: item.description.trim().isEmpty
+                          ? 'None'
+                          : item.description.trim(),
                     ),
-                    PopupMenuItem(
-                      value: SupplyCardAction.delete,
-                      child: Text(
-                        'Delete',
-                        style: TextStyle(fontWeight: FontWeight.w600),
-                      ),
+                    _SupplyFieldRow(
+                      label: 'Quantity',
+                      value: '${item.quantity}',
+                    ),
+                    _SupplyFieldRow(
+                      label: 'Cost',
+                      value: '\u20B1${item.cost.toStringAsFixed(2)}',
+                    ),
+                    _SupplyFieldRow(
+                      label: 'Total',
+                      value: '\u20B1${item.total.toStringAsFixed(2)}',
+                    ),
+                    const SizedBox(height: 14),
+                    Wrap(
+                      spacing: 10,
+                      runSpacing: 10,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: () => _editSupply(item),
+                          icon: const Icon(Icons.edit_rounded, size: 18),
+                          label: const Text('Edit'),
+                        ),
+                        FilledButton.icon(
+                          onPressed: () => _confirmDelete(item.id),
+                          icon: const Icon(Icons.delete_rounded, size: 18),
+                          label: const Text('Delete'),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-              ],
-            ),
-          ),
-        ],
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
 
-  void _handleCardAction(
-    SupplyCardAction action,
-    Supply item,
-    SuppliesProvider provider,
-  ) {
-    switch (action) {
-      case SupplyCardAction.addNew:
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const FrmAddSupScreen()),
-        );
-        break;
-      case SupplyCardAction.edit:
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => FrmAddSupScreen(editSupplyId: item.id),
-          ),
-        );
-        break;
-      case SupplyCardAction.delete:
-        _confirmDelete(provider, item.id);
-        break;
-    }
+  void _editSupply(Supply item) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => FrmAddSupScreen(editSupplyId: item.id),
+      ),
+    );
   }
 
   void _handleResupply(Supply item) async {
@@ -203,7 +232,7 @@ class _SuppliesTabState extends State<SuppliesTab>
     await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: scheme.surfaceContainerHighest,
+        backgroundColor: scheme.surfaceContainerHighest.withValues(alpha: 0.74),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
           'RESUPPLY ${item.name.toUpperCase()}',
@@ -286,13 +315,14 @@ class _SuppliesTabState extends State<SuppliesTab>
     );
   }
 
-  void _confirmDelete(SuppliesProvider provider, String supplyId) async {
+  Future<void> _confirmDelete(String supplyId) async {
     final scheme = Theme.of(context).colorScheme;
+    final suppliesProvider = Provider.of<SuppliesProvider>(context, listen: false);
 
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: scheme.surfaceContainerHighest,
+        backgroundColor: scheme.surfaceContainerHighest.withValues(alpha: 0.74),
         title: const Text(
           'CONFIRM DELETE',
           style: TextStyle(
@@ -327,11 +357,55 @@ class _SuppliesTabState extends State<SuppliesTab>
       ),
     );
 
-    if (confirm == true) {
-      await provider.deleteSupply(supplyId);
-      setState(() {});
-    }
+    if (confirm != true) return;
+
+    await suppliesProvider.deleteSupply(supplyId);
+    if (!mounted) return;
+
+    widget.onSelectedSupplyChanged?.call(null);
   }
 }
 
-enum SupplyCardAction { addNew, edit, delete }
+class _SupplyFieldRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _SupplyFieldRow({
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 88,
+            child: Text(
+              label,
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: AppVisuals.textForestMuted,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: AppVisuals.textForest,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

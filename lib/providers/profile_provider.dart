@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../services/app_properties_store.dart';
 
 class ProfileProvider with ChangeNotifier {
-  static const String _nameKey = 'profile_name';
-  static const String _imageKey = 'profile_image';
+  static const String nameKey = 'profile_name';
+  static const String imageKey = 'profile_image';
 
   String _userName = 'My Wallet';
   String? _imagePath;
@@ -19,8 +19,8 @@ class ProfileProvider with ChangeNotifier {
 
   Future<void> _loadProfile() async {
     await _store.ready;
-    _userName = await _store.getString(_nameKey) ?? 'My Wallet';
-    _imagePath = await _store.getString(_imageKey);
+    _userName = await _store.getString(nameKey) ?? 'My Wallet';
+    _imagePath = await _store.getString(imageKey);
     notifyListeners();
   }
 
@@ -31,11 +31,11 @@ class ProfileProvider with ChangeNotifier {
   Future<void> updateProfile(String name, String? imagePath) async {
     _userName = name;
     _imagePath = imagePath;
-    await _store.setString(_nameKey, name);
+    await _store.setString(nameKey, name);
     if (imagePath != null) {
-      await _store.setString(_imageKey, imagePath);
+      await _store.setString(imageKey, imagePath);
     } else {
-      await _store.remove(_imageKey);
+      await _store.remove(imageKey);
     }
     notifyListeners();
   }

@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:convert';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -23,14 +22,21 @@ import '../providers/weather_provider.dart';
 import '../services/farm_operations_service.dart';
 import '../services/farming_advice_service.dart';
 import '../services/guideline_localization_service.dart';
+import 'busco_report_viewer_screen.dart';
 import '../themes/app_visuals.dart';
 
-const String _kIconicPngAsset = 'lib/assets/icons/iconic.png';
+const String _kOfficialLogoAsset = 'lib/assets/images/logo2.png';
 const Color _kSugarcaneChartColor = Color(0xFF4CAF50);
 const Color _kRiceChartColor = Color(0xFFE6C76E);
 const Color _kWaterChartColor = Color(0xFF42A5F5);
 const Color _kRevenueChartColor = Color(0xFF2E6F40);
 const Color _kExpenseChartColor = Color(0xFF90A4AE);
+const List<String> _kWeeklyReportAssets = <String>[
+  'lib/assets/reports/report.png',
+  'lib/assets/reports/report1.png',
+  'lib/assets/reports/report2.png',
+  'lib/assets/reports/report3.png',
+];
 
 class FarmReportDashboardScreen extends StatefulWidget {
   const FarmReportDashboardScreen({super.key});
@@ -48,6 +54,7 @@ class _FarmReportDashboardScreenState extends State<FarmReportDashboardScreen> {
   final NumberFormat _tonsFormat = NumberFormat.decimalPattern();
   Future<pw.ThemeData>? _reportPdfThemeFuture;
   Future<pw.ImageProvider?>? _reportLogoFuture;
+  int _weeklyReportPageIndex = 0;
 
   @override
   void initState() {
@@ -110,20 +117,40 @@ class _FarmReportDashboardScreenState extends State<FarmReportDashboardScreen> {
 
   Future<pw.ImageProvider?> _buildReportLogo() async {
     try {
-      final svgText = await rootBundle.loadString(
-        'lib/assets/images/rcamarii_logo.svg',
-      );
-      final match = RegExp(
-        r'xlink:href="data:(?:image|img)/png;base64,([^"]+)"',
-      ).firstMatch(svgText);
-      if (match == null) {
-        return null;
-      }
-      final bytes = base64Decode(match.group(1)!);
+      final bytes =
+          (await rootBundle.load(_kOfficialLogoAsset)).buffer.asUint8List();
       return pw.MemoryImage(bytes);
     } catch (_) {
       return null;
     }
+  }
+
+  void _openWeeklyReportViewer() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) =>
+            BuscoReportViewerScreen(initialPage: _weeklyReportPageIndex),
+      ),
+    );
+  }
+
+  void _goToWeeklyReportPage(int index) {
+    if (index < 0 || index >= _kWeeklyReportAssets.length) {
+      return;
+    }
+    setState(() => _weeklyReportPageIndex = index);
+  }
+
+  void _openWeeklyReportPrintPreview() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _FarmReportPrintPreviewScreen(
+          title: 'Print Weekly Report',
+          buildPdf: _buildWeeklyReportPdf,
+          pdfFileName: 'absfi-weekly-report.pdf',
+        ),
+      ),
+    );
   }
 
   void _openPrintPreview({
@@ -392,6 +419,69 @@ class _FarmReportDashboardScreenState extends State<FarmReportDashboardScreen> {
     return doc.save();
   }
 
+  Future<Uint8List> _buildWeeklyReportPdf(PdfPageFormat format) async {
+    final pdfTheme = await _getReportPdfTheme();
+    final doc = pw.Document();
+    final pages = await Future.wait(
+      _kWeeklyReportAssets.map(_loadWeeklyReportImage),
+    );
+
+    for (var index = 0; index < pages.length; index++) {
+      final image = pages[index];
+      if (image == null) {
+        continue;
+      }
+
+      doc.addPage(
+        pw.Page(
+          pageFormat: format,
+          margin: const pw.EdgeInsets.all(24),
+          theme: pdfTheme,
+          build: (_) => pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
+            children: [
+              pw.Text(
+                _weeklyReportPageTitle(index),
+                style: pw.TextStyle(
+                  fontSize: 18,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.SizedBox(height: 4),
+              pw.Text(
+                'Page ${index + 1} of ${_kWeeklyReportAssets.length}',
+                style: const pw.TextStyle(
+                  fontSize: 10,
+                  color: PdfColors.grey700,
+                ),
+              ),
+              pw.SizedBox(height: 16),
+              pw.Expanded(
+                child: pw.Center(
+                  child: pw.Image(
+                    image,
+                    fit: pw.BoxFit.contain,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return doc.save();
+  }
+
+  Future<pw.MemoryImage?> _loadWeeklyReportImage(String assetPath) async {
+    try {
+      final bytes = (await rootBundle.load(assetPath)).buffer.asUint8List();
+      return pw.MemoryImage(bytes);
+    } catch (_) {
+      return null;
+    }
+  }
+
   pw.Widget _buildPdfSectionTitle(String title, String subtitle) {
     return pw.Padding(
       padding: const pw.EdgeInsets.only(bottom: 10),
@@ -605,16 +695,19 @@ class _FarmReportDashboardScreenState extends State<FarmReportDashboardScreen> {
                     boxShadow: AppVisuals.shadow3d(theme.colorScheme),
                   ),
                   clipBehavior: Clip.antiAlias,
-                  child: Image.asset(
-                    _kIconicPngAsset,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
-                      color: AppVisuals.fieldMist,
-                      alignment: Alignment.center,
-                      child: const Icon(
-                        Icons.agriculture_rounded,
-                        color: AppVisuals.brandGreen,
-                        size: 28,
+                  child: Padding(
+                    padding: const EdgeInsets.all(6),
+                    child: Image.asset(
+                      _kOfficialLogoAsset,
+                      fit: BoxFit.contain,
+                      errorBuilder: (_, __, ___) => Container(
+                        color: AppVisuals.fieldMist,
+                        alignment: Alignment.center,
+                        child: const Icon(
+                          Icons.agriculture_rounded,
+                          color: AppVisuals.brandGreen,
+                          size: 28,
+                        ),
                       ),
                     ),
                   ),
@@ -677,6 +770,12 @@ class _FarmReportDashboardScreenState extends State<FarmReportDashboardScreen> {
                     farms: farms,
                     selectedFarm: selectedFarm,
                   ),
+                ),
+                _buildHeaderActionButton(
+                  theme: theme,
+                  tooltip: 'Weekly report',
+                  icon: Icons.photo_library_outlined,
+                  onTap: _openWeeklyReportViewer,
                 ),
                 _buildFarmSelector(theme, farmProvider, farms, selectedFarm),
                 _buildHeaderBadge(
@@ -965,6 +1064,8 @@ class _FarmReportDashboardScreenState extends State<FarmReportDashboardScreen> {
           const SizedBox(height: 14),
           _buildCharts(theme, reportData),
           const SizedBox(height: 14),
+          _buildWeeklyReportPanel(theme),
+          const SizedBox(height: 14),
           _buildHarvestLedger(theme, farms),
         ],
       ),
@@ -1027,7 +1128,7 @@ class _FarmReportDashboardScreenState extends State<FarmReportDashboardScreen> {
             width: 124,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppVisuals.brandWhite,
+              color: AppVisuals.glass(AppVisuals.brandWhite, alpha: 0.74),
               borderRadius: BorderRadius.circular(24),
               border: Border.all(
                 color: AppVisuals.brandGreen.withValues(alpha: 0.18),
@@ -1403,6 +1504,185 @@ class _FarmReportDashboardScreenState extends State<FarmReportDashboardScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildWeeklyReportPanel(ThemeData theme) {
+    final isFirstPage = _weeklyReportPageIndex == 0;
+    final isLastPage =
+        _weeklyReportPageIndex == _kWeeklyReportAssets.length - 1;
+
+    return FrostedPanel(
+      radius: 28,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'ABSFI Farmer\'s Weekly Report',
+                      style: theme.textTheme.titleLarge?.copyWith(
+                        color: AppVisuals.textForest,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Display the weekly report pages here and navigate from report.png into report1.png, report2.png, and report3.png.',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                alignment: WrapAlignment.end,
+                children: [
+                  FilledButton.tonalIcon(
+                    onPressed: _openWeeklyReportViewer,
+                    style: FilledButton.styleFrom(
+                      backgroundColor:
+                          AppVisuals.primaryGold.withValues(alpha: 0.14),
+                      foregroundColor: AppVisuals.textForest,
+                    ),
+                    icon: const Icon(Icons.fullscreen_rounded),
+                    label: const Text('Open'),
+                  ),
+                  FilledButton.tonalIcon(
+                    onPressed: _openWeeklyReportPrintPreview,
+                    style: FilledButton.styleFrom(
+                      backgroundColor:
+                          AppVisuals.brandWhite.withValues(alpha: 0.86),
+                      foregroundColor: AppVisuals.textForest,
+                    ),
+                    icon: const Icon(Icons.print_rounded),
+                    label: const Text('Print'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          InkWell(
+            borderRadius: BorderRadius.circular(24),
+            onTap: _openWeeklyReportViewer,
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppVisuals.glass(AppVisuals.cloudGlass, alpha: 0.2),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(
+                  color: theme.colorScheme.outline.withValues(alpha: 0.24),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _weeklyReportPageTitle(_weeklyReportPageIndex),
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      color: AppVisuals.textForest,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Page ${_weeklyReportPageIndex + 1} of ${_kWeeklyReportAssets.length}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: AppVisuals.textForestMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: AspectRatio(
+                      aspectRatio: 16 / 10,
+                      child: Image.asset(
+                        _kWeeklyReportAssets[_weeklyReportPageIndex],
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: isFirstPage
+                      ? null
+                      : () => _goToWeeklyReportPage(_weeklyReportPageIndex - 1),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppVisuals.textForest,
+                    side: BorderSide(
+                      color: theme.colorScheme.outline.withValues(alpha: 0.28),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  icon: const Icon(Icons.chevron_left_rounded),
+                  label: const Text('Previous'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: isLastPage
+                      ? null
+                      : () => _goToWeeklyReportPage(_weeklyReportPageIndex + 1),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppVisuals.textForest,
+                    side: BorderSide(
+                      color: theme.colorScheme.outline.withValues(alpha: 0.28),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  icon: const Icon(Icons.chevron_right_rounded),
+                  label: const Text('Next'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: List.generate(_kWeeklyReportAssets.length, (index) {
+              final isActive = index == _weeklyReportPageIndex;
+              return ChoiceChip(
+                label: Text(index == 0 ? 'Cover' : 'Page $index'),
+                selected: isActive,
+                onSelected: (_) => _goToWeeklyReportPage(index),
+                backgroundColor: AppVisuals.glass(
+                  AppVisuals.cloudGlass,
+                  alpha: 0.18,
+                ),
+                selectedColor: AppVisuals.primaryGold.withValues(alpha: 0.18),
+                labelStyle: theme.textTheme.labelMedium?.copyWith(
+                  color: AppVisuals.textForest,
+                ),
+                side: BorderSide(
+                  color: isActive
+                      ? AppVisuals.primaryGold.withValues(alpha: 0.4)
+                      : theme.colorScheme.outline.withValues(alpha: 0.2),
+                ),
+              );
+            }),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _weeklyReportPageTitle(int index) {
+    return index == 0
+        ? 'ABSFI Farmer\'s Weekly Report'
+        : 'ABSFI Weekly Report Page $index';
   }
 }
 
@@ -2698,10 +2978,12 @@ class _FarmReportPrintPreviewScreen extends StatelessWidget {
   const _FarmReportPrintPreviewScreen({
     required this.title,
     required this.buildPdf,
+    this.pdfFileName = 'rcamarii-farm-operations-report.pdf',
   });
 
   final String title;
   final Future<Uint8List> Function(PdfPageFormat format) buildPdf;
+  final String pdfFileName;
 
   @override
   Widget build(BuildContext context) {
@@ -2709,7 +2991,7 @@ class _FarmReportPrintPreviewScreen extends StatelessWidget {
     final scheme = theme.colorScheme;
 
     return Scaffold(
-      backgroundColor: scheme.surface,
+      backgroundColor: scheme.surface.withValues(alpha: 0.74),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -2734,11 +3016,11 @@ class _FarmReportPrintPreviewScreen extends StatelessWidget {
         allowSharing: true,
         canChangeOrientation: false,
         canChangePageFormat: true,
-        pdfFileName: 'rcamarii-farm-operations-report.pdf',
+        pdfFileName: pdfFileName,
         previewPageMargin: const EdgeInsets.all(12),
         padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
         scrollViewDecoration: BoxDecoration(
-          color: scheme.surface,
+          color: scheme.surface.withValues(alpha: 0.74),
         ),
         pdfPreviewPageDecoration: BoxDecoration(
           color: Colors.white,

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../models/farm_model.dart';
@@ -25,6 +26,7 @@ class _TabFarmState extends State<TabFarm>
   int _currentTabCount = 0;
   bool _playedScreenOpenAudio = false;
   bool _isRouteObserverSubscribed = false;
+  String? _expandedFarmId;
 
   AppAudioProvider? _appAudio;
   AppSettingsProvider? _appSettings;
@@ -42,6 +44,10 @@ class _TabFarmState extends State<TabFarm>
     if (!mounted) return;
     final farmProvider = Provider.of<FarmProvider>(context, listen: false);
     await farmProvider.refreshFarms();
+    if (!mounted) return;
+    setState(() {
+      _expandedFarmId ??= farmProvider.selectedFarm?.id;
+    });
     _syncTabController();
   }
 
@@ -112,6 +118,16 @@ class _TabFarmState extends State<TabFarm>
   @override
   void didPop() => unawaited(_stopScreenOpenAudioIfNeeded());
 
+  void _toggleFarmCard(FarmProvider farmProvider, Farm farm) {
+    final isExpanded = _expandedFarmId == farm.id;
+    if (!isExpanded) {
+      farmProvider.handleFarmSelection(farm);
+    }
+    setState(() {
+      _expandedFarmId = isExpanded ? null : farm.id;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -125,164 +141,65 @@ class _TabFarmState extends State<TabFarm>
           child: CircularProgressIndicator(color: AppVisuals.primaryGold));
     }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildFarmMetrics(theme, farmProvider),
-          const SizedBox(height: 20),
-          _buildControlPanel(theme, farmProvider),
-          const SizedBox(height: 20),
-          Expanded(
-            child: FrostedPanel(
-              radius: 32,
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (farmTypes.isNotEmpty) ...[
-                    _buildTabBar(theme, farmTypes),
-                    const SizedBox(height: 12),
-                  ],
-                  Expanded(
-                    child: farmTypes.isEmpty
-                        ? _buildEmptyState(theme)
-                        : TabBarView(
-                            controller: _tabController!,
-                            children: farmTypes.map((type) {
-                              final farms =
-                                  farmProvider.groupedFarms[type] ?? [];
-                              return _buildCardList(theme, farms, farmProvider);
-                            }).toList(),
-                          ),
-                  ),
-                ],
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Positioned.fill(
+          child: Opacity(
+            opacity: AppVisuals.mainTabBackgroundImageOpacity(
+              theme.brightness == Brightness.dark,
+            ),
+            child: Image.asset(
+              'lib/assets/images/1.jpg',
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: AppVisuals.mainTabImageOverlay(
+                theme.brightness == Brightness.dark,
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFarmMetrics(ThemeData theme, FarmProvider provider) {
-    final totalArea =
-        provider.farms.fold<double>(0, (sum, farm) => sum + farm.area);
-    return Row(
-      children: [
-        Expanded(
-          child: _MetricCard(
-            label: context.tr('Total Estates'),
-            value: provider.farms.length.toString(),
-            icon: Icons.home_work_rounded,
-          ),
         ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _MetricCard(
-            label: context.tr('Total Area'),
-            value: '${totalArea.toStringAsFixed(1)} ha',
-            icon: Icons.map_rounded,
+        SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          child: FrostedPanel(
+            radius: 32,
+            padding: const EdgeInsets.all(12),
+            color: theme.colorScheme.surface.withValues(alpha: 0.46),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (farmTypes.isNotEmpty) ...[
+                  _buildTabBar(theme, farmTypes),
+                  const SizedBox(height: 12),
+                ],
+                farmTypes.isEmpty
+                    ? _buildEmptyState(theme)
+                    : SizedBox(
+                        height: 600, // Adjusted height for TabBarView
+                        child: TabBarView(
+                          controller: _tabController!,
+                          children: farmTypes.map((type) {
+                            final farms =
+                                farmProvider.groupedFarms[type] ?? [];
+                            return _buildCardList(
+                              theme,
+                              farms,
+                              farmProvider,
+                            );
+                          }).toList(),
+                        ),
+                      ),
+              ],
+            ),
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildControlPanel(ThemeData theme, FarmProvider farmProvider) {
-    return FrostedPanel(
-      radius: 28,
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-      child: SizedBox(
-        height: 64,
-        child: ListView(
-          scrollDirection: Axis.horizontal,
-          children: [
-            _ActionButton(
-              icon: Icons.add_rounded,
-              label: context.tr('New Estate'),
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AddFarmScreen()),
-              ),
-              isPrimary: true,
-            ),
-            const SizedBox(width: 10),
-            _ActionButton(
-              icon: Icons.add_task_rounded,
-              label: context.tr('Add Job'),
-              onTap: () {
-                if (farmProvider.selectedFarm != null) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => FrmAddJob2(
-                          initialFName: farmProvider.selectedFarm!.name),
-                    ),
-                  );
-                }
-              },
-              enabled: farmProvider.selectedFarm != null,
-            ),
-            const SizedBox(width: 10),
-            _ActionButton(
-              icon: Icons.edit_rounded,
-              label: context.tr('Edit'),
-              onTap: () {
-                if (farmProvider.selectedFarm != null) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) =>
-                          AddFarmScreen(farmID: farmProvider.selectedFarm!.id),
-                    ),
-                  );
-                }
-              },
-              enabled: farmProvider.selectedFarm != null,
-            ),
-            const SizedBox(width: 10),
-            _ActionButton(
-              icon: Icons.delete_rounded,
-              label: context.tr('Delete'),
-              onTap: () async {
-                final farm = farmProvider.selectedFarm;
-                if (farm == null) return;
-                final farmId = farm.id;
-                if (farmId == null) return;
-                final confirmed = await showDialog<bool>(
-                  context: context,
-                  builder: (context) {
-                    return AlertDialog(
-                      title: Text(context.tr('Delete farm?')),
-                      content: Text(
-                        context.tr(
-                          'This will permanently delete {farm}.',
-                          {'farm': farm.name},
-                        ),
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: Text(context.tr('Cancel')),
-                        ),
-                        FilledButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: Text(context.tr('Delete')),
-                        ),
-                      ],
-                    );
-                  },
-                );
-                if (confirmed != true) return;
-                await farmProvider.deleteFarm(farmId);
-              },
-              enabled: farmProvider.selectedFarm != null,
-            ),
-          ],
-        ),
-      ),
     );
   }
 
@@ -300,7 +217,7 @@ class _TabFarmState extends State<TabFarm>
         isScrollable: true,
         tabAlignment: TabAlignment.start,
         dividerColor: Colors.transparent,
-        labelPadding: const EdgeInsets.symmetric(horizontal: 16),
+        labelPadding: const EdgeInsets.symmetric(horizontal: 6),
         indicator: BoxDecoration(
           color: scheme.primary,
           borderRadius: BorderRadius.circular(14),
@@ -315,7 +232,22 @@ class _TabFarmState extends State<TabFarm>
         labelColor: scheme.onPrimary,
         unselectedLabelColor: scheme.onSurfaceVariant.withValues(alpha: 0.8),
         labelStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12),
-        tabs: types.map((type) => Tab(text: type.toUpperCase())).toList(),
+        tabs: types
+            .map(
+              (type) => Tab(
+                child: SizedBox(
+                  width: 80,
+                  child: Center(
+                    child: Text(
+                      type.toUpperCase(),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+              ),
+            )
+            .toList(),
       ),
     );
   }
@@ -323,16 +255,18 @@ class _TabFarmState extends State<TabFarm>
   Widget _buildCardList(
       ThemeData theme, List<Farm> farms, FarmProvider farmProvider) {
     return ListView.builder(
+      physics: const NeverScrollableScrollPhysics(),
+      shrinkWrap: true,
       padding: const EdgeInsets.only(top: 8, bottom: 20),
       itemCount: farms.length,
       itemBuilder: (context, index) {
         final farm = farms[index];
-        final isSelected = farmProvider.selectedFarm?.id == farm.id;
+        final isSelected = _expandedFarmId == farm.id;
         final cropAge =
             DateTime.now().difference(farm.date).inDays.clamp(0, 9999);
 
         return GestureDetector(
-          onTap: () => farmProvider.handleFarmSelection(farm),
+          onTap: () => _toggleFarmCard(farmProvider, farm),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 300),
             margin: const EdgeInsets.only(bottom: 16),
@@ -358,70 +292,138 @@ class _TabFarmState extends State<TabFarm>
                     ]
                   : null,
             ),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppVisuals.primaryGold
-                        : AppVisuals.textForest.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Icon(
-                    farm.type.toLowerCase().contains('sugar')
-                        ? Icons.bakery_dining_rounded
-                        : Icons.grass_rounded,
-                    color: isSelected
-                        ? AppVisuals.deepGreen
-                        : AppVisuals.primaryGold,
-                    size: 28,
-                  ),
-                ),
-                const SizedBox(width: 20),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        farm.name,
-                        style: theme.textTheme.titleLarge?.copyWith(
-                          color: Colors.black,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${farm.city}, ${farm.province}',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: theme.colorScheme.onSurfaceVariant
-                              .withValues(alpha: 0.75),
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                Row(
                   children: [
-                    Text(
-                      '${farm.area.toStringAsFixed(1)} ha',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        color: AppVisuals.primaryGold,
-                        fontWeight: FontWeight.w900,
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? AppVisuals.primaryGold
+                            : AppVisuals.textForest.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: Icon(
+                        farm.type.toLowerCase().contains('sugar')
+                            ? Icons.bakery_dining_rounded
+                            : Icons.grass_rounded,
+                        color: isSelected
+                            ? AppVisuals.deepGreen
+                            : AppVisuals.primaryGold,
+                        size: 28,
                       ),
                     ),
-                    Text(
-                      context.tr('{days} Days', {'days': '$cropAge'}),
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant
-                            .withValues(alpha: 0.6),
-                        fontWeight: FontWeight.w800,
+                    const SizedBox(width: 20),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            farm.name,
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              color: Colors.black,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${farm.city}, ${farm.province}',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant
+                                  .withValues(alpha: 0.75),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
                       ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          '${farm.area.toStringAsFixed(1)} ha',
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: AppVisuals.primaryGold,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        Text(
+                          context.tr('{days} Days', {'days': '$cropAge'}),
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant
+                                .withValues(alpha: 0.6),
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
+                if (isSelected) ...[
+                  const SizedBox(height: 18),
+                  _FarmFieldRow(
+                    label: context.tr('Name'),
+                    value: farm.name,
+                  ),
+                  _FarmFieldRow(
+                    label: context.tr('Type'),
+                    value: farm.type,
+                  ),
+                  _FarmFieldRow(
+                    label: context.tr('Area'),
+                    value: '${farm.area.toStringAsFixed(1)} ha',
+                  ),
+                  _FarmFieldRow(
+                    label: context.tr('City'),
+                    value: farm.city,
+                  ),
+                  _FarmFieldRow(
+                    label: context.tr('Province'),
+                    value: farm.province,
+                  ),
+                  _FarmFieldRow(
+                    label: context.tr('Date'),
+                    value: DateFormat('MMM d, y').format(farm.date),
+                  ),
+                  _FarmFieldRow(
+                    label: context.tr('Owner'),
+                    value: farm.owner,
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      _FarmActionIconButton(
+                        tooltip: context.tr('Add Job'),
+                        icon: Icons.add_task_rounded,
+                        onTap: () => _addJob(farm),
+                        backgroundColor:
+                            theme.colorScheme.secondary.withValues(alpha: 0.14),
+                        foregroundColor: theme.colorScheme.secondary,
+                      ),
+                      const SizedBox(width: 8),
+                      _FarmActionIconButton(
+                        tooltip: context.tr('Edit'),
+                        icon: Icons.edit_rounded,
+                        onTap: () => _editFarm(farm),
+                        backgroundColor:
+                            theme.colorScheme.tertiary.withValues(alpha: 0.18),
+                        foregroundColor: theme.colorScheme.onSurface,
+                      ),
+                      const SizedBox(width: 8),
+                      _FarmActionIconButton(
+                        tooltip: context.tr('Delete'),
+                        icon: Icons.delete_rounded,
+                        onTap: () => _deleteFarm(farm),
+                        backgroundColor:
+                            theme.colorScheme.primary.withValues(alpha: 0.14),
+                        foregroundColor: theme.colorScheme.primary,
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
@@ -447,56 +449,96 @@ class _TabFarmState extends State<TabFarm>
       ),
     );
   }
+
+  void _editFarm(Farm farm) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AddFarmScreen(farmID: farm.id),
+      ),
+    );
+  }
+
+  void _addJob(Farm farm) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => FrmAddJob2(initialFName: farm.name),
+      ),
+    );
+  }
+
+  Future<void> _deleteFarm(Farm farm) async {
+    final farmId = farm.id;
+    if (farmId == null) return;
+    final farmProvider = Provider.of<FarmProvider>(context, listen: false);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(context.tr('Delete farm?')),
+          content: Text(
+            context.tr(
+              'This will permanently delete {farm}.',
+              {'farm': farm.name},
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(context.tr('Cancel')),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(context.tr('Delete')),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed != true) return;
+
+    await farmProvider.deleteFarm(farmId);
+  }
 }
 
-class _MetricCard extends StatelessWidget {
+class _FarmFieldRow extends StatelessWidget {
   final String label;
   final String value;
-  final IconData icon;
-  static const _metricMaroon = AppVisuals.deepGreen;
 
-  const _MetricCard(
-      {required this.label, required this.value, required this.icon});
+  const _FarmFieldRow({
+    required this.label,
+    required this.value,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: _metricMaroon,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(
-          color: AppVisuals.mintAccent.withValues(alpha: 0.18),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: _metricMaroon.withValues(alpha: 0.28),
-            blurRadius: 18,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: AppVisuals.lightGold, size: 24),
-          const SizedBox(height: 12),
-          Text(
-            label.toUpperCase(),
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: AppVisuals.mintAccent.withValues(alpha: 0.88),
-                  letterSpacing: 1.2,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 9,
-                ),
+          SizedBox(
+            width: 86,
+            child: Text(
+              label,
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: AppVisuals.textForestMuted,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: AppVisuals.softWhite,
-                  fontWeight: FontWeight.w900,
-                ),
+          Expanded(
+            child: Text(
+              value,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: AppVisuals.textForest,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       ),
@@ -504,65 +546,38 @@ class _MetricCard extends StatelessWidget {
   }
 }
 
-class _ActionButton extends StatelessWidget {
+class _FarmActionIconButton extends StatelessWidget {
+  final String tooltip;
   final IconData icon;
-  final String label;
   final VoidCallback onTap;
-  final bool enabled;
-  final bool isPrimary;
+  final Color backgroundColor;
+  final Color foregroundColor;
 
-  const _ActionButton({
+  const _FarmActionIconButton({
+    required this.tooltip,
     required this.icon,
-    required this.label,
     required this.onTap,
-    this.enabled = true,
-    this.isPrimary = false,
+    required this.backgroundColor,
+    required this.foregroundColor,
   });
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final bg = isPrimary
-        ? scheme.primary
-        : scheme.surfaceContainerHighest.withValues(alpha: 0.7);
-    final fg = isPrimary ? scheme.onPrimary : scheme.onSurface;
-
-    return SizedBox(
-      width: 120,
-      child: GestureDetector(
-        onTap: enabled ? onTap : null,
-        child: Opacity(
-          opacity: enabled ? 1.0 : 0.35,
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-            decoration: BoxDecoration(
-              color: bg,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: isPrimary
-                    ? scheme.primary.withValues(alpha: 0.2)
-                    : scheme.outline.withValues(alpha: 0.25),
-              ),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, color: fg, size: 20),
-                const SizedBox(height: 4),
-                Text(
-                  label.toUpperCase(),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: fg,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 9,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ],
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: SizedBox(
+            width: 44,
+            height: 44,
+            child: Icon(
+              icon,
+              color: foregroundColor,
+              size: 20,
             ),
           ),
         ),

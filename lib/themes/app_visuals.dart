@@ -1,66 +1,82 @@
 import 'package:flutter/material.dart';
 
-/// Shared visual system built around the warm Ramari palette:
-/// gold, soft yellow, cream, and earth brown.
+/// Shared visual system built around the app shell blueprint:
+/// brand red, farm green, calm info blue, and clean white surfaces.
 class AppVisuals {
-  static const Color brandRed = Color(0xFFFFC107);
-  static const Color brandGreen = Color(0xFFF9E076);
-  static const Color brandBlue = Color(0xFF895129);
-  static const Color brandWhite = Color(0xFFFFFDD0);
+  // Palette definition.
+  static const Color brandRed = Color(0xFF8E0A1E);
+  static const Color brandGreen = Color(0xFF2E6F40);
+  static const Color brandBlue = Color(0xFFADD8E6);
+  static const Color brandWhite = Color(0xFFFFFFFF);
 
-  static const Color dawnMist = Color(0xFFFFFDD0);
-  static const Color fieldMist = Color(0xFFFFF6D9);
-  static const Color skyMist = Color(0xFFF9E076);
-  static const Color blushMist = Color(0xFFFFE8A3);
-  static const Color cloudGlass = Color(0xFFFFFCED);
+  // Surface roles.
+  static const Color dawnMist = Color(0xFFF4F7FB);
+  static const Color fieldMist = Color(0xFFFFFFFF);
+  static const Color skyMist = Color(0xFFEAF5FA);
+  static const Color blushMist = Color(0xFFF8E8EC);
+  static const Color cloudGlass = Color(0xFFFFFFFF);
 
+  // Legacy aliases kept for existing UI usage.
   static const Color primaryGold = brandRed;
-  static const Color primaryGoldDim = Color(0xFFE0A800);
-  static const Color lightGold = brandGreen;
-  static const Color deepGreen = Color(0xFF4A2B15);
-  static const Color surfaceGreen = Color(0xFF6A3F21);
-  static const Color surfaceRaised = Color(0xFF7B4A27);
-  static const Color surfaceInset = Color(0xFF351D0F);
-  static const Color growthGreen = Color(0xFFFFE082);
-  static const Color mintAccent = Color(0xFFF9E076);
+  static const Color primaryGoldDim = Color(0xFF6F0B1B);
+  static const Color lightGold = Color(0xFFD9EBDD);
+  static const Color deepGreen = Color(0xFF1F2937);
+  static const Color surfaceGreen = Color(0xFF2A3A4D);
+  static const Color surfaceRaised = Color(0xFF34485D);
+  static const Color surfaceInset = Color(0xFF182330);
+  static const Color growthGreen = Color(0xFFDCEBDF);
+  static const Color mintAccent = brandGreen;
   static const Color softWhite = brandWhite;
-  static const Color textForest = Color(0xFF4A2B15);
-  static const Color textForestMuted = Color(0xFF7B644F);
-  static const Color textMuted = Color(0xFFA28A72);
-  static const Color mutedGold = Color(0xCCF9E076);
+  static const Color textForest = Color(0xFF17212B);
+  static const Color textForestMuted = Color(0xFF6B7280);
+  static const Color textMuted = Color(0xFF94A3B8);
+  static const Color mutedGold = Color(0x408E0A1E);
   static const Color accentChartBlue = brandBlue;
+  static const Color statsError = Color(0xFFB42339);
+  static const Color metricStrongGreen = brandGreen;
+  static const Color metricTeal = brandBlue;
 
+  // Semantic + shell support.
   static const Color midnightCharcoal = deepGreen;
-  static const Color forestEmerald = surfaceGreen;
+  static const Color forestEmerald = brandGreen;
   static const Color harvestGold = primaryGold;
-  static const Color warmOffWhite = softWhite;
-  static const Color deepAnthracite = Color(0xFF3A220F);
+  static const Color warmOffWhite = brandWhite;
+  static const Color deepAnthracite = Color(0xFF0F172A);
 
-  static const Color panelSoft = fieldMist;
-  static const Color panelSoftAlt = Color(0xFFFFF1C2);
+  static const Color panelSoft = skyMist;
+  static const Color panelSoftAlt = Color(0xFFF5FAFC);
   static const Color panelRose = blushMist;
-  static const Color panelEdge = Color(0xFFE6D4A0);
+  static const Color panelEdge = Color(0xFFD6DDE6);
   static const Color chartRevenue = brandBlue;
-  static const Color chartExpense = primaryGold;
-  static const Color chartNet = lightGold;
+  static const Color chartExpense = brandRed;
+  static const Color chartNet = brandGreen;
   static const List<Color> chartPalette = [
     chartNet,
     chartRevenue,
     brandRed,
     brandGreen,
-    mintAccent,
-    growthGreen,
+    Color(0xFFC8E4EC),
+    Color(0xFFE4EEF7),
   ];
 
-  /// Hub / dashboard tile gradients.
+  // Dashboard-specific tokens.
   static const List<List<Color>> actionDeckGradients = [
-    [cloudGlass, fieldMist, skyMist],
-    [cloudGlass, Color(0xFFFFF1B8), mintAccent],
-    [cloudGlass, Color(0xFFFFF8E2), blushMist],
-    [cloudGlass, Color(0xFFF3E4C9), Color(0xFFE2C495)],
-    [cloudGlass, Color(0xFFFFF2BF), Color(0xFFF0D26E)],
-    [cloudGlass, fieldMist, Color(0xFFE7CFA0)],
+    [fieldMist, skyMist, Color(0xFFDCEBDF)],
+    [fieldMist, blushMist, Color(0xFFF2D9DF)],
+    [fieldMist, skyMist, Color(0xFFD7EEF5)],
+    [fieldMist, Color(0xFFF1F5F9), Color(0xFFE2E8F0)],
+    [fieldMist, Color(0xFFEAF5FA), Color(0xFFD9EBDD)],
+    [fieldMist, Color(0xFFF8E8EC), Color(0xFFEAF5FA)],
   ];
+
+  static Color glass(Color color, {double alpha = 0.68}) =>
+      color.withValues(alpha: alpha);
+
+  static List<Color> glassGradient(
+    List<Color> colors, {
+    double alpha = 0.68,
+  }) =>
+      colors.map((color) => glass(color, alpha: alpha)).toList();
 
   static ThemeData theme({
     required bool isDark,
@@ -70,53 +86,51 @@ class AppVisuals {
         ? const ColorScheme(
             brightness: Brightness.dark,
             primary: brandRed,
-            onPrimary: deepGreen,
+            onPrimary: brandWhite,
             secondary: brandGreen,
-            onSecondary: deepGreen,
+            onSecondary: brandWhite,
             tertiary: brandBlue,
-            onTertiary: brandWhite,
-            error: Color(0xFFD85C6F),
+            onTertiary: deepAnthracite,
+            error: statsError,
             onError: brandWhite,
-            surface: deepGreen,
+            surface: deepAnthracite,
             onSurface: brandWhite,
             surfaceContainerHighest: surfaceRaised,
-            onSurfaceVariant: Color(0xFFF1E3BF),
-            outline: Color(0xFFD6B06D),
+            onSurfaceVariant: Color(0xFFCBD5E1),
+            outline: Color(0xFF475569),
             shadow: Colors.black,
           )
         : const ColorScheme(
             brightness: Brightness.light,
             primary: brandRed,
-            onPrimary: deepGreen,
-            secondary: mintAccent,
-            onSecondary: textForest,
+            onPrimary: brandWhite,
+            secondary: brandGreen,
+            onSecondary: brandWhite,
             tertiary: brandBlue,
-            onTertiary: brandWhite,
-            error: brandRed,
+            onTertiary: deepAnthracite,
+            error: statsError,
             onError: brandWhite,
-            surface: dawnMist,
+            surface: brandWhite,
             onSurface: textForest,
-            surfaceContainerHighest: cloudGlass,
+            surfaceContainerHighest: dawnMist,
             onSurfaceVariant: textForestMuted,
-            outline: Color(0xFFE5D29A),
-            shadow: Color(0x1A4A2B15),
+            outline: Color(0xFFD6DDE6),
+            shadow: Color(0x140F172A),
           );
 
-    final panelColor = isDark
-        ? surfaceRaised.withValues(alpha: 0.92)
-        : cloudGlass.withValues(alpha: 0.9);
+    final panelColor = isDark ? glass(surfaceRaised, alpha: 0.9) : brandWhite;
 
     return ThemeData(
       useMaterial3: true,
       brightness: scheme.brightness,
       colorScheme: scheme,
-      scaffoldBackgroundColor: isDark ? deepGreen : dawnMist,
+      scaffoldBackgroundColor: isDark ? deepAnthracite : dawnMist,
       canvasColor: scheme.surface,
       fontFamily: 'NotoSans',
       splashFactory: NoSplash.splashFactory,
-      hoverColor: Colors.transparent,
-      splashColor: Colors.transparent,
-      highlightColor: Colors.transparent,
+      hoverColor: brandBlue.withValues(alpha: 0.16),
+      splashColor: brandBlue.withValues(alpha: 0.12),
+      highlightColor: brandBlue.withValues(alpha: 0.1),
       dividerColor: scheme.outline.withValues(alpha: 0.38),
       textTheme: TextTheme(
         displayLarge: TextStyle(
@@ -181,23 +195,21 @@ class AppVisuals {
         ),
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: Colors.transparent,
+        backgroundColor: scheme.primary,
         elevation: 0,
-        foregroundColor: scheme.onSurface,
+        foregroundColor: scheme.onPrimary,
         centerTitle: false,
         titleTextStyle: TextStyle(
-          color: scheme.onSurface,
+          color: scheme.onPrimary,
           fontSize: 20,
           fontWeight: FontWeight.w900,
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: isDark
-            ? surfaceInset.withValues(alpha: 0.88)
-            : brandWhite.withValues(alpha: 0.86),
+        fillColor: isDark ? surfaceInset.withValues(alpha: 0.92) : brandWhite,
         labelStyle: TextStyle(color: scheme.onSurfaceVariant),
-        floatingLabelStyle: TextStyle(color: scheme.primary),
+        floatingLabelStyle: const TextStyle(color: brandBlue),
         hintStyle:
             TextStyle(color: scheme.onSurfaceVariant.withValues(alpha: 0.52)),
         contentPadding:
@@ -212,32 +224,34 @@ class AppVisuals {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(22),
-          borderSide: BorderSide(color: scheme.primary, width: 1.8),
+          borderSide: const BorderSide(color: brandBlue, width: 1.8),
         ),
       ),
       cardTheme: CardThemeData(
         color: panelColor,
         elevation: 0,
-        shadowColor: scheme.shadow.withValues(alpha: 0.35),
+        shadowColor: scheme.shadow.withValues(alpha: isDark ? 0.34 : 0.08),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(28),
-          side: BorderSide(color: scheme.outline.withValues(alpha: 0.3)),
+          borderRadius: BorderRadius.circular(24),
+          side: BorderSide(color: scheme.outline.withValues(alpha: 0.24)),
         ),
       ),
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: isDark ? surfaceRaised : panelSoft,
+        backgroundColor:
+            isDark ? glass(surfaceRaised, alpha: 0.96) : surfaceGreen,
         contentTextStyle: TextStyle(
-          color: scheme.onSurface,
+          color: isDark ? scheme.onSurface : brandWhite,
           fontWeight: FontWeight.w700,
         ),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
-          side: BorderSide(color: scheme.primary.withValues(alpha: 0.28)),
+          side: BorderSide(color: scheme.outline.withValues(alpha: 0.28)),
         ),
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor: isDark ? surfaceRaised : cloudGlass,
+        backgroundColor:
+            isDark ? glass(surfaceRaised, alpha: 0.96) : brandWhite,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(28),
@@ -255,7 +269,8 @@ class AppVisuals {
         ),
       ),
       bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: isDark ? surfaceRaised : cloudGlass,
+        backgroundColor:
+            isDark ? glass(surfaceRaised, alpha: 0.96) : brandWhite,
         surfaceTintColor: Colors.transparent,
         dragHandleColor: scheme.outline.withValues(alpha: 0.45),
         shape: const RoundedRectangleBorder(
@@ -280,15 +295,15 @@ class AppVisuals {
         thickness: 1,
       ),
       progressIndicatorTheme: ProgressIndicatorThemeData(
-        color: scheme.primary,
-        linearTrackColor: scheme.primary.withValues(alpha: 0.15),
-        circularTrackColor: scheme.primary.withValues(alpha: 0.15),
+        color: scheme.secondary,
+        linearTrackColor: scheme.secondary.withValues(alpha: 0.15),
+        circularTrackColor: scheme.secondary.withValues(alpha: 0.15),
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: isDark
-            ? surfaceGreen.withValues(alpha: 0.96)
-            : cloudGlass.withValues(alpha: 0.96),
-        indicatorColor: scheme.primary.withValues(alpha: 0.18),
+            ? surfaceInset.withValues(alpha: 0.94)
+            : brandWhite.withValues(alpha: 0.94),
+        indicatorColor: scheme.primary.withValues(alpha: 0.12),
         shadowColor: scheme.shadow.withValues(alpha: 0.18),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           final selected = states.contains(WidgetState.selected);
@@ -308,15 +323,15 @@ class AppVisuals {
         }),
       ),
       floatingActionButtonTheme: FloatingActionButtonThemeData(
-        backgroundColor: scheme.primary,
-        foregroundColor: scheme.onPrimary,
-        elevation: 10,
+        backgroundColor: scheme.secondary,
+        foregroundColor: scheme.onSecondary,
+        elevation: 6,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
           elevation: 0,
-          shadowColor: scheme.primary.withValues(alpha: 0.28),
+          shadowColor: scheme.primary.withValues(alpha: 0.2),
           backgroundColor: scheme.primary,
           foregroundColor: scheme.onPrimary,
           minimumSize: const Size(100, 54),
@@ -342,10 +357,9 @@ class AppVisuals {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: scheme.onSurface,
-          backgroundColor: isDark
-              ? surfaceGreen.withValues(alpha: 0.74)
-              : brandWhite.withValues(alpha: 0.6),
-          side: BorderSide(color: scheme.primary.withValues(alpha: 0.75)),
+          backgroundColor:
+              isDark ? surfaceGreen.withValues(alpha: 0.4) : brandWhite,
+          side: BorderSide(color: scheme.outline.withValues(alpha: 0.8)),
           minimumSize: const Size(100, 52),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
@@ -357,10 +371,8 @@ class AppVisuals {
         ),
       ),
       chipTheme: ChipThemeData(
-        backgroundColor: isDark
-            ? surfaceGreen.withValues(alpha: 0.88)
-            : brandWhite.withValues(alpha: 0.82),
-        selectedColor: scheme.primary,
+        backgroundColor: isDark ? surfaceGreen.withValues(alpha: 0.6) : skyMist,
+        selectedColor: scheme.tertiary,
         disabledColor: scheme.outline.withValues(alpha: 0.12),
         labelStyle: TextStyle(
           color: scheme.onSurface,
@@ -372,15 +384,13 @@ class AppVisuals {
       ),
       tabBarTheme: TabBarThemeData(
         indicator: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [brandRed, brandGreen],
-          ),
+          color: brandRed,
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-              color: brandGreen.withValues(alpha: 0.28),
-              blurRadius: 14,
-              offset: const Offset(0, 6),
+              color: brandRed.withValues(alpha: 0.18),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
           ],
         ),
@@ -412,10 +422,10 @@ class AppVisuals {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          deepGreen,
-          surfaceGreen,
-          Color.alphaBlend(brandBlue.withValues(alpha: 0.12), surfaceInset),
-          Color.alphaBlend(brandRed.withValues(alpha: 0.16), deepGreen),
+          deepAnthracite,
+          surfaceInset,
+          Color.alphaBlend(brandBlue.withValues(alpha: 0.12), surfaceGreen),
+          Color.alphaBlend(brandRed.withValues(alpha: 0.14), deepAnthracite),
         ],
       );
     }
@@ -424,10 +434,50 @@ class AppVisuals {
       end: Alignment.bottomRight,
       colors: [
         dawnMist,
-        fieldMist,
+        Color(0xFFF9FBFD),
         skyMist,
-        blushMist,
+        Color(0xFFF1F5F9),
       ],
+    );
+  }
+
+  static double mainTabBackgroundImageOpacity(bool isDark) =>
+      isDark ? 0.18 : 0.26;
+
+  static LinearGradient mainTabImageOverlay(bool isDark) {
+    if (isDark) {
+      return LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          deepGreen.withValues(alpha: 0.48),
+          Color.alphaBlend(
+            brandBlue.withValues(alpha: 0.18),
+            surfaceInset,
+          ).withValues(alpha: 0.4),
+          Color.alphaBlend(
+            brandRed.withValues(alpha: 0.14),
+            deepGreen,
+          ).withValues(alpha: 0.28),
+          Colors.black.withValues(alpha: 0.18),
+        ],
+        stops: const [0.0, 0.36, 0.74, 1.0],
+      );
+    }
+
+    return LinearGradient(
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+      colors: [
+        softWhite.withValues(alpha: 0.12),
+        fieldMist.withValues(alpha: 0.16),
+        Color.alphaBlend(
+          brandBlue.withValues(alpha: 0.12),
+          cloudGlass,
+        ).withValues(alpha: 0.16),
+        brandGreen.withValues(alpha: 0.12),
+      ],
+      stops: const [0.0, 0.34, 0.72, 1.0],
     );
   }
 
@@ -439,19 +489,17 @@ class AppVisuals {
   }) {
     final isDark = scheme.brightness == Brightness.dark;
     final base = colorOverride ??
-        (isDark
-            ? surfaceRaised.withValues(alpha: 0.84)
-            : cloudGlass.withValues(alpha: 0.84));
+        (isDark ? glass(surfaceRaised, alpha: 0.84) : brandWhite);
     final top = Color.alphaBlend(
-      brandWhite.withValues(alpha: isDark ? 0.08 : 0.62),
+      brandWhite.withValues(alpha: isDark ? 0.06 : 0.78),
       base,
     );
     final mid = Color.alphaBlend(
-      brandBlue.withValues(alpha: isDark ? 0.08 : 0.18),
+      brandBlue.withValues(alpha: isDark ? 0.08 : 0.16),
       base,
     );
     final bottom = Color.alphaBlend(
-      brandGreen.withValues(alpha: isDark ? 0.16 : 0.08),
+      brandGreen.withValues(alpha: isDark ? 0.1 : 0.08),
       base,
     );
 
@@ -460,16 +508,16 @@ class AppVisuals {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          top.withValues(alpha: 0.98),
-          mid.withValues(alpha: 0.94),
-          bottom.withValues(alpha: 0.96),
+          top.withValues(alpha: isDark ? 0.92 : 0.98),
+          mid.withValues(alpha: isDark ? 0.88 : 0.98),
+          bottom.withValues(alpha: isDark ? 0.9 : 0.98),
         ],
       ),
       borderRadius: BorderRadius.circular(radius),
       border: Border.all(
         color: isDark
-            ? brandBlue.withValues(alpha: 0.14)
-            : scheme.outline.withValues(alpha: 0.52),
+            ? brandBlue.withValues(alpha: 0.18)
+            : scheme.outline.withValues(alpha: 0.6),
         width: 1.1,
       ),
       boxShadow: lifted ? neoShadows(scheme) : const [],
@@ -481,25 +529,25 @@ class AppVisuals {
     final isDark = scheme.brightness == Brightness.dark;
     return [
       BoxShadow(
-        color: Colors.black.withValues(alpha: isDark ? 0.42 : 0.12),
-        blurRadius: isDark ? 34 : 26,
-        offset: const Offset(0, 16),
+        color: Colors.black.withValues(alpha: isDark ? 0.34 : 0.08),
+        blurRadius: isDark ? 28 : 18,
+        offset: const Offset(0, 12),
         spreadRadius: -2,
       ),
       BoxShadow(
-        color: brandBlue.withValues(alpha: isDark ? 0.1 : 0.12),
-        blurRadius: 28,
-        offset: const Offset(0, 8),
+        color: brandBlue.withValues(alpha: isDark ? 0.08 : 0.1),
+        blurRadius: 20,
+        offset: const Offset(0, 6),
         spreadRadius: -6,
       ),
       BoxShadow(
-        color: brandGreen.withValues(alpha: isDark ? 0.12 : 0.08),
-        blurRadius: 20,
-        offset: const Offset(0, 6),
+        color: brandGreen.withValues(alpha: isDark ? 0.08 : 0.06),
+        blurRadius: 14,
+        offset: const Offset(0, 4),
         spreadRadius: -8,
       ),
       BoxShadow(
-        color: brandWhite.withValues(alpha: isDark ? 0.04 : 0.45),
+        color: brandWhite.withValues(alpha: isDark ? 0.03 : 0.55),
         blurRadius: 0,
         offset: const Offset(-1, -1),
         spreadRadius: -1,
@@ -514,6 +562,10 @@ class AppBackdrop extends StatelessWidget {
   final Widget child;
   final bool isDark;
   final Gradient? backgroundGradient;
+  final String? backgroundImageAsset;
+  final BoxFit backgroundImageFit;
+  final double backgroundImageOpacity;
+  final Color? imageScrimColor;
   final Color? orbTopLeftColor;
   final Color? orbTopRightColor;
   final Color? orbBottomLeftColor;
@@ -524,6 +576,10 @@ class AppBackdrop extends StatelessWidget {
     required this.child,
     required this.isDark,
     this.backgroundGradient,
+    this.backgroundImageAsset,
+    this.backgroundImageFit = BoxFit.cover,
+    this.backgroundImageOpacity = 0.32,
+    this.imageScrimColor,
     this.orbTopLeftColor,
     this.orbTopRightColor,
     this.orbBottomLeftColor,
@@ -533,7 +589,7 @@ class AppBackdrop extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accentA = orbTopLeftColor ??
-        (isDark ? AppVisuals.brandBlue : AppVisuals.brandGreen);
+        (isDark ? AppVisuals.brandBlue : AppVisuals.brandBlue);
     final accentB = orbTopRightColor ??
         (isDark ? AppVisuals.brandRed : AppVisuals.brandBlue);
     final accentC = orbBottomLeftColor ??
@@ -543,12 +599,27 @@ class AppBackdrop extends StatelessWidget {
 
     return Container(
       decoration: BoxDecoration(
-        color: isDark ? AppVisuals.deepGreen : AppVisuals.dawnMist,
+        color: isDark ? AppVisuals.deepAnthracite : AppVisuals.dawnMist,
         gradient: backgroundGradient ?? AppVisuals.shellBackground(isDark),
       ),
       child: Stack(
         fit: StackFit.expand,
         children: [
+          if (backgroundImageAsset != null)
+            Opacity(
+              opacity: backgroundImageOpacity,
+              child: Image.asset(
+                backgroundImageAsset!,
+                fit: backgroundImageFit,
+              ),
+            ),
+          if (backgroundImageAsset != null)
+            Container(
+              color: imageScrimColor ??
+                  (isDark
+                      ? Colors.black.withValues(alpha: 0.18)
+                      : AppVisuals.softWhite.withValues(alpha: 0.08)),
+            ),
           Positioned(
             top: -150,
             left: -100,

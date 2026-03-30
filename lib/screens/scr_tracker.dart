@@ -11,7 +11,9 @@ import '../providers/app_settings_provider.dart';
 import '../providers/ftracker_provider.dart';
 import '../providers/profile_provider.dart';
 import '../providers/voice_command_provider.dart';
+import '../services/app_defaults_service.dart';
 import '../services/app_localization_service.dart';
+import '../services/app_properties_store.dart';
 import '../services/app_route_observer.dart';
 import '../themes/app_visuals.dart';
 import '../themes/custom_themes.dart';
@@ -26,6 +28,7 @@ class ScrTracker extends StatefulWidget {
 }
 
 class _ScrTrackerState extends State<ScrTracker> with RouteAware {
+  final AppPropertiesStore _store = AppPropertiesStore.instance;
   int _selectedIndex = 0;
   bool _playedScreenOpenAudio = false;
   bool _isRouteObserverSubscribed = false;
@@ -33,6 +36,7 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
   @override
   void initState() {
     super.initState();
+    _loadSavedViewState();
     // Fixed: Use addPostFrameCallback to avoid calling notifyListeners during build phase
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -40,6 +44,18 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
             .loadFtrackerRecords();
         _playScreenOpenAudioIfNeeded();
       }
+    });
+  }
+
+  Future<void> _loadSavedViewState() async {
+    final savedIndex =
+        await _store.getInt(AppDefaultsService.trackerSelectedTabKey) ?? 0;
+    final normalizedIndex = savedIndex >= 0 && savedIndex <= 1 ? savedIndex : 0;
+    if (!mounted) {
+      return;
+    }
+    setState(() {
+      _selectedIndex = normalizedIndex;
     });
   }
 
@@ -55,6 +71,7 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
         setState(() {
           _selectedIndex = index;
         });
+        _store.setInt(AppDefaultsService.trackerSelectedTabKey, index);
       }
     });
   }
@@ -73,7 +90,7 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
           builder: (context, setDialogState) {
             final scheme = Theme.of(context).colorScheme;
             return AlertDialog(
-              backgroundColor: AppVisuals.cloudGlass,
+              backgroundColor: AppVisuals.glass(AppVisuals.cloudGlass, alpha: 0.74),
               title: Text(context.tr('Edit Profile'),
                   style: const TextStyle(color: AppVisuals.textForest)),
               content: SingleChildScrollView(
@@ -216,7 +233,7 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
             Provider.of<VoiceCommandProvider>(context, listen: false);
 
         return Scaffold(
-          backgroundColor: colorScheme.surface,
+          backgroundColor: Colors.transparent,
           appBar: AppBar(
             toolbarHeight: AppLayoutUtils.shouldStackHeader(
               context,
@@ -225,11 +242,11 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
             )
                 ? 96
                 : 80,
-            backgroundColor: Colors.transparent,
+            backgroundColor: colorScheme.primary.withValues(alpha: 0.94),
             elevation: 0,
             leading: IconButton(
               icon: Icon(Icons.arrow_back_ios_new_rounded,
-                  color: colorScheme.onSurface, size: 20),
+                  color: colorScheme.onPrimary, size: 20),
               onPressed: () => Navigator.of(context).pop(),
               tooltip: context.tr('Back to Hub'),
             ),
@@ -254,7 +271,7 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
               if (appSettings.voiceAssistantEnabled)
                 IconButton(
                   onPressed: () => voiceProvider.requestCommand(context),
-                  icon: Icon(Icons.mic, color: colorScheme.onSurface),
+                  icon: Icon(Icons.mic, color: colorScheme.onPrimary),
                   tooltip: context.tr('Voice command'),
                 ),
               Padding(
@@ -262,83 +279,104 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
                 child: GestureDetector(
                   onTap: _showEditProfileDialog,
                   child: Icon(Icons.edit_note,
-                      color: colorScheme.onSurface, size: 30),
+                      color: colorScheme.onPrimary, size: 30),
                 ),
               ),
             ],
           ),
-          body: Consumer<FtrackerProvider>(
-            builder: (context, ftrackerProvider, child) {
-              if (ftrackerProvider.isLoading &&
-                  ftrackerProvider.records.isEmpty) {
-                return const Center(child: CircularProgressIndicator());
-              }
+          body: AppBackdrop(
+            isDark: trackerTheme.brightness == Brightness.dark,
+            backgroundImageAsset: 'lib/assets/images/background2.jpg',
+            backgroundImageOpacity:
+                trackerTheme.brightness == Brightness.dark ? 0.2 : 0.3,
+            imageScrimColor: trackerTheme.brightness == Brightness.dark
+                ? Colors.black.withValues(alpha: 0.24)
+                : AppVisuals.softWhite.withValues(alpha: 0.12),
+            child: Consumer<FtrackerProvider>(
+              builder: (context, ftrackerProvider, child) {
+                if (ftrackerProvider.isLoading &&
+                    ftrackerProvider.records.isEmpty) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-              final sortedRecords = List.of(ftrackerProvider.records);
-              sortedRecords.sort((a, b) {
-                final dateComparison = b.date.compareTo(a.date);
-                if (dateComparison != 0) return dateComparison;
-                final bId = b.transid ?? 0;
-                final aId = a.transid ?? 0;
-                return bId.compareTo(aId);
-              });
-              final totalRevenue = sortedRecords
-                  .where(_isIncomeRecord)
-                  .fold(0.0, (sum, item) => sum + item.amount);
-              final totalExpenses = sortedRecords
-                  .where(_isExpenseRecord)
-                  .fold(0.0, (sum, item) => sum + item.amount);
-              final totalBalance = totalRevenue - totalExpenses;
-              return CustomScrollView(
-                slivers: [
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildBalanceCard(totalBalance, totalRevenue,
-                              totalExpenses, currencyFormat, colorScheme),
-                          const SizedBox(height: 20),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(context.tr('Recent Transactions'),
+                final sortedRecords = List.of(ftrackerProvider.records);
+                sortedRecords.sort((a, b) {
+                  final dateComparison = b.date.compareTo(a.date);
+                  if (dateComparison != 0) return dateComparison;
+                  final bId = b.transid ?? 0;
+                  final aId = a.transid ?? 0;
+                  return bId.compareTo(aId);
+                });
+                final totalRevenue = sortedRecords
+                    .where(_isIncomeRecord)
+                    .fold(0.0, (sum, item) => sum + item.amount);
+                final totalExpenses = sortedRecords
+                    .where(_isExpenseRecord)
+                    .fold(0.0, (sum, item) => sum + item.amount);
+                final totalBalance = totalRevenue - totalExpenses;
+                return CustomScrollView(
+                  slivers: [
+                    SliverToBoxAdapter(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _buildBalanceCard(
+                              totalBalance,
+                              totalRevenue,
+                              totalExpenses,
+                              currencyFormat,
+                              colorScheme,
+                            ),
+                            const SizedBox(height: 20),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  context.tr('Recent Transactions'),
                                   style: TextStyle(
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
-                                      color: colorScheme.onSurface)),
-                              IconButton(
-                                icon: Icon(Icons.refresh,
-                                    color: colorScheme.onSurface),
-                                onPressed: () {
-                                  Provider.of<FtrackerProvider>(context,
-                                          listen: false)
-                                      .loadFtrackerRecords();
-                                },
-                              ),
-                            ],
-                          ),
-                        ],
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
+                                    color: colorScheme.onSurface,
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.refresh,
+                                    color: colorScheme.onSurface,
+                                  ),
+                                  onPressed: () {
+                                    Provider.of<FtrackerProvider>(
+                                      context,
+                                      listen: false,
+                                    ).loadFtrackerRecords();
+                                  },
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) {
-                        final record = sortedRecords[index];
-                        return _buildTransactionTile(
+                    SliverList(
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) {
+                          final record = sortedRecords[index];
+                          return _buildTransactionTile(
                             record,
                             _isExpenseRecord(record),
                             currencyFormat,
-                            colorScheme);
-                      },
-                      childCount: min(sortedRecords.length, 10),
+                            colorScheme,
+                          );
+                        },
+                        childCount: min(sortedRecords.length, 10),
+                      ),
                     ),
-                  ),
-                ],
-              );
-            },
+                  ],
+                );
+              },
+            ),
           ),
           floatingActionButton: FloatingActionButton(
             onPressed: () => Navigator.push(
@@ -352,7 +390,7 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
           bottomNavigationBar: Container(
             height: 70,
             decoration: BoxDecoration(
-              color: colorScheme.surface,
+              color: colorScheme.surface.withValues(alpha: 0.7),
               boxShadow: const [
                 BoxShadow(color: Colors.black26, blurRadius: 10)
               ],
@@ -393,7 +431,7 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       style: TextStyle(
-        color: colorScheme.onSurface.withValues(alpha: 0.7),
+        color: colorScheme.onPrimary.withValues(alpha: 0.78),
         fontSize: 14,
       ),
     );
@@ -402,19 +440,19 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
       maxLines: shouldStack ? 2 : 1,
       overflow: TextOverflow.ellipsis,
       style: TextStyle(
-        color: colorScheme.onSurface,
+        color: colorScheme.onPrimary,
         fontSize: 20,
         fontWeight: FontWeight.bold,
       ),
     );
     final avatar = CircleAvatar(
       radius: 25,
-      backgroundColor: colorScheme.primary,
+      backgroundColor: colorScheme.tertiary,
       backgroundImage: profileProvider.imagePath != null
           ? FileImage(File(profileProvider.imagePath!))
           : null,
       child: profileProvider.imagePath == null
-          ? Icon(Icons.person, color: colorScheme.onPrimary)
+          ? Icon(Icons.person, color: colorScheme.onTertiary)
           : null,
     );
 
@@ -477,8 +515,8 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
           borderRadius: BorderRadius.circular(28),
           gradient: LinearGradient(
             colors: [
-              colors.primary.withValues(alpha: 0.0),
-              colors.primary.withValues(alpha: 0.0)
+              colors.surface.withValues(alpha: 0.72),
+              colors.surfaceContainerHighest.withValues(alpha: 0.54),
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -579,7 +617,7 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
             colors: [
               accent.withValues(alpha: 0.25),
               accent.withValues(alpha: 0.1),
-              colors.surface.withValues(alpha: 0.95)
+              colors.surface.withValues(alpha: 0.72)
             ],
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -658,3 +696,4 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
     );
   }
 }
+

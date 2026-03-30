@@ -233,6 +233,38 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
     );
   }
 
+  Future<void> _handleStartupPasswordChanged(
+    AppSettingsProvider appSettings,
+    bool value,
+  ) async {
+    if (value) {
+      if (!appSettings.hasAppPassword) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Set a password first before enabling startup lock.'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        await _editAccountAccess(appSettings);
+        return;
+      }
+      await appSettings.setAppLockEnabled(true);
+    } else {
+      await appSettings.setAppLockEnabled(false);
+    }
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          value ? 'Startup password enabled.' : 'Startup password disabled.',
+        ),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   Future<void> _resetToFactorySettings({
     required AppSettingsProvider appSettings,
     required ThemeProvider themeProvider,
@@ -317,7 +349,7 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
         leading: IconButton(
           icon: Icon(
             Icons.arrow_back_ios_new_rounded,
-            color: scheme.onSurface,
+            color: scheme.onPrimary,
             size: 20,
           ),
           onPressed: () => Navigator.of(context).pop(),
@@ -325,16 +357,22 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
         title: Text(
           context.tr('Settings'),
           style: TextStyle(
-            color: scheme.onSurface,
+            color: scheme.onPrimary,
             fontWeight: FontWeight.bold,
           ),
         ),
-        backgroundColor: Colors.transparent,
+        backgroundColor: scheme.primary.withValues(alpha: 0.94),
+        foregroundColor: scheme.onPrimary,
         elevation: 0,
         centerTitle: true,
       ),
       body: AppBackdrop(
         isDark: isDark,
+        backgroundImageAsset: 'lib/assets/images/background.png',
+        backgroundImageOpacity: isDark ? 0.26 : 0.38,
+        imageScrimColor: isDark
+            ? Colors.black.withValues(alpha: 0.2)
+            : AppVisuals.softWhite.withValues(alpha: 0.08),
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -350,7 +388,7 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: scheme.surfaceContainerHighest,
+                  color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(20),
                   border:
                       Border.all(color: scheme.outline.withValues(alpha: 0.35)),
@@ -373,7 +411,7 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: scheme.surfaceContainerHighest,
+                  color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(20),
                   border:
                       Border.all(color: scheme.outline.withValues(alpha: 0.35)),
@@ -674,7 +712,7 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest,
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: scheme.outline.withValues(alpha: 0.35)),
         boxShadow: AppVisuals.neoShadows(scheme),
@@ -741,6 +779,65 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
               ),
             ],
           ),
+          const SizedBox(height: 18),
+          Divider(
+            height: 1,
+            color: scheme.outline.withValues(alpha: 0.35),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Icon(
+                Icons.lock_outline_rounded,
+                color: scheme.primary,
+                size: 20,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Require password on startup',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: scheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      appSettings.hasAppPassword
+                          ? 'Ask for your saved password before opening the dashboard.'
+                          : 'Set a password in Edit to turn startup lock on.',
+                      style: TextStyle(
+                        color: scheme.onSurfaceVariant,
+                        fontSize: 12.5,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: appSettings.appLockEnabled,
+                onChanged: (value) =>
+                    _handleStartupPasswordChanged(appSettings, value),
+                thumbColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return scheme.primary;
+                  }
+                  return scheme.onSurfaceVariant;
+                }),
+                trackColor: WidgetStateProperty.resolveWith((states) {
+                  if (states.contains(WidgetState.selected)) {
+                    return scheme.primary.withValues(alpha: 0.4);
+                  }
+                  return scheme.outline.withValues(alpha: 0.45);
+                }),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -764,7 +861,7 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
     final scheme = Theme.of(context).colorScheme;
     return Container(
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest,
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: scheme.outline.withValues(alpha: 0.35)),
         boxShadow: AppVisuals.neoShadows(scheme),

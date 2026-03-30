@@ -8,6 +8,7 @@ import '../providers/app_settings_provider.dart';
 import '../providers/data_provider.dart';
 import '../providers/farm_provider.dart';
 import '../providers/navigation_provider.dart';
+import '../services/app_route_observer.dart';
 import '../services/app_localization_service.dart';
 import '../themes/app_visuals.dart';
 import 'frm_add_job2.dart';
@@ -21,18 +22,32 @@ class TabActivities extends StatefulWidget {
 }
 
 class _TabActivitiesState extends State<TabActivities>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, RouteAware {
   late TabController _tabController;
   String _searchQuery = '';
   String _sortMode = 'Date';
   String? _selectedWorkDefId;
   String? _selectedActivityId;
+  bool _isRouteObserverSubscribed = false;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this)
       ..addListener(_handleTabChange);
+    _clearSelections();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_isRouteObserverSubscribed) {
+      final route = ModalRoute.of(context);
+      if (route is PageRoute<dynamic>) {
+        appRouteObserver.subscribe(this, route);
+        _isRouteObserverSubscribed = true;
+      }
+    }
   }
 
   bool get _isLedgerTab => _tabController.index == 0;
@@ -50,9 +65,24 @@ class _TabActivitiesState extends State<TabActivities>
 
   @override
   void dispose() {
+    if (_isRouteObserverSubscribed) appRouteObserver.unsubscribe(this);
     _tabController.removeListener(_handleTabChange);
     _tabController.dispose();
     super.dispose();
+  }
+
+  void _clearSelections() {
+    _selectedActivityId = null;
+    _selectedWorkDefId = null;
+  }
+
+  @override
+  void didPush() => _clearSelections();
+
+  @override
+  void didPopNext() {
+    if (!mounted) return;
+    setState(_clearSelections);
   }
 
   @override
@@ -80,40 +110,58 @@ class _TabActivitiesState extends State<TabActivities>
       } catch (_) {}
     });
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildActivityMetrics(theme, filteredActivities, currency),
-          const SizedBox(height: 20),
-          _buildControlPanel(theme),
-          const SizedBox(height: 20),
-          Expanded(
-            child: FrostedPanel(
-              radius: 32,
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildTabBar(theme),
-                  const SizedBox(height: 12),
-                  Expanded(
-                    child: TabBarView(
-                      controller: _tabController,
-                      children: [
-                        _buildActivityLedger(
-                            theme, filteredActivities, currency),
-                        _buildWorkDefinitions(theme),
-                      ],
-                    ),
-                  ),
-                ],
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Positioned.fill(
+          child: Opacity(
+            opacity: AppVisuals.mainTabBackgroundImageOpacity(
+              theme.brightness == Brightness.dark,
+            ),
+            child: Image.asset(
+              'lib/assets/images/images (1).jfif',
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: AppVisuals.mainTabImageOverlay(
+                theme.brightness == Brightness.dark,
               ),
             ),
           ),
-        ],
-      ),
+        ),
+        SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          child: FrostedPanel(
+            radius: 32,
+            padding: const EdgeInsets.all(12),
+            color: theme.colorScheme.surface.withValues(alpha: 0.48),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildTabBar(theme),
+                const SizedBox(height: 12),
+                _buildBodyToolbar(theme),
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 600, // Adjusted height for TabBarView
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _buildActivityLedger(theme, filteredActivities, currency),
+                      _buildWorkDefinitions(theme),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -134,95 +182,42 @@ class _TabActivitiesState extends State<TabActivities>
     return filteredActivities;
   }
 
-  Widget _buildActivityMetrics(
-      ThemeData theme, List<Activity> activities, NumberFormat currency) {
-    final totalAmount =
-        activities.fold<double>(0, (sum, act) => sum + act.total);
+  Widget _buildBodyToolbar(ThemeData theme) {
+    if (!_isLedgerTab) {
+      return const SizedBox.shrink();
+    }
+
+    final scheme = theme.colorScheme;
+    final filtersActive = _searchQuery.isNotEmpty || _sortMode != 'Date';
+
     return Row(
       children: [
-        Expanded(
-          child: _MetricCard(
-            label: context.tr('Total Jobs'),
-            value: activities.length.toString(),
-            icon: Icons.work_history_rounded,
+        const Spacer(),
+        if (filtersActive) ...[
+          _CompactIconButton(
+            icon: Icons.restart_alt_rounded,
+            tooltip: context.tr('Reset filters'),
+            onTap: _resetFilters,
           ),
+          const SizedBox(width: 8),
+        ],
+        _CompactIconButton(
+          icon: Icons.filter_alt_rounded,
+          tooltip: context.tr('Filter activities'),
+          highlighted: filtersActive,
+          onTap: _openFilterSheet,
         ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _MetricCard(
-            label: context.tr('Total Spend'),
-            value: currency.format(totalAmount),
-            icon: Icons.payments_rounded,
+        if (filtersActive) ...[
+          const SizedBox(width: 10),
+          Text(
+            context.tr('Filtered'),
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: scheme.primary,
+              fontWeight: FontWeight.w900,
+            ),
           ),
-        ),
+        ],
       ],
-    );
-  }
-
-  Widget _buildControlPanel(ThemeData theme) {
-    return FrostedPanel(
-      radius: 28,
-      padding: const EdgeInsets.all(12),
-      child: SizedBox(
-        height: 64,
-        child: ListView(
-          scrollDirection: Axis.horizontal,
-          children: [
-            if (_isLedgerTab) ...[
-              _ActionButton(
-                icon: Icons.add_task_rounded,
-                label: context.tr('New Job'),
-                onTap: _openNewJobOrderForm,
-                isPrimary: true,
-              ),
-              const SizedBox(width: 10),
-              _ActionButton(
-                icon: Icons.edit_rounded,
-                label: context.tr('Edit'),
-                onTap:
-                    _selectedActivityId == null ? () {} : _editSelectedActivity,
-                enabled: _selectedActivityId != null,
-              ),
-              const SizedBox(width: 10),
-              _ActionButton(
-                icon: Icons.delete_rounded,
-                label: context.tr('Delete'),
-                onTap: _selectedActivityId == null
-                    ? () {}
-                    : _deleteSelectedActivity,
-                enabled: _selectedActivityId != null,
-              ),
-              const SizedBox(width: 10),
-              _ActionButton(
-                icon: Icons.filter_alt_rounded,
-                label: context.tr('Filter'),
-                onTap: _openFilterSheet,
-              ),
-              const SizedBox(width: 10),
-              _ActionButton(
-                icon: Icons.restart_alt_rounded,
-                label: context.tr('Reset'),
-                onTap: _resetFilters,
-              ),
-            ] else ...[
-              _ActionButton(
-                icon: Icons.add_rounded,
-                label: context.tr('New Task'),
-                onTap: _openAddWorkDefinitionForm,
-                isPrimary: true,
-              ),
-              const SizedBox(width: 10),
-              _ActionButton(
-                icon: Icons.edit_rounded,
-                label: context.tr('Edit'),
-                onTap:
-                    _selectedWorkDefId == null ? () {} : _editSelectedWorkDef,
-                enabled: _selectedWorkDefId != null,
-              ),
-            ],
-          ],
-        ),
-      ),
     );
   }
 
@@ -252,8 +247,8 @@ class _TabActivitiesState extends State<TabActivities>
         unselectedLabelColor: AppVisuals.textForest.withValues(alpha: 0.4),
         labelStyle: const TextStyle(fontWeight: FontWeight.w900, fontSize: 12),
         tabs: [
-          Tab(text: context.tr('LEDGER').toUpperCase()),
-          Tab(text: context.tr('TASKS').toUpperCase()),
+          Tab(text: context.tr('ACTIVITIES').toUpperCase()),
+          Tab(text: context.tr('TASKS LIST').toUpperCase()),
         ],
       ),
     );
@@ -267,6 +262,8 @@ class _TabActivitiesState extends State<TabActivities>
     }
 
     return ListView.builder(
+      physics: const NeverScrollableScrollPhysics(),
+      shrinkWrap: true,
       padding: const EdgeInsets.only(top: 8, bottom: 20),
       itemCount: activities.length,
       itemBuilder: (context, index) {
@@ -292,51 +289,116 @@ class _TabActivitiesState extends State<TabActivities>
                 width: 1.5,
               ),
             ),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? AppVisuals.primaryGold
-                        : AppVisuals.textForest.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(18),
-                  ),
-                  child: Icon(Icons.assignment_rounded,
-                      color: isSelected
-                          ? AppVisuals.deepGreen
-                          : AppVisuals.primaryGold,
-                      size: 24),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(act.name,
-                          style: theme.textTheme.titleMedium?.copyWith(
-                              color: AppVisuals.textForest,
-                              fontWeight: FontWeight.w900)),
-                      Text(act.farm,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                              color: AppVisuals.textForest
-                                  .withValues(alpha: 0.4))),
-                    ],
-                  ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+                Row(
                   children: [
-                    Text(currency.format(act.total),
-                        style: theme.textTheme.titleMedium?.copyWith(
-                            color: AppVisuals.primaryGold,
-                            fontWeight: FontWeight.w900)),
-                    Text(DateFormat('MMM d').format(act.date),
-                        style: theme.textTheme.labelSmall?.copyWith(
-                            color:
-                                AppVisuals.textForest.withValues(alpha: 0.3))),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? AppVisuals.primaryGold
+                            : AppVisuals.textForest.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: Icon(Icons.assignment_rounded,
+                          color: isSelected
+                              ? AppVisuals.deepGreen
+                              : AppVisuals.primaryGold,
+                          size: 24),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(act.name,
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                  color: AppVisuals.textForest,
+                                  fontWeight: FontWeight.w900)),
+                          Text(act.farm,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                  color: AppVisuals.textForest
+                                      .withValues(alpha: 0.4))),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(currency.format(act.total),
+                            style: theme.textTheme.titleMedium?.copyWith(
+                                color: AppVisuals.primaryGold,
+                                fontWeight: FontWeight.w900)),
+                        Text(DateFormat('MMM d').format(act.date),
+                            style: theme.textTheme.labelSmall?.copyWith(
+                                color: AppVisuals.textForest
+                                    .withValues(alpha: 0.3))),
+                      ],
+                    ),
                   ],
                 ),
+                if (isSelected) ...[
+                  const SizedBox(height: 18),
+                  _DetailsRow(label: context.tr('Tag'), value: act.tag),
+                  _DetailsRow(
+                    label: context.tr('Date'),
+                    value: DateFormat('MMM d, y').format(act.date),
+                  ),
+                  _DetailsRow(label: context.tr('Farm'), value: act.farm),
+                  _DetailsRow(label: context.tr('Name'), value: act.name),
+                  _DetailsRow(label: context.tr('Labor'), value: act.labor),
+                  _DetailsRow(
+                    label: context.tr('Asset Used'),
+                    value: act.assetUsed,
+                  ),
+                  _DetailsRow(
+                    label: context.tr('Cost Type'),
+                    value: act.costType,
+                  ),
+                  _DetailsRow(
+                    label: context.tr('Duration'),
+                    value: act.duration.toStringAsFixed(2),
+                  ),
+                  _DetailsRow(
+                    label: context.tr('Cost'),
+                    value: currency.format(act.cost),
+                  ),
+                  _DetailsRow(
+                    label: context.tr('Total'),
+                    value: currency.format(act.total),
+                  ),
+                  _DetailsRow(
+                    label: context.tr('Worker'),
+                    value: act.worker.trim().isEmpty
+                        ? context.tr('None')
+                        : act.worker,
+                  ),
+                  _DetailsRow(
+                    label: context.tr('Note'),
+                    value: (act.note ?? '').trim().isEmpty
+                        ? context.tr('None')
+                        : act.note!.trim(),
+                  ),
+                  const SizedBox(height: 14),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: _editSelectedActivity,
+                        icon: const Icon(Icons.edit_rounded, size: 18),
+                        label: Text(context.tr('Edit')),
+                      ),
+                      FilledButton.icon(
+                        onPressed: _deleteSelectedActivity,
+                        icon: const Icon(Icons.delete_rounded, size: 18),
+                        label: Text(context.tr('Delete')),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
@@ -355,6 +417,8 @@ class _TabActivitiesState extends State<TabActivities>
     }
 
     return ListView.builder(
+      physics: const NeverScrollableScrollPhysics(),
+      shrinkWrap: true,
       padding: const EdgeInsets.only(top: 8, bottom: 20),
       itemCount: workDefs.length,
       itemBuilder: (context, index) {
@@ -378,23 +442,61 @@ class _TabActivitiesState extends State<TabActivities>
                       ? AppVisuals.primaryGold
                       : AppVisuals.textForest.withValues(alpha: 0.05)),
             ),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.label_important_rounded,
-                    color: isSelected
-                        ? AppVisuals.primaryGold
-                        : AppVisuals.textForest.withValues(alpha: 0.2),
-                    size: 20),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Text(def.name,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                          color: AppVisuals.textForest,
-                          fontWeight: FontWeight.w700)),
+                Row(
+                  children: [
+                    Icon(Icons.label_important_rounded,
+                        color: isSelected
+                            ? AppVisuals.primaryGold
+                            : AppVisuals.textForest.withValues(alpha: 0.2),
+                        size: 20),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Text(def.name,
+                          style: theme.textTheme.titleMedium?.copyWith(
+                              color: AppVisuals.textForest,
+                              fontWeight: FontWeight.w700)),
+                    ),
+                    if (isSelected)
+                      const Icon(Icons.check_circle_rounded,
+                          color: AppVisuals.primaryGold, size: 20),
+                  ],
                 ),
-                if (isSelected)
-                  const Icon(Icons.check_circle_rounded,
-                      color: AppVisuals.primaryGold, size: 20),
+                if (isSelected) ...[
+                  const SizedBox(height: 18),
+                  _DetailsRow(label: context.tr('Name'), value: def.name),
+                  _DetailsRow(label: context.tr('Type'), value: def.type),
+                  _DetailsRow(
+                    label: context.tr('Mode Of Work'),
+                    value: def.modeOfWork,
+                  ),
+                  _DetailsRow(
+                    label: context.tr('Cost'),
+                    value:
+                        Provider.of<AppSettingsProvider>(context, listen: false)
+                            .currencyFormat
+                            .format(def.cost),
+                  ),
+                  const SizedBox(height: 14),
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 10,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: _editSelectedWorkDef,
+                        icon: const Icon(Icons.edit_rounded, size: 18),
+                        label: Text(context.tr('Edit')),
+                      ),
+                      FilledButton.icon(
+                        onPressed: _deleteSelectedWorkDef,
+                        icon: const Icon(Icons.delete_rounded, size: 18),
+                        label: Text(context.tr('Delete')),
+                      ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),
@@ -419,10 +521,6 @@ class _TabActivitiesState extends State<TabActivities>
     );
   }
 
-  void _openNewJobOrderForm() => Navigator.push(
-      context, MaterialPageRoute(builder: (_) => const FrmAddJob2()));
-  void _openAddWorkDefinitionForm() => Navigator.push(
-      context, MaterialPageRoute(builder: (_) => const FrmAddWorkDefScreen()));
   void _editSelectedActivity() {
     final activityProvider =
         Provider.of<ActivityProvider>(context, listen: false);
@@ -442,6 +540,47 @@ class _TabActivitiesState extends State<TabActivities>
         context,
         MaterialPageRoute(
             builder: (_) => FrmAddWorkDefScreen(workDefId: workDef.id)));
+  }
+
+  Future<void> _deleteSelectedWorkDef() async {
+    final workDefId = _selectedWorkDefId;
+    if (workDefId == null) return;
+
+    final dataProvider = Provider.of<DataProvider>(context, listen: false);
+    final workDef = dataProvider.workDefs.firstWhere((w) => w.id == workDefId);
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Text(context.tr('Delete task?')),
+          content: Text(
+            context.tr(
+              'This will permanently delete {task}.',
+              {'task': workDef.name},
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text(context.tr('Cancel')),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(context.tr('Delete')),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
+    await dataProvider.deleteWorkDef(workDefId);
+    if (!mounted) return;
+    setState(() {
+      _selectedWorkDefId = null;
+    });
   }
 
   Future<void> _deleteSelectedActivity() async {
@@ -637,108 +776,83 @@ class _TabActivitiesState extends State<TabActivities>
       });
 }
 
-class _MetricCard extends StatelessWidget {
+class _DetailsRow extends StatelessWidget {
   final String label;
   final String value;
-  final IconData icon;
-  static const _metricMaroon = AppVisuals.deepGreen;
-  const _MetricCard(
-      {required this.label, required this.value, required this.icon});
+
+  const _DetailsRow({
+    required this.label,
+    required this.value,
+  });
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: _metricMaroon,
-        borderRadius: BorderRadius.circular(28),
-        border: Border.all(
-          color: AppVisuals.mintAccent.withValues(alpha: 0.18),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: _metricMaroon.withValues(alpha: 0.28),
-            blurRadius: 18,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
+    final theme = Theme.of(context);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: AppVisuals.lightGold, size: 24),
-          const SizedBox(height: 12),
-          Text(label.toUpperCase(),
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: AppVisuals.mintAccent.withValues(alpha: 0.88),
-                  letterSpacing: 1.2,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 9)),
-          const SizedBox(height: 4),
-          Text(value,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: AppVisuals.softWhite, fontWeight: FontWeight.w900)),
+          SizedBox(
+            width: 92,
+            child: Text(
+              label,
+              style: theme.textTheme.labelMedium?.copyWith(
+                color: AppVisuals.textForestMuted,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: AppVisuals.textForest,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-class _ActionButton extends StatelessWidget {
+class _CompactIconButton extends StatelessWidget {
   final IconData icon;
-  final String label;
+  final String tooltip;
   final VoidCallback onTap;
-  final bool enabled;
-  final bool isPrimary;
-  const _ActionButton(
-      {required this.icon,
-      required this.label,
-      required this.onTap,
-      this.enabled = true,
-      this.isPrimary = false});
+  final bool highlighted;
+
+  const _CompactIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+    this.highlighted = false,
+  });
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final bg = isPrimary
-        ? scheme.primary
-        : scheme.surfaceContainerHighest.withValues(alpha: 0.7);
-    final fg = isPrimary ? scheme.onPrimary : scheme.onSurface;
 
-    return SizedBox(
-      width: 120,
-      child: GestureDetector(
-        onTap: enabled ? onTap : null,
-        child: Opacity(
-          opacity: enabled ? 1.0 : 0.35,
-          child: Container(
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-            decoration: BoxDecoration(
-              color: bg,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: isPrimary
-                    ? scheme.primary.withValues(alpha: 0.2)
-                    : scheme.outline.withValues(alpha: 0.25),
-              ),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, color: fg, size: 20),
-                const SizedBox(height: 4),
-                Text(
-                  label.toUpperCase(),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: fg,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 9,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ],
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: highlighted
+            ? scheme.primary.withValues(alpha: 0.14)
+            : scheme.surfaceContainerHighest.withValues(alpha: 0.72),
+        borderRadius: BorderRadius.circular(14),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: Icon(
+              icon,
+              size: 18,
+              color: highlighted ? scheme.primary : scheme.onSurfaceVariant,
             ),
           ),
         ),

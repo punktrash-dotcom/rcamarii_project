@@ -264,7 +264,7 @@ class _AddFarmScreenState extends State<AddFarmScreen> with RouteAware {
         ),
       ),
       bottomSheetTheme: theme.bottomSheetTheme.copyWith(
-        backgroundColor: AppVisuals.cloudGlass,
+        backgroundColor: AppVisuals.glass(AppVisuals.cloudGlass, alpha: 0.74),
         surfaceTintColor: Colors.transparent,
       ),
     );
@@ -611,3 +611,4 @@ class _AddFarmScreenState extends State<AddFarmScreen> with RouteAware {
     }
   }
 }
+

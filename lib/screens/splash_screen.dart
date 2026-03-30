@@ -13,7 +13,7 @@ import '../themes/app_visuals.dart';
 import '../widgets/user_access_dialogs.dart';
 import 'scr_msoft.dart';
 
-const String _kSplashLogoPng = 'lib/assets/images/rcamarii_logo_splash.png';
+const String _kOfficialLogoAsset = 'lib/assets/images/logo2.png';
 
 final _splashBackground = LinearGradient(
   begin: Alignment.topLeft,
@@ -309,9 +309,8 @@ class _SplashScreenState extends State<SplashScreen>
         child: ClipRRect(
           borderRadius: BorderRadius.circular(22),
           child: Image.asset(
-            _kSplashLogoPng,
+            _kOfficialLogoAsset,
             fit: BoxFit.contain,
-            filterQuality: FilterQuality.high,
             errorBuilder: (_, __, ___) => _logoFallback(theme),
           ),
         ),
@@ -323,7 +322,7 @@ class _SplashScreenState extends State<SplashScreen>
     return Container(
       height: 120,
       alignment: Alignment.center,
-      color: AppVisuals.cloudGlass,
+      color: AppVisuals.glass(AppVisuals.cloudGlass, alpha: 0.74),
       child: Icon(
         Icons.eco_rounded,
         size: 64,
@@ -338,7 +337,7 @@ class _SplashScreenState extends State<SplashScreen>
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
           decoration: BoxDecoration(
-            color: AppVisuals.brandWhite.withValues(alpha: 0.92),
+            color: AppVisuals.glass(AppVisuals.brandWhite, alpha: 0.74),
             borderRadius: BorderRadius.circular(999),
             border: Border.all(
               color: AppVisuals.mintAccent.withValues(alpha: 0.8),
@@ -572,3 +571,4 @@ class _SplashChip extends StatelessWidget {
     );
   }
 }
+

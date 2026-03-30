@@ -1,5 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'app_defaults_service.dart';
 import 'app_properties_store.dart';
 import 'data_seeder.dart';
 import 'database_helper.dart';
@@ -18,5 +19,6 @@ class FactoryResetService {
     await MarketPriceSyncService.instance.clearCache();
     DataSeeder.resetForFactorySettings();
     await DataSeeder.ensureSeeded();
+    await AppDefaultsService.ensureDefaults();
   }
 }

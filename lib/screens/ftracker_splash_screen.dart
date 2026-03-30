@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/app_settings_provider.dart';
@@ -109,9 +108,14 @@ class _FtrackerSplashScreenState extends State<FtrackerSplashScreen>
                         ),
                         child: AspectRatio(
                           aspectRatio: 1408 / 768,
-                          child: SvgPicture.asset(
-                            'lib/assets/images/rcamarii_logo.svg',
+                          child: Image.asset(
+                            'lib/assets/images/logo2.png',
                             fit: BoxFit.contain,
+                            errorBuilder: (_, __, ___) => const Icon(
+                              Icons.agriculture_rounded,
+                              color: AppVisuals.deepGreen,
+                              size: 72,
+                            ),
                           ),
                         ),
                       ),

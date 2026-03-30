@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../models/delivery_model.dart';
+import '../models/farm_income_model.dart';
 import '../models/produce_delivery_model.dart';
 import '../providers/activity_provider.dart';
 import '../providers/delivery_provider.dart';
+import '../providers/farm_income_provider.dart';
 import '../providers/farm_provider.dart';
 import '../providers/ftracker_provider.dart';
 import '../providers/voice_command_provider.dart';
@@ -12,6 +14,7 @@ import '../models/activity_model.dart';
 import '../services/app_properties_store.dart';
 import '../services/database_helper.dart';
 import '../services/transaction_log_service.dart';
+import '../themes/app_visuals.dart';
 import '../themes/custom_themes.dart';
 import '../utils/validation_utils.dart';
 import '../widgets/searchable_dropdown.dart';
@@ -24,7 +27,9 @@ class FrmLogistics extends StatefulWidget {
   State<FrmLogistics> createState() => _FrmLogisticsState();
 }
 
-enum _LogisticsFlow { chooser, sugarcane, produce }
+enum _LogisticsFlow { sugarcane, produce, farmIncome }
+
+enum _FarmIncomeType { equipmentRental, itemSale, otherIncome }
 
 enum _RiceFarmResetAction { zero, prePlanting }
 
@@ -32,16 +37,21 @@ class _FrmLogisticsState extends State<FrmLogistics> {
   static const _lastTruckingIdKey = 'last_trucking_id';
   static const _legacyLastTruckingNumKey = 'last_trucking_num';
   static const _lastProduceDeliveryNoKey = 'last_produce_delivery_no';
+  static const _lastFarmIncomeNoKey = 'last_farm_income_no';
+  static const _lastSugarcaneCompanyKey = 'last_sugarcane_company';
+  static const _lastSugarcaneCostKey = 'last_sugarcane_cost';
+  static const _lastSugarcaneDeliveryNameKey = 'last_sugarcane_delivery_name';
+  static const _lastSugarcaneFarmNameKey = 'last_sugarcane_farm_name';
   final _formKey = GlobalKey<FormState>();
   final AppPropertiesStore _store = AppPropertiesStore.instance;
 
   // State Variables
   DateTime _selectedDate = DateTime.now();
-  String? _selectedCrop;
+  String? _selectedCrop = 'Sugarcane';
   bool _autoIncrement = true;
   bool _isAdvanceScheduling = false;
   bool _includeOverallExpenses = false;
-  _LogisticsFlow _flow = _LogisticsFlow.chooser;
+  _LogisticsFlow _flow = _LogisticsFlow.sugarcane;
   final _scrollController = ScrollController();
 
   // Historical data for auto-complete
@@ -64,9 +74,14 @@ class _FrmLogisticsState extends State<FrmLogistics> {
   final _harvesterShareController = TextEditingController();
   final _priceOfProduceController = TextEditingController();
   final _overallExpensesController = TextEditingController();
+  final _incomeNoController = TextEditingController();
+  final _incomeAssetController = TextEditingController();
+  final _incomeClientController = TextEditingController();
+  final _incomeAmountController = TextEditingController();
 
   String? _selectedFarmName;
   _SavedProduceSummary? _savedProduceSummary;
+  _FarmIncomeType _selectedFarmIncomeType = _FarmIncomeType.equipmentRental;
 
   @override
   void initState() {
@@ -74,10 +89,12 @@ class _FrmLogisticsState extends State<FrmLogistics> {
     // Ensure all initial data loading happens after the first build frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        _loadHistory();
+        _loadSugarcaneHistory();
         _initTruckingNumber();
+        _initIncomeNumber();
         Provider.of<FarmProvider>(context, listen: false).refreshFarms();
         Provider.of<ActivityProvider>(context, listen: false).loadActivities();
+        Provider.of<FarmIncomeProvider>(context, listen: false).loadRecords();
       }
     });
   }
@@ -97,45 +114,63 @@ class _FrmLogisticsState extends State<FrmLogistics> {
     _harvesterShareController.dispose();
     _priceOfProduceController.dispose();
     _overallExpensesController.dispose();
+    _incomeNoController.dispose();
+    _incomeAssetController.dispose();
+    _incomeClientController.dispose();
+    _incomeAmountController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
   Future<void> _initTruckingNumber() async {
     final lastTrackingId = await _readLastTrackingId();
-    if (_autoIncrement && mounted) {
+    if (mounted) {
       setState(() {
-        _truckingNumController.text = _incrementTrackingNumber(lastTrackingId);
+        _truckingNumController.text = _autoIncrement
+            ? _incrementTrackingNumber(lastTrackingId)
+            : lastTrackingId;
       });
     }
   }
 
-  Future<void> _loadHistory() async {
+  Future<void> _loadSugarcaneHistory() async {
     if (mounted) {
       final historicalCompanies =
           await _store.getStringList('history_companies') ?? [];
       final historicalCosts = await _store.getStringList('history_costs') ?? [];
-      final saveForNext = await _store.getBool('save_for_next') ?? false;
       final savedCompany =
-          (await _store.getString('last_company'))?.trim() ?? '';
-      final savedCost = (await _store.getString('last_cost'))?.trim() ?? '';
+          (await _store.getString(_lastSugarcaneCompanyKey))?.trim() ?? '';
+      final savedCost =
+          (await _store.getString(_lastSugarcaneCostKey))?.trim() ?? '';
+      final savedDeliveryName =
+          (await _store.getString(_lastSugarcaneDeliveryNameKey))?.trim() ?? '';
+      final savedFarmName =
+          (await _store.getString(_lastSugarcaneFarmNameKey))?.trim() ?? '';
 
       setState(() {
         _historicalCompanies = historicalCompanies;
         _historicalCosts = historicalCosts;
-
-        if (saveForNext) {
-          _lastCompanyHint = savedCompany.isEmpty ? null : savedCompany;
-          _lastCostHint = savedCost.isEmpty ? null : savedCost;
-        } else {
-          _lastCompanyHint = null;
-          _lastCostHint = null;
+        _lastCompanyHint = savedCompany.isEmpty ? null : savedCompany;
+        _lastCostHint = savedCost.isEmpty ? null : savedCost;
+        if (_flow == _LogisticsFlow.sugarcane) {
+          if (_companyController.text.trim().isEmpty &&
+              savedCompany.isNotEmpty) {
+            _companyController.text = savedCompany;
+          }
+          if (_costController.text.trim().isEmpty && savedCost.isNotEmpty) {
+            _costController.text = savedCost;
+          }
+          if (_deliveryNameController.text.trim().isEmpty &&
+              savedDeliveryName.isNotEmpty) {
+            _deliveryNameController.text = savedDeliveryName;
+          }
+          _selectedFarmName = savedFarmName.isEmpty ? null : savedFarmName;
         }
       });
     }
   }
 
-  Future<void> _saveToHistory() async {
+  Future<void> _saveSugarcaneHistory() async {
     // Update company history
     if (!_historicalCompanies.contains(_companyController.text) &&
         _companyController.text.isNotEmpty) {
@@ -154,9 +189,22 @@ class _FrmLogisticsState extends State<FrmLogistics> {
       _lastTruckingIdKey,
       _normalizeTrackingValue(_truckingNumController.text),
     );
-    await _store.setString('last_company', _companyController.text);
-    await _store.setString('last_cost', _costController.text);
-    await _store.setString('last_crop', _selectedCrop ?? '');
+    await _store.setString(
+      _lastSugarcaneCompanyKey,
+      _companyController.text.trim(),
+    );
+    await _store.setString(
+      _lastSugarcaneCostKey,
+      _costController.text.trim(),
+    );
+    await _store.setString(
+      _lastSugarcaneDeliveryNameKey,
+      _deliveryNameController.text.trim(),
+    );
+    await _store.setString(
+      _lastSugarcaneFarmNameKey,
+      (_selectedFarmName ?? '').trim(),
+    );
   }
 
   Future<String> _readLastTrackingId() async {
@@ -201,7 +249,17 @@ class _FrmLogisticsState extends State<FrmLogistics> {
     });
   }
 
+  Future<void> _initIncomeNumber() async {
+    final lastIncomeNo =
+        (await _store.getString(_lastFarmIncomeNoKey))?.trim() ?? '1000';
+    if (!mounted) return;
+    setState(() {
+      _incomeNoController.text = _incrementTrackingNumber(lastIncomeNo);
+    });
+  }
+
   Future<void> _startSugarcaneFlow() async {
+    await _loadSugarcaneHistory();
     await _initTruckingNumber();
     if (!mounted) return;
     setState(() {
@@ -209,7 +267,8 @@ class _FrmLogisticsState extends State<FrmLogistics> {
       _selectedCrop = 'Sugarcane';
       _selectedDate = DateTime.now();
       _isAdvanceScheduling = false;
-      _selectedFarmName = null;
+      _selectedFarmName =
+          _selectedFarmName?.trim().isEmpty ?? true ? null : _selectedFarmName;
     });
   }
 
@@ -236,16 +295,23 @@ class _FrmLogisticsState extends State<FrmLogistics> {
     });
   }
 
-  void _returnToCropChooser() {
+  Future<void> _startFarmIncomeFlow({
+    _FarmIncomeType type = _FarmIncomeType.equipmentRental,
+  }) async {
+    await _initIncomeNumber();
+    if (!mounted) return;
     setState(() {
-      _flow = _LogisticsFlow.chooser;
+      _flow = _LogisticsFlow.farmIncome;
       _selectedCrop = null;
-      _selectedFarmName = null;
-      _includeOverallExpenses = false;
       _selectedDate = DateTime.now();
       _isAdvanceScheduling = false;
-      _overallExpensesController.clear();
+      _selectedFarmName = null;
       _savedProduceSummary = null;
+      _selectedFarmIncomeType = type;
+      _incomeAssetController.clear();
+      _incomeClientController.clear();
+      _incomeAmountController.clear();
+      _noteController.clear();
     });
   }
 
@@ -258,21 +324,23 @@ class _FrmLogisticsState extends State<FrmLogistics> {
   }
 
   Future<void> _selectDate(BuildContext context) async {
-    final isProduceFlow = _flow == _LogisticsFlow.produce;
+    final restrictFutureDates =
+        _flow == _LogisticsFlow.produce || _flow == _LogisticsFlow.farmIncome;
     final today = DateTime.now();
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: _selectedDate,
       firstDate: DateTime(2000),
-      lastDate: isProduceFlow ? today : DateTime(2101),
+      lastDate: restrictFutureDates ? today : DateTime(2101),
     );
     if (picked != null && picked != _selectedDate) {
       setState(() {
         _selectedDate = picked;
         _isAdvanceScheduling =
-            !isProduceFlow && _selectedDate.isAfter(DateTime.now());
+            !restrictFutureDates && _selectedDate.isAfter(DateTime.now());
       });
-      if (isProduceFlow && (_selectedFarmName?.trim().isNotEmpty ?? false)) {
+      if (_flow == _LogisticsFlow.produce &&
+          (_selectedFarmName?.trim().isNotEmpty ?? false)) {
         _syncOverallExpensesField();
       }
       if (_isAdvanceScheduling) _promptAdvanceScheduling();
@@ -391,26 +459,7 @@ class _FrmLogisticsState extends State<FrmLogistics> {
 
     if (!mounted) return;
 
-    final bool saveForNext = await showDialog<bool>(
-            context: context,
-            builder: (ctx) => AlertDialog(
-                  title: const Text('Save Details?'),
-                  content: const Text(
-                      'Save these details for future auto-complete?'),
-                  actions: [
-                    TextButton(
-                        onPressed: () => Navigator.pop(ctx, false),
-                        child: const Text('No')),
-                    TextButton(
-                        onPressed: () => Navigator.pop(ctx, true),
-                        child: const Text('Yes')),
-                  ],
-                )) ??
-        false;
-    if (!mounted) return;
-
-    await _store.setBool('save_for_next', saveForNext);
-    if (saveForNext) await _saveToHistory();
+    await _saveSugarcaneHistory();
     if (!mounted) return;
 
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -788,6 +837,115 @@ class _FrmLogisticsState extends State<FrmLogistics> {
     }
   }
 
+  String get _farmIncomeTypeLabel {
+    switch (_selectedFarmIncomeType) {
+      case _FarmIncomeType.equipmentRental:
+        return 'Equipment Rental';
+      case _FarmIncomeType.itemSale:
+        return 'Item Sale';
+      case _FarmIncomeType.otherIncome:
+        return 'Other Income';
+    }
+  }
+
+  String get _farmIncomeAssetLabel {
+    switch (_selectedFarmIncomeType) {
+      case _FarmIncomeType.equipmentRental:
+        return 'Equipment / Asset';
+      case _FarmIncomeType.itemSale:
+        return 'Item Sold';
+      case _FarmIncomeType.otherIncome:
+        return 'Income Source';
+    }
+  }
+
+  Future<void> _saveFarmIncome() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final income = FarmIncome(
+      incomeNo: _incomeNoController.text.trim(),
+      date: _selectedDate,
+      incomeType: _farmIncomeTypeLabel,
+      assetName: ValidationUtils.toTitleCase(_incomeAssetController.text),
+      clientName: ValidationUtils.toTitleCase(_incomeClientController.text),
+      amount: _parseNumber(_incomeAmountController),
+      note: _noteController.text.trim().isEmpty
+          ? null
+          : _noteController.text.trim(),
+      createdAt: DateTime.now(),
+    );
+
+    final summaryParts = <String>[
+      'Created from Logistics income generation',
+      'Income No: ${income.incomeNo}',
+      'Type: ${income.incomeType}',
+      'Asset/Item: ${income.assetName}',
+      'Client: ${income.clientName}',
+      'Amount: ${income.amount.toStringAsFixed(2)}',
+      if ((income.note?.trim().isNotEmpty ?? false)) income.note!.trim(),
+    ];
+
+    final ftrackerProvider =
+        Provider.of<FtrackerProvider>(context, listen: false);
+    final farmIncomeProvider =
+        Provider.of<FarmIncomeProvider>(context, listen: false);
+    final trackerRecord = ftrackerProvider.buildRecord(
+      dDate: DateFormat('yyyy-MM-dd').format(_selectedDate),
+      dType: 'Income',
+      dAmount: income.amount,
+      category: 'Farm Income',
+      name: '${income.incomeType}: ${income.assetName}',
+      note: summaryParts.join(' | '),
+    );
+
+    await DatabaseHelper.instance.runInTransaction((txn) async {
+      await txn.insert(DatabaseHelper.tableFarmIncome, income.toMap());
+      await txn.insert(DatabaseHelper.tableFtracker, trackerRecord.toMap());
+    });
+
+    await _store.setString(
+      _lastFarmIncomeNoKey,
+      _normalizeTrackingValue(_incomeNoController.text),
+    );
+
+    await Future.wait([
+      farmIncomeProvider.loadRecords(),
+      ftrackerProvider.loadFtrackerRecords(),
+    ]);
+
+    TransactionLogService.instance.log(
+      'Farm income saved',
+      details:
+          '${income.incomeType} | ${income.assetName} | ${income.clientName} | PHP ${income.amount.toStringAsFixed(2)}',
+    );
+
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Farm income saved.'),
+      ),
+    );
+
+    final nextIncomeNo =
+        _incrementTrackingNumber(_incomeNoController.text.trim());
+    setState(() {
+      _incomeNoController.text = nextIncomeNo;
+      _incomeAssetController.clear();
+      _incomeClientController.clear();
+      _incomeAmountController.clear();
+      _noteController.clear();
+    });
+
+    if (_scrollController.hasClients) {
+      await _scrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final deliveryTheme = CustomThemes.delivery(Theme.of(context));
@@ -811,37 +969,53 @@ class _FrmLogisticsState extends State<FrmLogistics> {
             .toSet()
             .toList()
           ..sort();
+        final farmIncomeProvider = Provider.of<FarmIncomeProvider>(context);
+        final recentFarmIncomes = farmIncomeProvider.records.take(4).toList();
 
         return Scaffold(
           backgroundColor: Colors.transparent,
-          body: Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  deliveryTheme.colorScheme.primary.withValues(alpha: 0.2),
-                  deliveryTheme.colorScheme.surface,
-                ],
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-              ),
-            ),
-            child: SafeArea(
-              child: SingleChildScrollView(
-                controller: _scrollController,
-                padding: EdgeInsets.fromLTRB(
-                  20,
-                  16,
-                  20,
-                  MediaQuery.of(context).viewInsets.bottom + 16,
-                ),
-                child: _buildFlowContent(
-                  voiceProvider: voiceProvider,
-                  deliveryTheme: deliveryTheme,
-                  sugarcaneFarmNames: sugarcaneFarmNames,
-                  produceFarmNames: produceFarmNames,
+          body: Stack(
+            fit: StackFit.expand,
+            children: [
+              Positioned.fill(
+                child: Opacity(
+                  opacity: AppVisuals.mainTabBackgroundImageOpacity(
+                    deliveryTheme.brightness == Brightness.dark,
+                  ),
+                  child: Image.asset(
+                    'lib/assets/images/1.jpg',
+                    fit: BoxFit.cover,
+                  ),
                 ),
               ),
-            ),
+              Positioned.fill(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: AppVisuals.mainTabImageOverlay(
+                      deliveryTheme.brightness == Brightness.dark,
+                    ),
+                  ),
+                ),
+              ),
+              SafeArea(
+                child: SingleChildScrollView(
+                  controller: _scrollController,
+                  padding: EdgeInsets.fromLTRB(
+                    20,
+                    16,
+                    20,
+                    MediaQuery.of(context).viewInsets.bottom + 16,
+                  ),
+                  child: _buildFlowContent(
+                    voiceProvider: voiceProvider,
+                    deliveryTheme: deliveryTheme,
+                    sugarcaneFarmNames: sugarcaneFarmNames,
+                    produceFarmNames: produceFarmNames,
+                    recentFarmIncomes: recentFarmIncomes,
+                  ),
+                ),
+              ),
+            ],
           ),
         );
       }),
@@ -853,10 +1027,9 @@ class _FrmLogisticsState extends State<FrmLogistics> {
     required ThemeData deliveryTheme,
     required List<String> sugarcaneFarmNames,
     required List<String> produceFarmNames,
+    required List<FarmIncome> recentFarmIncomes,
   }) {
     switch (_flow) {
-      case _LogisticsFlow.chooser:
-        return _buildCropChooser(voiceProvider);
       case _LogisticsFlow.sugarcane:
         return Column(
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -868,6 +1041,8 @@ class _FrmLogisticsState extends State<FrmLogistics> {
               onBack: () => Navigator.pop(context),
             ),
             const SizedBox(height: 14),
+            _buildIncomeGenerationSection(deliveryTheme),
+            const SizedBox(height: 18),
             _buildLogisticsChips(),
             const SizedBox(height: 18),
             _buildSugarcaneFormCard(deliveryTheme, sugarcaneFarmNames),
@@ -882,9 +1057,12 @@ class _FrmLogisticsState extends State<FrmLogistics> {
               title: '${_selectedCrop ?? 'Produce'} Delivery',
               subtitle:
                   'Capture sacks, weight, deductions, and farm-level profit',
-              allowBackToChooser: true,
             ),
             const SizedBox(height: 14),
+            _buildIncomeGenerationSection(deliveryTheme),
+            const SizedBox(height: 18),
+            _buildLogisticsChips(),
+            const SizedBox(height: 18),
             if (_savedProduceSummary != null) ...[
               _buildSavedProduceSummaryCard(),
               const SizedBox(height: 18),
@@ -892,116 +1070,173 @@ class _FrmLogisticsState extends State<FrmLogistics> {
             _buildProduceFormCard(deliveryTheme, produceFarmNames),
           ],
         );
+      case _LogisticsFlow.farmIncome:
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            _buildHeaderRow(
+              voiceProvider,
+              title: 'Farm Income Generation',
+              subtitle:
+                  'Track rental income, item sales, and other farm-generated revenue',
+            ),
+            const SizedBox(height: 14),
+            _buildIncomeGenerationSection(deliveryTheme),
+            const SizedBox(height: 18),
+            _buildLogisticsChips(),
+            const SizedBox(height: 18),
+            _buildFarmIncomeFormCard(deliveryTheme),
+            const SizedBox(height: 18),
+            _buildRecentFarmIncomeCard(deliveryTheme, recentFarmIncomes),
+          ],
+        );
     }
   }
 
-  Widget _buildCropChooser(VoiceCommandProvider voiceProvider) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        _buildHeaderRow(
-          voiceProvider,
-          title: 'Start Logistics',
-          subtitle: 'Choose which crop this delivery belongs to',
-        ),
-        const SizedBox(height: 18),
-        Material(
-          elevation: 16,
-          borderRadius: BorderRadius.circular(28),
-          color: theme.cardColor,
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Which crop is involved?',
-                  style: theme.textTheme.titleLarge
-                      ?.copyWith(fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Sugarcane keeps the current trucking flow. Rice and corn open the produce-delivery form with sacks, weight, deductions, and profit fields.',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                    height: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                _buildCropChoiceButton(
-                  icon: Icons.grass_rounded,
-                  label: 'Sugarcane',
-                  description: 'Open the current logistics and trucking flow.',
-                  onPressed: _startSugarcaneFlow,
-                ),
-                const SizedBox(height: 12),
-                _buildCropChoiceButton(
-                  icon: Icons.rice_bowl_rounded,
-                  label: 'Rice',
-                  description:
-                      'Open the produce-delivery form with profit calculations.',
-                  onPressed: () => _startProduceFlow('Rice'),
-                ),
-                const SizedBox(height: 12),
-                _buildCropChoiceButton(
-                  icon: Icons.agriculture_rounded,
-                  label: 'Corn',
-                  description:
-                      'Open the produce-delivery form with profit calculations.',
-                  onPressed: () => _startProduceFlow('Corn'),
-                ),
-              ],
+  Widget _buildIncomeGenerationSection(ThemeData theme) {
+    final scheme = theme.colorScheme;
+    return Material(
+      elevation: 10,
+      borderRadius: BorderRadius.circular(24),
+      color: theme.cardColor,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Income Generation',
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w900,
+              ),
             ),
-          ),
+            const SizedBox(height: 6),
+            Text(
+              'Produce sales still go through the delivery workflow first. Use the farm income form for equipment rentals, item sales, and other direct income.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: scheme.onSurfaceVariant,
+                height: 1.45,
+              ),
+            ),
+            const SizedBox(height: 16),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final buttons = [
+                  _buildIncomeActionButton(
+                    icon: Icons.local_shipping_rounded,
+                    label: 'Sugarcane Delivery',
+                    description: 'Use the trucking and dispatch flow.',
+                    selected: _flow == _LogisticsFlow.sugarcane,
+                    onPressed: _startSugarcaneFlow,
+                  ),
+                  _buildIncomeActionButton(
+                    icon: Icons.sell_rounded,
+                    label: 'Sell Produce',
+                    description:
+                        'Open the produce delivery form before posting income.',
+                    selected: _flow == _LogisticsFlow.produce,
+                    onPressed: () => _startProduceFlow(
+                      _selectedCrop == 'Corn' ? 'Corn' : 'Rice',
+                    ),
+                  ),
+                  _buildIncomeActionButton(
+                    icon: Icons.paid_rounded,
+                    label: 'Other Income',
+                    description:
+                        'Record rentals, item sales, and miscellaneous revenue.',
+                    selected: _flow == _LogisticsFlow.farmIncome,
+                    onPressed: _startFarmIncomeFlow,
+                  ),
+                ];
+
+                if (constraints.maxWidth < 720) {
+                  return Column(
+                    children: [
+                      for (var i = 0; i < buttons.length; i++) ...[
+                        buttons[i],
+                        if (i != buttons.length - 1) const SizedBox(height: 12),
+                      ],
+                    ],
+                  );
+                }
+
+                return Row(
+                  children: [
+                    for (var i = 0; i < buttons.length; i++) ...[
+                      Expanded(child: buttons[i]),
+                      if (i != buttons.length - 1) const SizedBox(width: 12),
+                    ],
+                  ],
+                );
+              },
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
-  Widget _buildCropChoiceButton({
+  Widget _buildIncomeActionButton({
     required IconData icon,
     required String label,
     required String description,
+    required bool selected,
     required VoidCallback onPressed,
   }) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    return SizedBox(
-      width: double.infinity,
-      child: OutlinedButton.icon(
-        onPressed: onPressed,
-        icon: Icon(icon, size: 22),
-        label: Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                label,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                description,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: scheme.onSurfaceVariant,
-                  height: 1.4,
-                ),
-              ),
-            ],
-          ),
+    return OutlinedButton(
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        alignment: Alignment.centerLeft,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        side: BorderSide(
+          color: selected
+              ? scheme.primary.withValues(alpha: 0.55)
+              : scheme.outline.withValues(alpha: 0.28),
         ),
-        style: OutlinedButton.styleFrom(
-          alignment: Alignment.centerLeft,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-          side: BorderSide(color: scheme.primary.withValues(alpha: 0.28)),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
+        backgroundColor: selected
+            ? scheme.primary.withValues(alpha: 0.08)
+            : scheme.surface.withValues(alpha: 0.65),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
         ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: scheme.primary.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Icon(icon, color: scheme.primary),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: scheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1010,7 +1245,6 @@ class _FrmLogisticsState extends State<FrmLogistics> {
     VoiceCommandProvider voiceProvider, {
     required String title,
     required String subtitle,
-    bool allowBackToChooser = false,
     VoidCallback? onBack,
   }) {
     final theme = Theme.of(context);
@@ -1018,10 +1252,7 @@ class _FrmLogisticsState extends State<FrmLogistics> {
       children: [
         IconButton(
           icon: Icon(Icons.chevron_left, color: theme.colorScheme.onSurface),
-          onPressed: onBack ??
-              (allowBackToChooser
-                  ? _returnToCropChooser
-                  : () => Navigator.pop(context)),
+          onPressed: onBack ?? () => Navigator.pop(context),
         ),
         const SizedBox(width: 4),
         Expanded(
@@ -1053,14 +1284,105 @@ class _FrmLogisticsState extends State<FrmLogistics> {
       spacing: 12,
       runSpacing: 6,
       children: [
-        Chip(
-          label: Text(_autoIncrement ? 'Auto ID mode' : 'Manual entry'),
-          backgroundColor: scheme.primary.withValues(alpha: 0.15),
+        ChoiceChip(
+          label: const Text('Sugarcane Dispatch'),
+          selected: _flow == _LogisticsFlow.sugarcane,
+          onSelected: (_) {
+            if (_flow != _LogisticsFlow.sugarcane) {
+              _startSugarcaneFlow();
+            }
+          },
+          selectedColor: scheme.primary.withValues(alpha: 0.18),
+          backgroundColor: scheme.surface,
+        ),
+        ChoiceChip(
+          label: const Text('Rice Sale'),
+          selected: _flow == _LogisticsFlow.produce && _selectedCrop == 'Rice',
+          onSelected: (_) {
+            if (!(_flow == _LogisticsFlow.produce && _selectedCrop == 'Rice')) {
+              _startProduceFlow('Rice');
+            }
+          },
+          selectedColor: scheme.primary.withValues(alpha: 0.18),
+          backgroundColor: scheme.surface,
+        ),
+        ChoiceChip(
+          label: const Text('Corn Sale'),
+          selected: _flow == _LogisticsFlow.produce && _selectedCrop == 'Corn',
+          onSelected: (_) {
+            if (!(_flow == _LogisticsFlow.produce && _selectedCrop == 'Corn')) {
+              _startProduceFlow('Corn');
+            }
+          },
+          selectedColor: scheme.primary.withValues(alpha: 0.18),
+          backgroundColor: scheme.surface,
+        ),
+        ChoiceChip(
+          label: const Text('Other Income'),
+          selected: _flow == _LogisticsFlow.farmIncome,
+          onSelected: (_) {
+            if (_flow != _LogisticsFlow.farmIncome) {
+              _startFarmIncomeFlow();
+            }
+          },
+          selectedColor: scheme.primary.withValues(alpha: 0.18),
+          backgroundColor: scheme.surface,
         ),
         Chip(
           label: Text(
-              _isAdvanceScheduling ? 'Advance schedule' : 'Dispatch today'),
-          backgroundColor: scheme.secondary.withValues(alpha: 0.12),
+            _flow == _LogisticsFlow.farmIncome
+                ? 'Posts to income ledger'
+                : _autoIncrement
+                    ? 'Auto ID mode'
+                    : 'Manual entry',
+          ),
+          backgroundColor: scheme.primary.withValues(alpha: 0.15),
+        ),
+        if (_flow != _LogisticsFlow.farmIncome)
+          Chip(
+            label: Text(
+                _isAdvanceScheduling ? 'Advance schedule' : 'Dispatch today'),
+            backgroundColor: scheme.secondary.withValues(alpha: 0.12),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildFarmIncomeTypeChips() {
+    final scheme = Theme.of(context).colorScheme;
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: [
+        ChoiceChip(
+          label: const Text('Equipment Rental'),
+          selected: _selectedFarmIncomeType == _FarmIncomeType.equipmentRental,
+          onSelected: (_) {
+            setState(() {
+              _selectedFarmIncomeType = _FarmIncomeType.equipmentRental;
+            });
+          },
+          selectedColor: scheme.primary.withValues(alpha: 0.18),
+        ),
+        ChoiceChip(
+          label: const Text('Item Sale'),
+          selected: _selectedFarmIncomeType == _FarmIncomeType.itemSale,
+          onSelected: (_) {
+            setState(() {
+              _selectedFarmIncomeType = _FarmIncomeType.itemSale;
+            });
+          },
+          selectedColor: scheme.primary.withValues(alpha: 0.18),
+        ),
+        ChoiceChip(
+          label: const Text('Other Income'),
+          selected: _selectedFarmIncomeType == _FarmIncomeType.otherIncome,
+          onSelected: (_) {
+            setState(() {
+              _selectedFarmIncomeType = _FarmIncomeType.otherIncome;
+            });
+          },
+          selectedColor: scheme.primary.withValues(alpha: 0.18),
         ),
       ],
     );
@@ -1073,7 +1395,7 @@ class _FrmLogisticsState extends State<FrmLogistics> {
     return Material(
       elevation: 16,
       borderRadius: BorderRadius.circular(28),
-      color: deliveryTheme.cardColor,
+      color: deliveryTheme.cardColor.withValues(alpha: 0.84),
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Form(
@@ -1198,7 +1520,7 @@ class _FrmLogisticsState extends State<FrmLogistics> {
     return Material(
       elevation: 10,
       borderRadius: BorderRadius.circular(26),
-      color: theme.cardColor,
+      color: theme.cardColor.withValues(alpha: 0.84),
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Column(
@@ -1287,7 +1609,7 @@ class _FrmLogisticsState extends State<FrmLogistics> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest,
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.74),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: scheme.primary.withValues(alpha: 0.18)),
       ),
@@ -1325,7 +1647,7 @@ class _FrmLogisticsState extends State<FrmLogistics> {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest,
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.74),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: scheme.primary.withValues(alpha: 0.18)),
       ),
@@ -1456,7 +1778,7 @@ class _FrmLogisticsState extends State<FrmLogistics> {
     return Material(
       elevation: 16,
       borderRadius: BorderRadius.circular(28),
-      color: deliveryTheme.cardColor,
+      color: deliveryTheme.cardColor.withValues(alpha: 0.84),
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Form(
@@ -1571,6 +1893,194 @@ class _FrmLogisticsState extends State<FrmLogistics> {
     );
   }
 
+  Widget _buildFarmIncomeFormCard(ThemeData deliveryTheme) {
+    return Material(
+      elevation: 16,
+      borderRadius: BorderRadius.circular(28),
+      color: deliveryTheme.cardColor.withValues(alpha: 0.84),
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TextFormField(
+                stylusHandwritingEnabled: false,
+                controller: _incomeNoController,
+                decoration: const InputDecoration(
+                  labelText: 'Income No.',
+                  helperText:
+                      'Editable. The next entry auto-increments from the last saved value.',
+                ),
+                style: const TextStyle(fontWeight: FontWeight.w700),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Income number is required';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 18),
+              _buildDateRow(),
+              const SizedBox(height: 18),
+              _buildFarmIncomeTypeChips(),
+              const SizedBox(height: 18),
+              TextFormField(
+                stylusHandwritingEnabled: false,
+                controller: _incomeAssetController,
+                decoration: InputDecoration(
+                  labelText: _farmIncomeAssetLabel,
+                  helperText: _selectedFarmIncomeType ==
+                          _FarmIncomeType.equipmentRental
+                      ? 'Example: Hand tractor, thresher, trailer, water pump'
+                      : null,
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'This field is required';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 18),
+              TextFormField(
+                stylusHandwritingEnabled: false,
+                controller: _incomeClientController,
+                decoration: const InputDecoration(
+                  labelText: 'Client Name',
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Client name is required';
+                  }
+                  return null;
+                },
+              ),
+              const SizedBox(height: 18),
+              _buildNumericField(
+                controller: _incomeAmountController,
+                label: 'Income Generated',
+              ),
+              const SizedBox(height: 18),
+              _buildNotesField(
+                label: 'Notes / Terms',
+                hint:
+                    'Optional: include rental duration, sold item details, or client notes',
+              ),
+              const SizedBox(height: 24),
+              _buildFormActions(
+                onSave: _saveFarmIncome,
+                saveLabel: 'Save Farm Income',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRecentFarmIncomeCard(
+    ThemeData deliveryTheme,
+    List<FarmIncome> records,
+  ) {
+    return Material(
+      elevation: 10,
+      borderRadius: BorderRadius.circular(26),
+      color: deliveryTheme.cardColor,
+      child: Padding(
+        padding: const EdgeInsets.all(22),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Recent Income Entries',
+              style: deliveryTheme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              records.isEmpty
+                  ? 'No farm income entries recorded yet.'
+                  : 'Latest rentals, item sales, and miscellaneous income posted from this tab.',
+              style: deliveryTheme.textTheme.bodySmall?.copyWith(
+                color: deliveryTheme.colorScheme.onSurfaceVariant,
+              ),
+            ),
+            if (records.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              for (var i = 0; i < records.length; i++) ...[
+                _buildRecentFarmIncomeTile(deliveryTheme, records[i]),
+                if (i != records.length - 1) const SizedBox(height: 10),
+              ],
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRecentFarmIncomeTile(ThemeData theme, FarmIncome record) {
+    final scheme = theme.colorScheme;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: scheme.surface.withValues(alpha: 0.8),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: scheme.primary.withValues(alpha: 0.12),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  record.assetName,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              Text(
+                'PHP ${_formatAmount(record.amount)}',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  color: scheme.primary,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '${record.incomeType} | ${record.clientName}',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '${record.incomeNo} • ${DateFormat.yMMMd().format(record.date)}',
+            style: theme.textTheme.labelSmall?.copyWith(
+              color: scheme.onSurfaceVariant,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          if (record.note?.trim().isNotEmpty ?? false) ...[
+            const SizedBox(height: 8),
+            Text(
+              record.note!.trim(),
+              style: theme.textTheme.bodySmall,
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _buildDateRow() {
     final scheme = Theme.of(context).colorScheme;
     final dateSummary = Column(
@@ -1604,7 +2114,7 @@ class _FrmLogisticsState extends State<FrmLogistics> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: scheme.surfaceContainerHighest,
+          color: scheme.surfaceContainerHighest.withValues(alpha: 0.74),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: scheme.primary.withValues(alpha: 0.2)),
         ),
@@ -1644,7 +2154,7 @@ class _FrmLogisticsState extends State<FrmLogistics> {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest,
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.74),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: scheme.primary.withValues(alpha: 0.2)),
       ),
@@ -1695,11 +2205,8 @@ class _FrmLogisticsState extends State<FrmLogistics> {
           onChanged: (value) {
             setState(() {
               _autoIncrement = value;
-              if (_autoIncrement &&
-                  _truckingNumController.text.trim().isEmpty) {
-                _initTruckingNumber();
-              }
             });
+            _initTruckingNumber();
           },
         ),
       ],
@@ -1754,7 +2261,7 @@ class _FrmLogisticsState extends State<FrmLogistics> {
     VoidCallback? onCancel,
   }) {
     final cancelButton = OutlinedButton(
-      onPressed: onCancel ?? _returnToCropChooser,
+      onPressed: onCancel ?? () => Navigator.pop(context),
       child: const Text('Cancel'),
     );
     final saveButton = ElevatedButton.icon(
@@ -1840,12 +2347,18 @@ class _FrmLogisticsState extends State<FrmLogistics> {
     );
   }
 
-  Widget _buildNotesField() {
+  Widget _buildNotesField({
+    String label = 'Notes / Comments',
+    String? hint,
+  }) {
     return TextFormField(
       stylusHandwritingEnabled: false,
       controller: _noteController,
       maxLines: 3,
-      decoration: const InputDecoration(labelText: 'Notes / Comments'),
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+      ),
     );
   }
 

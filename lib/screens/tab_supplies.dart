@@ -12,7 +12,6 @@ import '../services/app_localization_service.dart';
 import '../services/app_route_observer.dart';
 import '../themes/app_visuals.dart';
 import 'frm_add_def_sup_screen.dart';
-import 'frm_add_sup_screen.dart';
 import 'market_price_list_screen.dart';
 
 class TabSupplies extends StatefulWidget {
@@ -29,6 +28,7 @@ class _TabSuppliesState extends State<TabSupplies>
   bool _isRouteObserverSubscribed = false;
   bool _showCatalogBrowser = false;
   String _catalogFilter = 'All';
+  String? _selectedSupplyId;
 
   AppAudioProvider? _appAudio;
   AppSettingsProvider? _appSettings;
@@ -36,7 +36,9 @@ class _TabSuppliesState extends State<TabSupplies>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 2, vsync: this)
+      ..addListener(_handleTabChange);
+    _clearSelections();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _playScreenOpenAudioIfNeeded();
     });
@@ -45,9 +47,23 @@ class _TabSuppliesState extends State<TabSupplies>
   @override
   void dispose() {
     if (_isRouteObserverSubscribed) appRouteObserver.unsubscribe(this);
-    unawaited(_stopScreenOpenAudioIfNeeded());
+    unawaited(_stopKnowledgeAudioIfNeeded());
+    _tabController.removeListener(_handleTabChange);
     _tabController.dispose();
     super.dispose();
+  }
+
+  void _handleTabChange() {
+    if (!mounted || _tabController.indexIsChanging) return;
+    if (_tabController.index != 0 && _selectedSupplyId != null) {
+      setState(() {
+        _selectedSupplyId = null;
+      });
+    }
+  }
+
+  void _clearSelections() {
+    _selectedSupplyId = null;
   }
 
   @override
@@ -79,7 +95,7 @@ class _TabSuppliesState extends State<TabSupplies>
     );
   }
 
-  Future<void> _stopScreenOpenAudioIfNeeded() async {
+  Future<void> _stopKnowledgeAudioIfNeeded() async {
     final appSettings = _appSettings;
     final appAudio = _appAudio;
     if (appSettings == null || appAudio == null) return;
@@ -91,156 +107,65 @@ class _TabSuppliesState extends State<TabSupplies>
   }
 
   @override
-  void didPushNext() => unawaited(_stopScreenOpenAudioIfNeeded());
+  void didPushNext() => unawaited(_stopKnowledgeAudioIfNeeded());
   @override
-  void didPop() => unawaited(_stopScreenOpenAudioIfNeeded());
+  void didPop() => unawaited(_stopKnowledgeAudioIfNeeded());
+  @override
+  void didPush() => _clearSelections();
+  @override
+  void didPopNext() {
+    if (!mounted) return;
+    setState(_clearSelections);
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: NestedScrollView(
-        physics: const BouncingScrollPhysics(),
-        headerSliverBuilder: (context, innerBoxIsScrolled) => [
-          SliverToBoxAdapter(child: _buildMetricsStrip(theme)),
-          const SliverToBoxAdapter(child: SizedBox(height: 20)),
-          SliverToBoxAdapter(child: _buildPriceReferencePanel(theme)),
-          const SliverToBoxAdapter(child: SizedBox(height: 20)),
-          SliverToBoxAdapter(child: _buildControlPanel(theme)),
-          const SliverToBoxAdapter(child: SizedBox(height: 20)),
-        ],
-        body: Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: _buildBodyPanel(theme),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildMetricsStrip(ThemeData theme) {
-    return Row(
+    return Stack(
+      fit: StackFit.expand,
       children: [
-        Expanded(
-          child: _MetricCard(
-            label: context.tr('Market Watch'),
-            value: context.tr('View Prices'),
-            icon: Icons.price_check_rounded,
-            onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => const MarketPriceListScreen())),
+        Positioned.fill(
+          child: Opacity(
+            opacity: AppVisuals.mainTabBackgroundImageOpacity(
+              theme.brightness == Brightness.dark,
+            ),
+            child: Image.asset(
+              'lib/assets/images/images.jfif',
+              fit: BoxFit.cover,
+            ),
           ),
         ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _MetricCard(
-            label: context.tr('Catalog'),
-            value: context.tr('Database'),
-            icon: Icons.storage_rounded,
-            onTap: _openCatalogBrowser,
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: AppVisuals.mainTabImageOverlay(
+                theme.brightness == Brightness.dark,
+              ),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildPriceReferencePanel(theme),
+              const SizedBox(height: 12),
+              Expanded(child: _buildBodyPanel(theme)),
+            ],
           ),
         ),
       ],
     );
   }
 
-  Widget _buildControlPanel(ThemeData theme) {
-    return FrostedPanel(
-      radius: 28,
-      padding: const EdgeInsets.all(12),
-      child: SizedBox(
-        height: 64,
-        child: ListView(
-          scrollDirection: Axis.horizontal,
-          children: [
-            _ActionButton(
-              icon: Icons.add_business_rounded,
-              label: context.tr('Procure'),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const FrmAddSupScreen()),
-                );
-              },
-              isPrimary: true,
-            ),
-            const SizedBox(width: 10),
-            _ActionButton(
-              icon: Icons.inventory_rounded,
-              label: context.tr('Stock'),
-              onTap: () {
-                setState(() => _showCatalogBrowser = false);
-                if (_tabController.index != 0) _tabController.animateTo(0);
-              },
-            ),
-            const SizedBox(width: 10),
-            _ActionButton(
-              icon: Icons.price_check_rounded,
-              label: context.tr('Prices'),
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => const MarketPriceListScreen()),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildPriceReferencePanel(ThemeData theme) {
     final scheme = theme.colorScheme;
-
-    Widget buildPriceShortcut({
-      required String label,
-      required IconData icon,
-      required MarketPriceCategoryFilter filter,
-    }) {
-      return Expanded(
-        child: InkWell(
-          borderRadius: BorderRadius.circular(18),
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => MarketPriceListScreen(initialFilter: filter),
-            ),
-          ),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-            decoration: BoxDecoration(
-              color: scheme.surface.withValues(alpha: 0.72),
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(
-                color: scheme.outline.withValues(alpha: 0.22),
-              ),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(icon, color: scheme.primary, size: 18),
-                const SizedBox(height: 8),
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: AppVisuals.textForest,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
 
     return FrostedPanel(
       radius: 30,
       padding: const EdgeInsets.all(18),
+      color: theme.colorScheme.surface.withValues(alpha: 0.46),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -309,34 +234,6 @@ class _TabSuppliesState extends State<TabSupplies>
               ),
             ],
           ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              buildPriceShortcut(
-                label: context.tr('All'),
-                icon: Icons.grid_view_rounded,
-                filter: MarketPriceCategoryFilter.all,
-              ),
-              const SizedBox(width: 10),
-              buildPriceShortcut(
-                label: context.tr('Fertilizer'),
-                icon: Icons.spa_rounded,
-                filter: MarketPriceCategoryFilter.fertilizer,
-              ),
-              const SizedBox(width: 10),
-              buildPriceShortcut(
-                label: context.tr('Herbicide'),
-                icon: Icons.grass_rounded,
-                filter: MarketPriceCategoryFilter.herbicide,
-              ),
-              const SizedBox(width: 10),
-              buildPriceShortcut(
-                label: context.tr('Pesticide'),
-                icon: Icons.bug_report_rounded,
-                filter: MarketPriceCategoryFilter.pesticide,
-              ),
-            ],
-          ),
         ],
       ),
     );
@@ -375,37 +272,74 @@ class _TabSuppliesState extends State<TabSupplies>
     );
   }
 
-  void _openCatalogBrowser() {
-    final dataProvider = Provider.of<DataProvider>(context, listen: false);
-    if (dataProvider.defSups.isEmpty) {
-      dataProvider.loadDefSupsFromDb();
-    }
-    setState(() {
-      _showCatalogBrowser = true;
-    });
-  }
-
   Widget _buildBodyPanel(ThemeData theme) {
     return FrostedPanel(
       radius: 32,
       padding: const EdgeInsets.all(12),
+      color: theme.colorScheme.surface.withValues(alpha: 0.46),
       child: _showCatalogBrowser
           ? _buildCatalogBrowser(theme)
-          : Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildTabBar(theme),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: const [
-                      SuppliesTab(),
-                      EquipmentTab(),
+          : LayoutBuilder(
+              builder: (context, constraints) {
+                const tabBarHeight = 58.0;
+                const bodySpacing = 2.0;
+
+                if (!constraints.hasBoundedHeight) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _buildTabBar(theme),
+                      const SizedBox(height: bodySpacing),
+                      Expanded(
+                        child: TabBarView(
+                          controller: _tabController,
+                          children: [
+                            SuppliesTab(
+                              selectedSupplyId: _selectedSupplyId,
+                              onSelectedSupplyChanged: (supplyId) {
+                                setState(() {
+                                  _selectedSupplyId = supplyId;
+                                });
+                              },
+                            ),
+                            const EquipmentTab(),
+                          ],
+                        ),
+                      ),
                     ],
-                  ),
-                ),
-              ],
+                  );
+                }
+
+                final tabViewHeight =
+                    (constraints.maxHeight - tabBarHeight - bodySpacing)
+                        .clamp(0.0, double.infinity)
+                        .toDouble();
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildTabBar(theme),
+                    const SizedBox(height: bodySpacing),
+                    SizedBox(
+                      height: tabViewHeight,
+                      child: TabBarView(
+                        controller: _tabController,
+                        children: [
+                          SuppliesTab(
+                            selectedSupplyId: _selectedSupplyId,
+                            onSelectedSupplyChanged: (supplyId) {
+                              setState(() {
+                                _selectedSupplyId = supplyId;
+                                });
+                            },
+                          ),
+                          const EquipmentTab(),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
     );
   }
@@ -685,59 +619,6 @@ class _TabSuppliesState extends State<TabSupplies>
   }
 }
 
-class _MetricCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final VoidCallback onTap;
-  static const _metricMaroon = AppVisuals.deepGreen;
-  const _MetricCard(
-      {required this.label,
-      required this.value,
-      required this.icon,
-      required this.onTap});
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: _metricMaroon,
-          borderRadius: BorderRadius.circular(28),
-          border: Border.all(
-            color: AppVisuals.mintAccent.withValues(alpha: 0.18),
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: _metricMaroon.withValues(alpha: 0.28),
-              blurRadius: 18,
-              offset: const Offset(0, 10),
-            ),
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: AppVisuals.lightGold, size: 24),
-            const SizedBox(height: 12),
-            Text(label.toUpperCase(),
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: AppVisuals.mintAccent.withValues(alpha: 0.88),
-                    letterSpacing: 1.2,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 9)),
-            const SizedBox(height: 4),
-            Text(value,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: AppVisuals.softWhite, fontWeight: FontWeight.w900)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _CatalogFilterChip extends StatelessWidget {
   final String label;
   final bool selected;
@@ -775,65 +656,6 @@ class _CatalogFilterChip extends StatelessWidget {
           style: theme.textTheme.bodySmall?.copyWith(
             color: selected ? scheme.primary : AppVisuals.textForest,
             fontWeight: FontWeight.w800,
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ActionButton extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback onTap;
-  final bool isPrimary;
-  const _ActionButton(
-      {required this.icon,
-      required this.label,
-      required this.onTap,
-      this.isPrimary = false});
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final bg = isPrimary
-        ? scheme.primary
-        : scheme.surfaceContainerHighest.withValues(alpha: 0.7);
-    final fg = isPrimary ? scheme.onPrimary : scheme.onSurface;
-
-    return SizedBox(
-      width: 120,
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-          decoration: BoxDecoration(
-            color: bg,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(
-              color: isPrimary
-                  ? scheme.primary.withValues(alpha: 0.2)
-                  : scheme.outline.withValues(alpha: 0.25),
-            ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, color: fg, size: 20),
-              const SizedBox(height: 4),
-              Text(
-                label.toUpperCase(),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: fg,
-                  fontWeight: FontWeight.w900,
-                  fontSize: 9,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ],
           ),
         ),
       ),

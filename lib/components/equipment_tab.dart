@@ -318,7 +318,7 @@ class _EquipmentTabState extends State<EquipmentTab> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: AppVisuals.cloudGlass,
+        backgroundColor: AppVisuals.glass(AppVisuals.cloudGlass, alpha: 0.74),
         title: Text('RESTOCK ${item.name.toUpperCase()}?',
             style: const TextStyle(
                 color: AppVisuals.textForest,
@@ -354,7 +354,7 @@ class _EquipmentTabState extends State<EquipmentTab> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: AppVisuals.cloudGlass,
+          backgroundColor: AppVisuals.glass(AppVisuals.cloudGlass, alpha: 0.74),
           title: Text("ADD ${def['Name'].toUpperCase()}",
               style: const TextStyle(
                   color: AppVisuals.textForest,
@@ -436,7 +436,7 @@ class _EquipmentTabState extends State<EquipmentTab> {
     final confirm = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-                backgroundColor: AppVisuals.cloudGlass,
+                backgroundColor: AppVisuals.glass(AppVisuals.cloudGlass, alpha: 0.74),
                 title: const Text('REMOVE EQUIPMENT?',
                     style: TextStyle(
                         color: Colors.redAccent,
@@ -463,3 +463,4 @@ class _EquipmentTabState extends State<EquipmentTab> {
     }
   }
 }
+

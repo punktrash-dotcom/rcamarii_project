@@ -26,7 +26,8 @@ class _AboutScreenState extends State<AboutScreen> with RouteAware {
     if (appAudio == null) {
       return;
     }
-    final appSettings = Provider.of<AppSettingsProvider>(context, listen: false);
+    final appSettings =
+        Provider.of<AppSettingsProvider>(context, listen: false);
     await appAudio.stopScreenOpenSound(
       screenKey: 'about',
       style: appSettings.audioSoundStyle,
@@ -106,6 +107,12 @@ class _AboutScreenState extends State<AboutScreen> with RouteAware {
         backgroundColor: Colors.transparent,
         body: AppBackdrop(
           isDark: isDark,
+          backgroundImageAsset:
+              'lib/assets/images/background2.jpg',
+          backgroundImageOpacity: isDark ? 0.16 : 0.26,
+          imageScrimColor: isDark
+              ? Colors.black.withValues(alpha: 0.26)
+              : AppVisuals.softWhite.withValues(alpha: 0.12),
           child: SafeArea(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
@@ -114,8 +121,8 @@ class _AboutScreenState extends State<AboutScreen> with RouteAware {
                   FrostedPanel(
                     radius: 30,
                     color: isDark
-                        ? AppVisuals.surfaceGreen.withValues(alpha: 0.94)
-                        : AppVisuals.surfaceGreen.withValues(alpha: 0.92),
+                        ? AppVisuals.surfaceGreen.withValues(alpha: 0.82)
+                        : AppVisuals.surfaceGreen.withValues(alpha: 0.8),
                     padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
                     child: Row(
                       children: [
@@ -174,7 +181,7 @@ class _AboutScreenState extends State<AboutScreen> with RouteAware {
                       radius: 34,
                       padding: const EdgeInsets.all(0),
                       color: scheme.surface
-                          .withValues(alpha: isDark ? 0.88 : 0.92),
+                          .withValues(alpha: isDark ? 0.78 : 0.82),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(26),
                         child: SingleChildScrollView(
@@ -239,9 +246,9 @@ class _AboutScreenState extends State<AboutScreen> with RouteAware {
         borderRadius: BorderRadius.circular(24),
         gradient: LinearGradient(
           colors: [
-            AppVisuals.surfaceGreen.withValues(alpha: 0.96),
-            AppVisuals.deepGreen.withValues(alpha: 0.9),
-            AppVisuals.primaryGold.withValues(alpha: 0.78),
+            AppVisuals.surfaceGreen.withValues(alpha: 0.82),
+            AppVisuals.deepGreen.withValues(alpha: 0.78),
+            AppVisuals.primaryGold.withValues(alpha: 0.64),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -328,8 +335,8 @@ class _AboutScreenState extends State<AboutScreen> with RouteAware {
       decoration: BoxDecoration(
         color: AppVisuals.textForest.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-            color: AppVisuals.primaryGold.withValues(alpha: 0.25)),
+        border:
+            Border.all(color: AppVisuals.primaryGold.withValues(alpha: 0.25)),
       ),
       child: Text(
         label,
@@ -402,7 +409,7 @@ class _AboutScreenState extends State<AboutScreen> with RouteAware {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest.withValues(alpha: 0.7),
+        color: scheme.surfaceContainerHighest.withValues(alpha: 0.58),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: scheme.outline.withValues(alpha: 0.45)),
       ),
@@ -463,8 +470,8 @@ class _AboutScreenState extends State<AboutScreen> with RouteAware {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            scheme.surface.withValues(alpha: 0.98),
-            scheme.surfaceContainerHighest.withValues(alpha: 0.74),
+            scheme.surface.withValues(alpha: 0.8),
+            scheme.surfaceContainerHighest.withValues(alpha: 0.6),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -520,14 +527,14 @@ class _AboutScreenState extends State<AboutScreen> with RouteAware {
         borderRadius: BorderRadius.circular(24),
         gradient: LinearGradient(
           colors: [
-            AppVisuals.surfaceGreen.withValues(alpha: 0.94),
-            AppVisuals.deepGreen.withValues(alpha: 0.82),
+            AppVisuals.surfaceGreen.withValues(alpha: 0.78),
+            AppVisuals.deepGreen.withValues(alpha: 0.68),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        border: Border.all(
-            color: AppVisuals.primaryGold.withValues(alpha: 0.2)),
+        border:
+            Border.all(color: AppVisuals.primaryGold.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

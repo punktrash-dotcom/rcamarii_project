@@ -302,7 +302,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
           final currencySymbol = appSettings.currencySymbol;
 
           return Scaffold(
-            backgroundColor: scheme.surface,
+            backgroundColor: scheme.surface.withValues(alpha: 0.74),
             appBar: AppBar(
               backgroundColor: Colors.transparent,
               elevation: 0,
@@ -1596,7 +1596,7 @@ class _ReportPrintPreviewScreen extends StatelessWidget {
     return Theme(
       data: theme,
       child: Scaffold(
-        backgroundColor: scheme.surface,
+        backgroundColor: scheme.surface.withValues(alpha: 0.74),
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
@@ -1625,7 +1625,7 @@ class _ReportPrintPreviewScreen extends StatelessWidget {
           previewPageMargin: const EdgeInsets.all(12),
           padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
           scrollViewDecoration: BoxDecoration(
-            color: scheme.surface,
+            color: scheme.surface.withValues(alpha: 0.74),
           ),
           pdfPreviewPageDecoration: BoxDecoration(
             color: Colors.white,
@@ -1643,3 +1643,4 @@ class _ReportPrintPreviewScreen extends StatelessWidget {
     );
   }
 }
+

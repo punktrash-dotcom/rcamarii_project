@@ -6,7 +6,9 @@ import '../models/knowledge_qa_model.dart';
 import '../providers/app_audio_provider.dart';
 import '../providers/app_settings_provider.dart';
 import '../providers/guideline_language_provider.dart';
+import '../services/app_defaults_service.dart';
 import '../services/app_localization_service.dart';
+import '../services/app_properties_store.dart';
 import '../services/guideline_localization_service.dart';
 import '../services/app_route_observer.dart';
 import '../services/knowledge_qa_service.dart';
@@ -27,6 +29,7 @@ class _TabKnowledgeState extends State<TabKnowledge> with RouteAware {
   final KnowledgeQaService _qaService = KnowledgeQaService();
   final TextEditingController _searchController = TextEditingController();
   final Set<int> _expandedQaIds = <int>{};
+  final AppPropertiesStore _store = AppPropertiesStore.instance;
 
   late Future<List<KnowledgeQaItem>> _qaFuture;
   bool _playedKnowledgeAudio = false;
@@ -41,7 +44,31 @@ class _TabKnowledgeState extends State<TabKnowledge> with RouteAware {
     super.initState();
     _qaFuture = _qaService.loadQaItems();
     _searchController.addListener(() => setState(() {}));
+    _restoreSavedState();
     WidgetsBinding.instance.addPostFrameCallback((_) => _playKnowledgeAudio());
+  }
+
+  Future<void> _restoreSavedState() async {
+    final savedCategory = (await _store
+                .getString(AppDefaultsService.knowledgeSelectedCategoryKey))
+            ?.trim() ??
+        '';
+    if (!mounted || savedCategory.isEmpty) {
+      return;
+    }
+    setState(() {
+      _selectedCategory = savedCategory;
+    });
+  }
+
+  Future<void> _setSelectedCategory(String? value) async {
+    setState(() {
+      _selectedCategory = value?.trim().isEmpty ?? true ? null : value?.trim();
+    });
+    await _store.setString(
+      AppDefaultsService.knowledgeSelectedCategoryKey,
+      _selectedCategory ?? '',
+    );
   }
 
   @override
@@ -107,124 +134,150 @@ class _TabKnowledgeState extends State<TabKnowledge> with RouteAware {
     final activeLanguageLabel =
         GuidelineLocalizationService.languageLabel(activeLanguage);
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: FutureBuilder<List<KnowledgeQaItem>>(
-        future: _qaFuture,
-        builder: (context, snapshot) {
-          final allItems = snapshot.data ?? const <KnowledgeQaItem>[];
-          final localizedItems = _itemsForLanguage(allItems, activeLanguage);
-          final categoryCounts = _buildCategoryCounts(localizedItems);
-          final categories = categoryCounts.keys.toList()..sort();
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Positioned.fill(
+          child: Opacity(
+            opacity: AppVisuals.mainTabBackgroundImageOpacity(
+              theme.brightness == Brightness.dark,
+            ),
+            child: Image.asset(
+              'lib/assets/images/images (1).jfif',
+              fit: BoxFit.cover,
+            ),
+          ),
+        ),
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: AppVisuals.mainTabImageOverlay(
+                theme.brightness == Brightness.dark,
+              ),
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: FutureBuilder<List<KnowledgeQaItem>>(
+            future: _qaFuture,
+            builder: (context, snapshot) {
+              final allItems = snapshot.data ?? const <KnowledgeQaItem>[];
+              final localizedItems =
+                  _itemsForLanguage(allItems, activeLanguage);
+              final categoryCounts = _buildCategoryCounts(localizedItems);
+              final categories = categoryCounts.keys.toList()..sort();
 
-          if (_selectedCategory != null &&
-              !categories.contains(_selectedCategory)) {
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (mounted) setState(() => _selectedCategory = null);
-            });
-          }
+              if (_selectedCategory != null &&
+                  !categories.contains(_selectedCategory)) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (mounted) {
+                    _setSelectedCategory(null);
+                  }
+                });
+              }
 
-          final filteredItems = _filterQaItems(
-            localizedItems,
-            query: _searchController.text,
-          );
+              final filteredItems = _filterQaItems(
+                localizedItems,
+                query: _searchController.text,
+              );
 
-          return CustomScrollView(
-            physics: const BouncingScrollPhysics(),
-            slivers: [
-              SliverToBoxAdapter(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const SizedBox(height: 8),
-                    _buildHeroSection(
-                      theme,
-                      totalCount: localizedItems.length,
-                      filteredCount: filteredItems.length,
-                      categoryCount: categories.length,
-                      languageLabel: activeLanguageLabel,
-                    ),
-                    const SizedBox(height: 20),
-                    const _SectionHeading(
-                      title: 'Learning Tracks',
-                      subtitle:
-                          'Study by farm discipline so the crew can learn in the same order decisions happen in the field.',
-                    ),
-                    const SizedBox(height: 14),
-                    _buildLearningTracks(theme, categoryCounts),
-                    const SizedBox(height: 20),
-                    const _SectionHeading(
-                      title: 'Field Library',
-                      subtitle:
-                          'Use handbooks for full reference, then narrow into quick answers from the live question bank below.',
-                    ),
-                    const SizedBox(height: 14),
-                    _buildReferenceCards(theme),
-                    const SizedBox(height: 20),
-                    _buildSearchAndFilters(
-                      theme,
-                      filteredItems.length,
-                      categories,
-                      categoryCounts,
-                    ),
-                    const SizedBox(height: 20),
-                    _SectionHeading(
-                      title: 'Question Bank',
-                      subtitle:
-                          'Tap any card to open the answer, supporting topic, and study tags.',
-                      trailing: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 8,
+              return CustomScrollView(
+                physics: const BouncingScrollPhysics(),
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 8),
+                        _buildHeroSection(
+                          theme,
+                          totalCount: localizedItems.length,
+                          filteredCount: filteredItems.length,
+                          categoryCount: categories.length,
+                          languageLabel: activeLanguageLabel,
                         ),
-                        decoration: BoxDecoration(
-                          color:
-                              theme.colorScheme.primary.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(999),
-                          border: Border.all(
-                            color: theme.colorScheme.primary
-                                .withValues(alpha: 0.24),
+                        const SizedBox(height: 20),
+                        const _SectionHeading(
+                          title: 'Learning Tracks',
+                          subtitle:
+                              'Study by farm discipline so the crew can learn in the same order decisions happen in the field.',
+                        ),
+                        const SizedBox(height: 14),
+                        _buildLearningTracks(theme, categoryCounts),
+                        const SizedBox(height: 20),
+                        const _SectionHeading(
+                          title: 'Field Library',
+                          subtitle:
+                              'Use handbooks for full reference, then narrow into quick answers from the live question bank below.',
+                        ),
+                        const SizedBox(height: 14),
+                        _buildReferenceCards(theme),
+                        const SizedBox(height: 20),
+                        _buildSearchPanel(
+                          theme,
+                          filteredItems.length,
+                        ),
+                        const SizedBox(height: 20),
+                        _SectionHeading(
+                          title: 'Question Bank',
+                          subtitle:
+                              'Tap any card to open the answer, supporting topic, and study tags.',
+                          trailing: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.primary
+                                  .withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(
+                                color: theme.colorScheme.primary
+                                    .withValues(alpha: 0.24),
+                              ),
+                            ),
+                            child: Text(
+                              '${filteredItems.length} entries',
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: theme.colorScheme.primary,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
                           ),
                         ),
-                        child: Text(
-                          '${filteredItems.length} entries',
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.primary,
-                            fontWeight: FontWeight.w900,
-                          ),
+                        const SizedBox(height: 14),
+                      ],
+                    ),
+                  ),
+                  if (snapshot.connectionState == ConnectionState.waiting)
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          color: theme.colorScheme.primary,
+                        ),
+                      ),
+                    )
+                  else if (filteredItems.isEmpty)
+                    SliverToBoxAdapter(child: _buildEmptyState(theme))
+                  else
+                    SliverPadding(
+                      padding: const EdgeInsets.only(bottom: 28),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, index) =>
+                              _buildQaCard(theme, filteredItems[index]),
+                          childCount: filteredItems.length,
                         ),
                       ),
                     ),
-                    const SizedBox(height: 14),
-                  ],
-                ),
-              ),
-              if (snapshot.connectionState == ConnectionState.waiting)
-                SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: Center(
-                    child: CircularProgressIndicator(
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                )
-              else if (filteredItems.isEmpty)
-                SliverToBoxAdapter(child: _buildEmptyState(theme))
-              else
-                SliverPadding(
-                  padding: const EdgeInsets.only(bottom: 28),
-                  sliver: SliverList(
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) =>
-                          _buildQaCard(theme, filteredItems[index]),
-                      childCount: filteredItems.length,
-                    ),
-                  ),
-                ),
-            ],
-          );
-        },
-      ),
+                ],
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -504,7 +557,7 @@ class _TabKnowledgeState extends State<TabKnowledge> with RouteAware {
                   context,
                   MaterialPageRoute(
                     builder: (_) => const PdfHandbookViewerScreen(
-                      assetPath: 'lib/assets/all_sugarcane.pdf',
+                      assetPath: 'lib/assets/handbooks/all_sugarcane.pdf',
                       title: 'Sugarcane Handbook',
                     ),
                   ),
@@ -527,7 +580,7 @@ class _TabKnowledgeState extends State<TabKnowledge> with RouteAware {
                   context,
                   MaterialPageRoute(
                     builder: (_) => const PdfHandbookViewerScreen(
-                      assetPath: 'lib/assets/all_rice.pdf',
+                      assetPath: 'lib/assets/handbooks/all_rice.pdf',
                       title: 'Rice Handbook',
                     ),
                   ),
@@ -551,7 +604,7 @@ class _TabKnowledgeState extends State<TabKnowledge> with RouteAware {
                   MaterialPageRoute(
                     builder: (_) => const PdfHandbookViewerScreen(
                       assetPath:
-                          'lib/assets/advanced_sugarcane_farming_handbook.pdf',
+                          'lib/assets/handbooks/advanced_sugarcane_farming_handbook.pdf',
                       title: 'Advanced Sugarcane Farming Handbook',
                     ),
                   ),
@@ -578,17 +631,16 @@ class _TabKnowledgeState extends State<TabKnowledge> with RouteAware {
     );
   }
 
-  Widget _buildSearchAndFilters(
+  Widget _buildSearchPanel(
     ThemeData theme,
     int resultCount,
-    List<String> categories,
-    Map<String, int> categoryCounts,
   ) {
     final scheme = theme.colorScheme;
 
     return FrostedPanel(
       radius: 34,
       padding: const EdgeInsets.all(18),
+      color: theme.colorScheme.surface.withValues(alpha: 0.46),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -596,7 +648,7 @@ class _TabKnowledgeState extends State<TabKnowledge> with RouteAware {
             children: [
               Expanded(
                 child: Text(
-                  'Search and Filter',
+                  'Search Knowledge Bank',
                   style: theme.textTheme.titleLarge?.copyWith(
                     color: scheme.onSurface,
                     fontWeight: FontWeight.w900,
@@ -624,40 +676,11 @@ class _TabKnowledgeState extends State<TabKnowledge> with RouteAware {
           ),
           const SizedBox(height: 6),
           Text(
-            'Search by problem, topic, or answer text, then narrow the study set by category.',
+            'Search by problem, topic, or answer text to find quick field guidance.',
             style: theme.textTheme.bodySmall,
           ),
           const SizedBox(height: 16),
           _buildSearchInput(theme),
-          const SizedBox(height: 16),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              FilterChip(
-                selected: _selectedCategory == null,
-                label: const Text('All topics'),
-                onSelected: (_) => setState(() => _selectedCategory = null),
-              ),
-              ...categories.map(
-                (category) => FilterChip(
-                  selected: _selectedCategory == category,
-                  label: Text('$category (${categoryCounts[category] ?? 0})'),
-                  avatar: Icon(
-                    KnowledgeQaService.categoryIcons[category] ??
-                        Icons.auto_stories_rounded,
-                    size: 16,
-                  ),
-                  onSelected: (_) {
-                    setState(() {
-                      _selectedCategory =
-                          _selectedCategory == category ? null : category;
-                    });
-                  },
-                ),
-              ),
-            ],
-          ),
         ],
       ),
     );
@@ -715,6 +738,7 @@ class _TabKnowledgeState extends State<TabKnowledge> with RouteAware {
     return FrostedPanel(
       radius: 32,
       padding: const EdgeInsets.all(28),
+      color: theme.colorScheme.surface.withValues(alpha: 0.46),
       child: Column(
         children: [
           Container(
@@ -739,7 +763,7 @@ class _TabKnowledgeState extends State<TabKnowledge> with RouteAware {
           ),
           const SizedBox(height: 8),
           Text(
-            'Try a broader term, clear the category filter, or switch the language selection for more guidance.',
+            'Try a broader term or switch the language selection for more guidance.',
             textAlign: TextAlign.center,
             style: theme.textTheme.bodyMedium,
           ),
@@ -1143,6 +1167,7 @@ class _LearningTrackCard extends StatelessWidget {
     return FrostedPanel(
       radius: 30,
       padding: const EdgeInsets.all(18),
+      color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.46),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1244,6 +1269,7 @@ class _ReferenceLibraryCard extends StatelessWidget {
     return FrostedPanel(
       radius: 30,
       padding: const EdgeInsets.all(18),
+      color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.46),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
