@@ -16,6 +16,7 @@
     "editor.fontWeight": "normal",
     "workbench.statusBar.experimental.fontSize": 14,
     "chat.editor.fontSize": 16,
-    "chat.fontSize": 16
+    "chat.fontSize": 16,
+    "avdmanager.emulator": "c:\\Users\\punkt\\AppData\\Local\\Android\\Sdk\\cmdline-tools\\latest\\bin\\avdmanager.bat"
 
 }

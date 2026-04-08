@@ -10,6 +10,8 @@ import '../providers/app_settings_provider.dart';
 import '../providers/data_provider.dart';
 import '../services/app_localization_service.dart';
 import '../services/app_route_observer.dart';
+import '../services/market_price_sync_service.dart';
+import '../services/weekly_price_refresh_service.dart';
 import '../themes/app_visuals.dart';
 import 'frm_add_def_sup_screen.dart';
 import 'market_price_list_screen.dart';
@@ -41,6 +43,7 @@ class _TabSuppliesState extends State<TabSupplies>
     _clearSelections();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _playScreenOpenAudioIfNeeded();
+      unawaited(_warmUpPriceListData());
     });
   }
 
@@ -106,6 +109,22 @@ class _TabSuppliesState extends State<TabSupplies>
     );
   }
 
+  Future<void> _warmUpPriceListData() async {
+    final dataProvider = Provider.of<DataProvider>(context, listen: false);
+
+    if (dataProvider.defSups.isEmpty) {
+      await dataProvider.loadDefSupsFromDb();
+    }
+
+    final cachedSnapshot =
+        await MarketPriceSyncService.instance.loadCachedSnapshot();
+    if (cachedSnapshot == null) {
+      unawaited(MarketPriceSyncService.instance.syncLatestPriceCache());
+    }
+
+    unawaited(WeeklyPriceRefreshService.instance.refreshIfDue(dataProvider));
+  }
+
   @override
   void didPushNext() => unawaited(_stopKnowledgeAudioIfNeeded());
   @override
@@ -121,6 +140,8 @@ class _TabSuppliesState extends State<TabSupplies>
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final showDetails =
+        Provider.of<AppSettingsProvider>(context).showDetailedDescriptions;
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -130,7 +151,7 @@ class _TabSuppliesState extends State<TabSupplies>
               theme.brightness == Brightness.dark,
             ),
             child: Image.asset(
-              'lib/assets/images/images.jfif',
+              'lib/assets/images/4.jpg',
               fit: BoxFit.cover,
             ),
           ),
@@ -151,7 +172,7 @@ class _TabSuppliesState extends State<TabSupplies>
             children: [
               _buildPriceReferencePanel(theme),
               const SizedBox(height: 12),
-              Expanded(child: _buildBodyPanel(theme)),
+              Expanded(child: _buildBodyPanel(theme, showDetails: showDetails)),
             ],
           ),
         ),
@@ -212,12 +233,7 @@ class _TabSuppliesState extends State<TabSupplies>
               ),
               const SizedBox(width: 10),
               FilledButton.tonalIcon(
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const MarketPriceListScreen(),
-                  ),
-                ),
+                onPressed: _openMarketPriceList,
                 icon: const Icon(Icons.open_in_new_rounded, size: 16),
                 label: Text(context.tr('Open')),
                 style: FilledButton.styleFrom(
@@ -234,7 +250,69 @@ class _TabSuppliesState extends State<TabSupplies>
               ),
             ],
           ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _buildPriceFilterButton(
+                theme,
+                label: context.tr('Fertilizer'),
+                icon: Icons.spa_rounded,
+                onTap: () => _openMarketPriceList('Fertilizer'),
+              ),
+              _buildPriceFilterButton(
+                theme,
+                label: context.tr('Herbicide'),
+                icon: Icons.grass_rounded,
+                onTap: () => _openMarketPriceList('Herbicide'),
+              ),
+              _buildPriceFilterButton(
+                theme,
+                label: context.tr('Pesticide'),
+                icon: Icons.bug_report_rounded,
+                onTap: () => _openMarketPriceList('Pesticide'),
+              ),
+            ],
+          ),
         ],
+      ),
+    );
+  }
+
+  void _openMarketPriceList([String initialCatalogFilter = 'All']) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => MarketPriceListScreen(
+          initialCatalogFilter: initialCatalogFilter,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPriceFilterButton(
+    ThemeData theme, {
+    required String label,
+    required IconData icon,
+    required VoidCallback onTap,
+  }) {
+    final scheme = theme.colorScheme;
+
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      icon: Icon(icon, size: 16),
+      label: Text(label),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppVisuals.textForest,
+        side: BorderSide(
+          color: scheme.outline.withValues(alpha: 0.22),
+        ),
+        backgroundColor: scheme.surface.withValues(alpha: 0.56),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
       ),
     );
   }
@@ -272,7 +350,7 @@ class _TabSuppliesState extends State<TabSupplies>
     );
   }
 
-  Widget _buildBodyPanel(ThemeData theme) {
+  Widget _buildBodyPanel(ThemeData theme, {required bool showDetails}) {
     return FrostedPanel(
       radius: 32,
       padding: const EdgeInsets.all(12),
@@ -330,7 +408,7 @@ class _TabSuppliesState extends State<TabSupplies>
                             onSelectedSupplyChanged: (supplyId) {
                               setState(() {
                                 _selectedSupplyId = supplyId;
-                                });
+                              });
                             },
                           ),
                           const EquipmentTab(),
@@ -346,6 +424,8 @@ class _TabSuppliesState extends State<TabSupplies>
 
   Widget _buildCatalogBrowser(ThemeData theme) {
     final scheme = theme.colorScheme;
+    final showDetails =
+        context.watch<AppSettingsProvider>().showDetailedDescriptions;
     final dataProvider = context.watch<DataProvider>();
     final groupedSupplies = <String, List<DefSup>>{};
 
@@ -376,16 +456,18 @@ class _TabSuppliesState extends State<TabSupplies>
                         color: AppVisuals.primaryGold,
                       ),
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      context.tr(
-                        'Reference the supply catalog in its own list before selecting items for procurement.',
+                    if (showDetails) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        context.tr(
+                          'Reference the supply catalog in its own list before selecting items for procurement.',
+                        ),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AppVisuals.textForestMuted,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: AppVisuals.textForestMuted,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -553,9 +635,10 @@ class _TabSuppliesState extends State<TabSupplies>
                                               fontWeight: FontWeight.w900,
                                             ),
                                           ),
-                                          if (item.description
-                                              .trim()
-                                              .isNotEmpty)
+                                          if (showDetails &&
+                                              item.description
+                                                  .trim()
+                                                  .isNotEmpty)
                                             Padding(
                                               padding:
                                                   const EdgeInsets.only(top: 4),

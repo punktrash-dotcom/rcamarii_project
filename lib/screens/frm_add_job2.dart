@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_audio_provider.dart';
@@ -18,7 +19,9 @@ import '../models/supply_model.dart';
 import '../services/database_helper.dart';
 import '../services/app_route_observer.dart';
 import '../services/transaction_log_service.dart';
+import '../utils/app_number_input_formatter.dart';
 import '../utils/validation_utils.dart';
+import '../widgets/focus_tooltip.dart';
 import '../widgets/searchable_dropdown.dart';
 import 'scr_workers.dart';
 
@@ -50,6 +53,7 @@ class _FrmAddJob2State extends State<FrmAddJob2> with RouteAware {
 
   AppSettingsProvider? _appSettings;
   AppAudioProvider? _appAudio;
+  static final _numberInputFormatter = AppNumberInputFormatter();
 
   // Controllers
   final Map<String, TextEditingController> _controllers = {
@@ -207,8 +211,11 @@ class _FrmAddJob2State extends State<FrmAddJob2> with RouteAware {
       _controllers['Total']!.text = '0.00';
       return;
     }
-    double cost = double.tryParse(_controllers['Cost']!.text) ?? 0.0;
-    double duration = double.tryParse(_controllers['Duration']!.text) ?? 0.0;
+    double cost =
+        double.tryParse(_controllers['Cost']!.text.replaceAll(',', '')) ?? 0.0;
+    double duration =
+        double.tryParse(_controllers['Duration']!.text.replaceAll(',', '')) ??
+            0.0;
     _controllers['Total']!.text = (cost * duration).toStringAsFixed(2);
   }
 
@@ -336,10 +343,12 @@ class _FrmAddJob2State extends State<FrmAddJob2> with RouteAware {
 
     final costAmount = _isOwnedEquipmentJob
         ? 0.0
-        : double.tryParse(_controllers['Cost']!.text) ?? 0.0;
+        : double.tryParse(_controllers['Cost']!.text.replaceAll(',', '')) ??
+            0.0;
     final totalAmount = _isOwnedEquipmentJob
         ? 0.0
-        : double.tryParse(_controllers['Total']!.text) ?? 0.0;
+        : double.tryParse(_controllers['Total']!.text.replaceAll(',', '')) ??
+            0.0;
     final trackerCategory = _rdo == 'Equipment' ? 'Equipment' : 'Labor';
     final trackerNote = _controllers['Note']!.text.trim();
     final activityNote = trackerNote.isNotEmpty ? trackerNote : null;
@@ -357,7 +366,9 @@ class _FrmAddJob2State extends State<FrmAddJob2> with RouteAware {
       costType: _rdo == 'Manual'
           ? (_selectedManualWorkDef?.modeOfWork ?? 'Manual')
           : (_selectedRntl ?? 'Manual'),
-      duration: double.tryParse(_controllers['Duration']!.text) ?? 0.0,
+      duration:
+          double.tryParse(_controllers['Duration']!.text.replaceAll(',', '')) ??
+              0.0,
       cost: costAmount,
       total: totalAmount,
       worker: _controllers['Worker']!.text,
@@ -619,14 +630,34 @@ class _FrmAddJob2State extends State<FrmAddJob2> with RouteAware {
           ],
           if (_rdo == 'Equipment') ...[
             const SizedBox(height: 20),
-            SearchableDropdownFormField<String>(
-              initialValue: _selectedRntl,
-              decoration: const InputDecoration(labelText: 'STATUS'),
-              items: const [
-                DropdownMenuItem(value: 'Rental', child: Text('Rental')),
-                DropdownMenuItem(value: 'Owned', child: Text('Owned'))
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'STATUS',
+                  style: Theme.of(context).textTheme.labelMedium,
+                ),
+                RadioGroup<String>(
+                  groupValue: _selectedRntl,
+                  onChanged: _handleRentalSelection,
+                  child: Column(
+                    children: const [
+                      RadioListTile<String>(
+                        value: 'Rental',
+                        title: Text('Rental'),
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                      RadioListTile<String>(
+                        value: 'Owned',
+                        title: Text('Owned'),
+                        dense: true,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                    ],
+                  ),
+                ),
               ],
-              onChanged: _handleRentalSelection,
             ),
           ]
         ],
@@ -1121,25 +1152,32 @@ class _FrmAddJob2State extends State<FrmAddJob2> with RouteAware {
       {bool isNumeric = false, bool isReadOnly = false, FocusNode? nextNode}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
-      child: TextFormField(
-        stylusHandwritingEnabled: false,
-        controller: _controllers[label],
-        focusNode: _focusNodes[label],
-        readOnly: isReadOnly,
-        keyboardType: isNumeric ? TextInputType.number : TextInputType.text,
-        onChanged: (_) => _updateCalculations(),
-        decoration: InputDecoration(labelText: label.toUpperCase()),
-        onFieldSubmitted: (_) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
-              if (nextNode != null) {
-                FocusScope.of(context).requestFocus(nextNode);
-              } else if (label == 'Note') {
-                _saveAction();
+      child: FocusTooltip(
+        message: isReadOnly ? '$label is auto-computed.' : 'Enter $label.',
+        child: TextFormField(
+          stylusHandwritingEnabled: false,
+          controller: _controllers[label],
+          focusNode: _focusNodes[label],
+          readOnly: isReadOnly,
+          keyboardType: isNumeric
+              ? const TextInputType.numberWithOptions(decimal: true)
+              : TextInputType.text,
+          inputFormatters:
+              isNumeric ? <TextInputFormatter>[_numberInputFormatter] : null,
+          onChanged: (_) => _updateCalculations(),
+          decoration: InputDecoration(labelText: label.toUpperCase()),
+          onFieldSubmitted: (_) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                if (nextNode != null) {
+                  FocusScope.of(context).requestFocus(nextNode);
+                } else if (label == 'Note') {
+                  _saveAction();
+                }
               }
-            }
-          });
-        },
+            });
+          },
+        ),
       ),
     );
   }

@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import '../utils/app_text_normalizer.dart';
+
 @immutable
 class Equipment {
   final String? id;
@@ -35,12 +37,12 @@ class Equipment {
   Map<String, dynamic> toMap() {
     return {
       'EqID': id,
-      'Type': type,
-      'Name': name,
+      'Type': AppTextNormalizer.titleCase(type),
+      'Name': AppTextNormalizer.titleCase(name),
       'Quantity': quantity,
       'Cost': cost,
       'Total': total,
-      'Note': note,
+      'Note': AppTextNormalizer.nullableSentenceCase(note),
     };
   }
 

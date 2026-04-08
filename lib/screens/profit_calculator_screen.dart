@@ -2,27 +2,30 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../models/delivery_model.dart';
-import '../models/ftracker_model.dart';
-import '../models/sugarcane_profit_model.dart';
+import '../models/farm_model.dart';
 import '../providers/app_audio_provider.dart';
 import '../providers/app_settings_provider.dart';
 import '../providers/delivery_provider.dart';
-import '../providers/ftracker_provider.dart';
+import '../providers/farm_provider.dart';
 import '../providers/sugarcane_profit_provider.dart';
+import '../services/app_localization_service.dart';
 import '../services/app_properties_store.dart';
 import '../services/app_route_observer.dart';
 import '../themes/app_visuals.dart';
+import '../utils/app_number_input_formatter.dart';
+import '../widgets/focus_tooltip.dart';
 import '../widgets/searchable_dropdown.dart';
+import 'absfi_share_guide_screen.dart';
+import 'farm_harvest_board_screen.dart';
 import 'harvest_profit_calculator_screen.dart';
 
 enum ProfitSourceMode { manualTrial, recentDelivery, pendingDelivery }
 
-const _standaloneProfitSourceLabel = 'Standalone profit record';
+const _standaloneProfitSourceLabel = 'Standalone trial scenario';
 
 class ProfitCalculatorScreen extends StatefulWidget {
   const ProfitCalculatorScreen({super.key});
@@ -33,6 +36,7 @@ class ProfitCalculatorScreen extends StatefulWidget {
 
 class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
     with RouteAware {
+  static const double _absfiPlanterShare = 65.34;
   static const _lastTransactionKey = 'profit_calculator_last_transaction_v1';
   static const _screenBackground = AppVisuals.fieldMist;
   static const _surfaceCard = AppVisuals.cloudGlass;
@@ -41,8 +45,7 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
   static const _accentSecondary = AppVisuals.accentChartBlue;
   static const _accentTertiary = AppVisuals.primaryGold;
   static const _accentError = Color(0xFFFF6B6B);
-  static final _numberInputFormatter =
-      FilteringTextInputFormatter.allow(RegExp(r'[0-9,\.]'));
+  static final _numberInputFormatter = AppNumberInputFormatter();
 
   final TextEditingController _netTonsCaneController = TextEditingController();
   final TextEditingController _lkgPerTcController = TextEditingController();
@@ -68,6 +71,10 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
   AppSettingsProvider? _appSettings;
   bool _playedScreenOpenAudio = false;
   bool _isRouteObserverSubscribed = false;
+
+  bool get _showInteractionDetails =>
+      Provider.of<AppSettingsProvider>(context, listen: false)
+          .showDetailedDescriptions;
 
   NumberFormat get _currency =>
       Provider.of<AppSettingsProvider?>(context, listen: false)
@@ -204,21 +211,6 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
     FocusScope.of(context).unfocus();
   }
 
-  Future<void> _scrollToTop() async {
-    if (!_scrollController.hasClients) {
-      return;
-    }
-    if (_scrollController.position.pixels <= 0) {
-      return;
-    }
-
-    await _scrollController.animateTo(
-      0,
-      duration: const Duration(milliseconds: 280),
-      curve: Curves.easeOutCubic,
-    );
-  }
-
   String _cleanNumber(String input) => input.replaceAll(',', '').trim();
 
   double _parseNumber(String input) =>
@@ -226,12 +218,6 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
 
   bool get _hasInput => _controllers
       .any((controller) => _cleanNumber(controller.text).isNotEmpty);
-  bool get _hasCompleteProfitRecord =>
-      _cleanNumber(_netTonsCaneController.text).isNotEmpty &&
-      _cleanNumber(_lkgPerTcController.text).isNotEmpty &&
-      _cleanNumber(_planterShareController.text).isNotEmpty &&
-      _cleanNumber(_sugarPricePerLkgController.text).isNotEmpty &&
-      _cleanNumber(_productionCostsController.text).isNotEmpty;
 
   Future<void> _loadSavedEntry() async {
     final raw = await _store.getString(_lastTransactionKey);
@@ -431,11 +417,39 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
     return value.toStringAsFixed(2);
   }
 
+  String _extractTaggedValue(String? note, String tag) {
+    final raw = note?.trim() ?? '';
+    if (raw.isEmpty) {
+      return '';
+    }
+    for (final part in raw.split('|')) {
+      final trimmed = part.trim();
+      if (trimmed.toLowerCase().startsWith('${tag.toLowerCase()}:')) {
+        return trimmed.substring(tag.length + 1).trim();
+      }
+    }
+    return '';
+  }
+
+  bool _usesAbsfiShare(Delivery delivery) {
+    return _extractTaggedValue(delivery.note, 'Company').trim().toUpperCase() ==
+        'ABSFI';
+  }
+
+  void _openAbsfiGuide() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const AbsfiShareGuideScreen()),
+    );
+  }
+
   void _applyDeliverySource(Delivery delivery) {
     _isApplyingSavedEntry = true;
     try {
       if (delivery.quantity > 0) {
         _netTonsCaneController.text = _formatInputNumber(delivery.quantity);
+      }
+      if (_usesAbsfiShare(delivery)) {
+        _planterShareController.text = _formatInputNumber(_absfiPlanterShare);
       }
     } finally {
       _isApplyingSavedEntry = false;
@@ -489,186 +503,6 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
     final status = pending ? 'Pending' : 'Recent';
     final weightLabel = _deliveryWeightLabel(delivery);
     return '${delivery.name} | ${_deliveryTrackingLabel(delivery)} | ${_formatSourceDate(delivery.date)} | $weightLabel | $status';
-  }
-
-  Ftracker _buildTrackerRecord(
-    SugarcaneProfit record, {
-    Delivery? selectedDelivery,
-  }) {
-    final farmType = (selectedDelivery?.type.trim().isNotEmpty ?? false)
-        ? selectedDelivery!.type.trim()
-        : 'Sugarcane';
-    final farmName = record.farmName.trim().isNotEmpty
-        ? record.farmName.trim()
-        : _standaloneProfitSourceLabel;
-
-    return Ftracker(
-      date: record.deliveryDate,
-      type: 'Income',
-      category: 'Farm',
-      name: '$farmType | $farmName',
-      amount: record.totalRevenue,
-      note: [
-        'Profit calculator revenue entry',
-        'Net profit: ${_currency.format(record.netProfit)}',
-        if (record.note?.trim().isNotEmpty ?? false) record.note!.trim(),
-      ].join(' | '),
-    );
-  }
-
-  Future<void> _saveProfitRecord(
-    SugarcaneProfitProvider profitProvider,
-    Delivery? selectedDelivery,
-  ) async {
-    if (!_hasCompleteProfitRecord) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Complete the required harvest, pricing, and production cost fields first.',
-          ),
-        ),
-      );
-      return;
-    }
-
-    final deliveryProvider =
-        Provider.of<DeliveryProvider?>(context, listen: false);
-    final linkedIds = profitProvider.linkedDeliveryIds;
-    final allDeliveries =
-        deliveryProvider?.sugarcaneDeliveries ?? const <Delivery>[];
-    final recentDeliveries = _filterSugarcaneDeliveries(
-      allDeliveries,
-      linkedIds,
-      pending: false,
-    );
-    final pendingDeliveries = _filterSugarcaneDeliveries(
-      allDeliveries,
-      linkedIds,
-      pending: true,
-    );
-    final hasQueuedDeliveries =
-        recentDeliveries.isNotEmpty || pendingDeliveries.isNotEmpty;
-    final effectiveSourceMode = _resolveQueueSourceMode(
-      recentDeliveries: recentDeliveries,
-      pendingDeliveries: pendingDeliveries,
-    );
-
-    if (hasQueuedDeliveries && selectedDelivery == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Queued sugarcane deliveries are waiting. Match this computation to the correct farm and tracking / ticket number before saving.',
-          ),
-        ),
-      );
-      return;
-    }
-
-    final breakdown = _breakdown;
-    final now = DateTime.now();
-    final sourceType = selectedDelivery == null ? 'manual' : 'delivery';
-    final sourceStatus = selectedDelivery == null
-        ? 'manual'
-        : switch (effectiveSourceMode) {
-            ProfitSourceMode.manualTrial => 'manual',
-            ProfitSourceMode.recentDelivery => 'recent',
-            ProfitSourceMode.pendingDelivery => 'pending',
-          };
-    final isPendingSource =
-        effectiveSourceMode == ProfitSourceMode.pendingDelivery;
-    final sourceLabel = selectedDelivery == null
-        ? _standaloneProfitSourceLabel
-        : _deliveryDropdownLabel(
-            selectedDelivery,
-            pending: isPendingSource,
-          );
-    final farmName = selectedDelivery?.name ?? _standaloneProfitSourceLabel;
-    final sourceNote = selectedDelivery?.note;
-
-    final record = SugarcaneProfit(
-      deliveryId: selectedDelivery?.delId,
-      sourceType: sourceType,
-      sourceLabel: sourceLabel,
-      sourceStatus: sourceStatus,
-      farmName: farmName,
-      deliveryDate: selectedDelivery?.date ?? now,
-      netTonsCane: _parseNumber(_netTonsCaneController.text),
-      lkgPerTc: _parseNumber(_lkgPerTcController.text),
-      planterShare: _parseNumber(_planterShareController.text),
-      sugarPricePerLkg: _parseNumber(_sugarPricePerLkgController.text),
-      molassesKg: _parseNumber(_molassesKgController.text),
-      molassesPricePerKg: _parseNumber(_molassesPricePerKgController.text),
-      productionCosts: _parseNumber(_productionCostsController.text),
-      sugarProceeds: breakdown.sugarProceeds,
-      molassesProceeds: breakdown.molassesProceeds,
-      totalRevenue: breakdown.totalRevenue,
-      netProfit: breakdown.netProfit,
-      note: sourceNote,
-      createdAt: now,
-    );
-
-    final trackerRecord = _buildTrackerRecord(
-      record,
-      selectedDelivery: selectedDelivery,
-    );
-    final savedEntry = _captureCurrentEntry(
-      breakdown: breakdown,
-      selectedDelivery: selectedDelivery,
-    );
-    final ftrackerProvider =
-        Provider.of<FtrackerProvider?>(context, listen: false);
-
-    try {
-      await profitProvider.saveProfitRecord(
-        record,
-        trackerRecord: trackerRecord,
-      );
-      await _persistSavedEntry(savedEntry);
-      if (ftrackerProvider != null) {
-        await ftrackerProvider.loadFtrackerRecords();
-      }
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(
-          SnackBar(
-            content: Text('Unable to save the profit record: $error'),
-          ),
-        );
-      return;
-    }
-
-    if (!mounted) {
-      return;
-    }
-
-    setState(() {
-      _lastSavedProjection = breakdown;
-      if (selectedDelivery != null) {
-        _selectedDeliveryId = null;
-      }
-    });
-    _clearAll(clearSavedProjection: false);
-    await _scrollToTop();
-
-    if (!mounted) {
-      return;
-    }
-
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(
-            selectedDelivery == null
-                ? 'Profit record saved and revenue was added to FTracker.'
-                : 'Profit saved, revenue was added to FTracker, and the selected delivery left the queue.',
-          ),
-        ),
-      );
   }
 
   ThemeData _buildCalculatorTheme(ThemeData baseTheme) {
@@ -879,7 +713,7 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
                               ),
                               const SizedBox(height: 16),
                               Text(
-                                'Live estimate updates as you type. Use Store details to keep a reusable draft, then load it later and edit only the fields that changed.',
+                                'Live simulation updates as you type. Use Store details to keep reusable trial assumptions. Use the Harvest Board for official season calculation and recording.',
                                 style: theme.textTheme.bodySmall?.copyWith(
                                   color:
                                       scheme.onSurface.withValues(alpha: 0.72),
@@ -956,7 +790,7 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'LIVE SUGARCANE ESTIMATE',
+          'SUGARCANE TRIAL SIMULATOR',
           style: theme.textTheme.bodySmall?.copyWith(
             letterSpacing: 1.4,
             fontWeight: FontWeight.w800,
@@ -965,7 +799,7 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
         ),
         const SizedBox(height: 4),
         Text(
-          'Profit Calculator',
+          'Profit Trial Tools',
           style: theme.textTheme.headlineMedium?.copyWith(
             fontSize: 24,
             fontWeight: FontWeight.w900,
@@ -1000,6 +834,15 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
             children: [
               backButton,
               const Spacer(),
+              Material(
+                color: Colors.transparent,
+                child: IconButton(
+                  tooltip: 'ABSFI share guide',
+                  onPressed: _openAbsfiGuide,
+                  icon: const Icon(Icons.help_outline_rounded),
+                ),
+              ),
+              const SizedBox(width: 8),
               locationBadge,
             ],
           ),
@@ -1011,6 +854,11 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
               backButton,
               const SizedBox(width: 14),
               Expanded(child: titleBlock),
+              IconButton(
+                tooltip: 'ABSFI share guide',
+                onPressed: _openAbsfiGuide,
+                icon: const Icon(Icons.help_outline_rounded),
+              ),
               const SizedBox(width: 12),
               locationBadge,
             ],
@@ -1031,19 +879,19 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
           children: [
             ChoiceChip(
               key: const ValueKey('profitCalculator.crop.sugarcane'),
-              label: const Text('Sugarcane'),
+              label: Text(context.tr('Sugarcane')),
               selected: true,
               onSelected: (_) {},
             ),
             ChoiceChip(
               key: const ValueKey('profitCalculator.crop.rice'),
-              label: const Text('Rice'),
+              label: Text(context.tr('Rice')),
               selected: false,
               onSelected: (_) => _openHarvestCalculator(HarvestCrop.rice),
             ),
             ChoiceChip(
               key: const ValueKey('profitCalculator.crop.corn'),
-              label: const Text('Corn'),
+              label: Text(context.tr('Corn')),
               selected: false,
               onSelected: (_) => _openHarvestCalculator(HarvestCrop.corn),
             ),
@@ -1065,6 +913,63 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
     setState(() {});
   }
 
+  Farm? _resolveOfficialFarm(Delivery? linkedDelivery) {
+    final farmProvider = Provider.of<FarmProvider>(context, listen: false);
+    final normalizedTargetName =
+        (linkedDelivery?.name ?? '').trim().toLowerCase();
+
+    Farm? matchingFarm;
+    if (normalizedTargetName.isNotEmpty) {
+      for (final farm in farmProvider.farms) {
+        final farmName = farm.name.trim().toLowerCase();
+        if (farmName == normalizedTargetName &&
+            farm.type.toLowerCase().contains('sugar')) {
+          matchingFarm = farm;
+          break;
+        }
+      }
+    }
+
+    final selectedFarm = farmProvider.selectedFarm;
+    if (matchingFarm == null &&
+        selectedFarm != null &&
+        selectedFarm.type.toLowerCase().contains('sugar')) {
+      matchingFarm = selectedFarm;
+    }
+
+    return matchingFarm;
+  }
+
+  Future<void> _openOfficialHarvestBoard(Delivery? linkedDelivery) async {
+    final farmProvider = Provider.of<FarmProvider>(context, listen: false);
+    await farmProvider.refreshFarms();
+    if (!mounted) {
+      return;
+    }
+
+    final officialFarm = _resolveOfficialFarm(linkedDelivery);
+    if (officialFarm == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Open the matching sugarcane farm in the Estate tab, then use its Harvest Board for official recording.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => FarmHarvestBoardScreen(farm: officialFarm),
+      ),
+    );
+    if (!mounted) {
+      return;
+    }
+    setState(() {});
+  }
+
   Widget _buildHeroCard(
     ThemeData theme,
     _ProfitBreakdown breakdown,
@@ -1072,6 +977,7 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
     bool isLoss, {
     bool showSavedProjection = false,
   }) {
+    final showDetails = _showInteractionDetails;
     final scheme = theme.colorScheme;
     final hasProjection = hasInput || showSavedProjection;
     final gradientColors = isLoss
@@ -1182,14 +1088,17 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
                   fontWeight: FontWeight.w900,
                 ),
               ),
-              const SizedBox(height: 14),
-              Text(
-                statusMessage,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: heroTextColor.withValues(alpha: 0.85),
+              if (showDetails) ...[
+                const SizedBox(height: 14),
+                Text(
+                  statusMessage,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: heroTextColor.withValues(alpha: 0.85),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 18),
+                const SizedBox(height: 18),
+              ] else
+                const SizedBox(height: 14),
               Wrap(
                 spacing: 10,
                 runSpacing: 10,
@@ -1397,6 +1306,7 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
     required DeliveryProvider? deliveryProvider,
     required SugarcaneProfitProvider? profitProvider,
   }) {
+    final showDetails = _showInteractionDetails;
     final scheme = theme.colorScheme;
     const spacing = 14.0;
     final columns = width >= 1080 ? 2 : 1;
@@ -1453,7 +1363,7 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
               ],
             ],
           ),
-          if (_savedEntry != null) ...[
+          if (_savedEntry != null && showDetails) ...[
             const SizedBox(height: 12),
             Text(
               'Stored details saved ${DateFormat('MMM d, h:mm a').format(_savedEntry!.savedAt)}. Load them any time and only revise the fields that moved.',
@@ -1571,37 +1481,38 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
               ),
             ],
           ),
-          if (profitProvider != null) ...[
+          if (showDetails) ...[
             const SizedBox(height: 20),
             Text(
-              'Save the completed calculation here. If a queued sugarcane delivery is waiting, link the correct farm and tracking / ticket number first so the queue stays accurate.',
+              'This screen is now for trial or simulated harvest inputs only. Open the Harvest Board to calculate and record the official season result for the farm.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: scheme.onSurface.withValues(alpha: 0.70),
                 height: 1.5,
               ),
             ),
             const SizedBox(height: 14),
-            FilledButton.icon(
-              key: const ValueKey('profitCalculator.saveProfitRecord'),
-              onPressed: () {
-                final linkedDelivery = _findLinkedDeliveryForCurrentMode(
-                  deliveryProvider,
-                  profitProvider,
-                );
-                _saveProfitRecord(profitProvider, linkedDelivery);
-              },
-              icon: const Icon(Icons.save_alt_rounded),
-              label: Text(
-                _findLinkedDeliveryForCurrentMode(
-                          deliveryProvider,
-                          profitProvider,
-                        ) ==
-                        null
-                    ? 'Save Profit Record'
-                    : 'Save Linked Delivery Profit',
-              ),
+          ] else
+            const SizedBox(height: 20),
+          FilledButton.icon(
+            key: const ValueKey('profitCalculator.openOfficialHarvestBoard'),
+            onPressed: () {
+              final linkedDelivery = _findLinkedDeliveryForCurrentMode(
+                deliveryProvider,
+                profitProvider,
+              );
+              _openOfficialHarvestBoard(linkedDelivery);
+            },
+            icon: const Icon(Icons.ssid_chart_rounded),
+            label: Text(
+              _findLinkedDeliveryForCurrentMode(
+                        deliveryProvider,
+                        profitProvider,
+                      ) ==
+                      null
+                  ? 'Open Official Harvest Board'
+                  : 'Open Linked Farm Harvest Board',
             ),
-          ],
+          ),
         ],
       ),
     );
@@ -1761,7 +1672,7 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Queued sugarcane deliveries waiting for profit entry',
+                      'Queued sugarcane deliveries for trial comparison',
                       style: theme.textTheme.titleLarge?.copyWith(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
@@ -1783,7 +1694,7 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
           const SizedBox(height: 16),
           if (deliveryProvider == null || profitProvider == null)
             Text(
-              'Delivery sync is unavailable in this context. Save will stay as a standalone profit record.',
+              'Delivery sync is unavailable in this context. You can still run a standalone trial scenario here.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: scheme.onSurface.withValues(alpha: 0.70),
                 height: 1.5,
@@ -1793,7 +1704,7 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
             const LinearProgressIndicator()
           else if (!hasQueuedDeliveries)
             Text(
-              'No recent or pending sugarcane deliveries are waiting right now. You can still save this as a standalone profit record.',
+              'No recent or pending sugarcane deliveries are waiting right now. You can still run a standalone trial scenario here.',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: scheme.onSurface.withValues(alpha: 0.70),
                 height: 1.5,
@@ -1822,8 +1733,8 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
                   Expanded(
                     child: Text(
                       queuedCount == 1
-                          ? '1 sugarcane delivery is waiting. Match this computation to the correct farm and tracking / ticket number before saving.'
-                          : '$queuedCount sugarcane deliveries are waiting. Match this computation to the correct farm and tracking / ticket number before saving.',
+                          ? '1 sugarcane delivery is waiting. Match this trial to the correct farm and tracking / ticket number before opening the official harvest board.'
+                          : '$queuedCount sugarcane deliveries are waiting. Match this trial to the correct farm and tracking / ticket number before opening the official harvest board.',
                       style: theme.textTheme.bodySmall?.copyWith(
                         color: scheme.onSurface,
                         fontWeight: FontWeight.w600,
@@ -1895,7 +1806,7 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
               Padding(
                 padding: const EdgeInsets.only(top: 10),
                 child: Text(
-                  'Pick the matching farm and tracking / ticket number so this profit record is attached to the correct queued transaction.',
+                  'Pick the matching farm and tracking / ticket number so this trial lines up with the correct queued transaction before you continue to the official harvest board.',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: scheme.onSurface.withValues(alpha: 0.72),
                     height: 1.5,
@@ -1979,6 +1890,7 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
     required String subtitle,
     required List<Widget> fields,
   }) {
+    final showDetails = _showInteractionDetails;
     final scheme = theme.colorScheme;
 
     return Container(
@@ -2028,13 +1940,15 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
                         color: scheme.onSurface,
                       ),
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      subtitle,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: scheme.onSurface.withValues(alpha: 0.72),
+                    if (showDetails) ...[
+                      const SizedBox(height: 3),
+                      Text(
+                        subtitle,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: scheme.onSurface.withValues(alpha: 0.72),
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -2082,23 +1996,26 @@ class _ProfitCalculatorScreenState extends State<ProfitCalculatorScreen>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        TextField(
-          stylusHandwritingEnabled: false,
-          key: ValueKey(fieldKey),
-          controller: controller,
-          keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          inputFormatters: [_numberInputFormatter],
-          style: const TextStyle(
-            color: AppVisuals.textForest,
-            fontWeight: FontWeight.w600,
-          ),
-          cursorColor: AppVisuals.textForest,
-          decoration: InputDecoration(
-            labelText: label,
-            hintText: showSavedSuggestion ? savedHint : hint,
-            prefixText: prefix,
-            suffixText: suffix,
-            prefixIcon: Icon(icon, size: 18),
+        FocusTooltip(
+          message: 'Enter $label.',
+          child: TextField(
+            stylusHandwritingEnabled: false,
+            key: ValueKey(fieldKey),
+            controller: controller,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            inputFormatters: [_numberInputFormatter],
+            style: const TextStyle(
+              color: AppVisuals.textForest,
+              fontWeight: FontWeight.w600,
+            ),
+            cursorColor: AppVisuals.textForest,
+            decoration: InputDecoration(
+              labelText: label,
+              hintText: showSavedSuggestion ? savedHint : hint,
+              prefixText: prefix,
+              suffixText: suffix,
+              prefixIcon: Icon(icon, size: 18),
+            ),
           ),
         ),
         if (showSavedSuggestion) ...[

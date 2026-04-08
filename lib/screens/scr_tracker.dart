@@ -10,7 +10,6 @@ import '../providers/app_audio_provider.dart';
 import '../providers/app_settings_provider.dart';
 import '../providers/ftracker_provider.dart';
 import '../providers/profile_provider.dart';
-import '../providers/voice_command_provider.dart';
 import '../services/app_defaults_service.dart';
 import '../services/app_localization_service.dart';
 import '../services/app_properties_store.dart';
@@ -29,9 +28,13 @@ class ScrTracker extends StatefulWidget {
 
 class _ScrTrackerState extends State<ScrTracker> with RouteAware {
   final AppPropertiesStore _store = AppPropertiesStore.instance;
+  static const String _trackerBackgroundAsset =
+      'lib/assets/images/background.png';
   int _selectedIndex = 0;
   bool _playedScreenOpenAudio = false;
   bool _isRouteObserverSubscribed = false;
+  AppAudioProvider? _appAudio;
+  AppSettingsProvider? _appSettings;
 
   @override
   void initState() {
@@ -90,7 +93,8 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
           builder: (context, setDialogState) {
             final scheme = Theme.of(context).colorScheme;
             return AlertDialog(
-              backgroundColor: AppVisuals.glass(AppVisuals.cloudGlass, alpha: 0.74),
+              backgroundColor:
+                  AppVisuals.glass(AppVisuals.cloudGlass, alpha: 0.74),
               title: Text(context.tr('Edit Profile'),
                   style: const TextStyle(color: AppVisuals.textForest)),
               content: SingleChildScrollView(
@@ -165,28 +169,36 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
     if (!mounted || _playedScreenOpenAudio) {
       return;
     }
-    final appSettings =
-        Provider.of<AppSettingsProvider>(context, listen: false);
+    final appSettings = _appSettings;
+    final appAudio = _appAudio;
+    if (appSettings == null || appAudio == null) {
+      return;
+    }
     _playedScreenOpenAudio = true;
-    await context.read<AppAudioProvider>().playScreenOpenSound(
-          screenKey: 'ftracker',
-          style: appSettings.audioSoundStyle,
-          enabled: appSettings.audioSoundsEnabled,
-        );
+    await appAudio.playScreenOpenSound(
+      screenKey: 'ftracker',
+      style: appSettings.audioSoundStyle,
+      enabled: appSettings.audioSoundsEnabled,
+    );
   }
 
   Future<void> _stopScreenOpenAudioIfNeeded() async {
-    final appSettings =
-        Provider.of<AppSettingsProvider>(context, listen: false);
-    await context.read<AppAudioProvider>().stopScreenOpenSound(
-          screenKey: 'ftracker',
-          style: appSettings.audioSoundStyle,
-        );
+    final appSettings = _appSettings;
+    final appAudio = _appAudio;
+    if (appSettings == null || appAudio == null) {
+      return;
+    }
+    await appAudio.stopScreenOpenSound(
+      screenKey: 'ftracker',
+      style: appSettings.audioSoundStyle,
+    );
   }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _appAudio ??= Provider.of<AppAudioProvider>(context, listen: false);
+    _appSettings ??= Provider.of<AppSettingsProvider>(context, listen: false);
     if (!_isRouteObserverSubscribed) {
       final route = ModalRoute.of(context);
       if (route is PageRoute<dynamic>) {
@@ -229,8 +241,6 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
         assert(legacyCurrencyFormat.currencySymbol.isNotEmpty);
         final currencyFormat = appSettings.currencyFormat;
         final profileProvider = Provider.of<ProfileProvider>(context);
-        final voiceProvider =
-            Provider.of<VoiceCommandProvider>(context, listen: false);
 
         return Scaffold(
           backgroundColor: Colors.transparent,
@@ -268,12 +278,6 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
               },
             ),
             actions: [
-              if (appSettings.voiceAssistantEnabled)
-                IconButton(
-                  onPressed: () => voiceProvider.requestCommand(context),
-                  icon: Icon(Icons.mic, color: colorScheme.onPrimary),
-                  tooltip: context.tr('Voice command'),
-                ),
               Padding(
                 padding: const EdgeInsets.only(right: 16.0),
                 child: GestureDetector(
@@ -286,7 +290,7 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
           ),
           body: AppBackdrop(
             isDark: trackerTheme.brightness == Brightness.dark,
-            backgroundImageAsset: 'lib/assets/images/background2.jpg',
+            backgroundImageAsset: _trackerBackgroundAsset,
             backgroundImageOpacity:
                 trackerTheme.brightness == Brightness.dark ? 0.2 : 0.3,
             imageScrimColor: trackerTheme.brightness == Brightness.dark
@@ -448,10 +452,8 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
     final avatar = CircleAvatar(
       radius: 25,
       backgroundColor: colorScheme.tertiary,
-      backgroundImage: profileProvider.imagePath != null
-          ? FileImage(File(profileProvider.imagePath!))
-          : null,
-      child: profileProvider.imagePath == null
+      backgroundImage: _safeProfileImage(profileProvider.imagePath),
+      child: _safeProfileImage(profileProvider.imagePath) == null
           ? Icon(Icons.person, color: colorScheme.onTertiary)
           : null,
     );
@@ -491,6 +493,18 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
         ),
       ],
     );
+  }
+
+  ImageProvider<Object>? _safeProfileImage(String? imagePath) {
+    final normalizedPath = imagePath?.trim() ?? '';
+    if (normalizedPath.isEmpty) {
+      return null;
+    }
+    final file = File(normalizedPath);
+    if (!file.existsSync()) {
+      return null;
+    }
+    return FileImage(file);
   }
 
   bool _isIncomeRecord(Ftracker record) {
@@ -696,4 +710,3 @@ class _ScrTrackerState extends State<ScrTracker> with RouteAware {
     );
   }
 }
-

@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../models/equipment_model.dart';
 import '../providers/data_provider.dart';
 import '../providers/equipment_provider.dart';
 import '../providers/ftracker_provider.dart';
+import '../utils/app_number_input_formatter.dart';
 import '../utils/validation_utils.dart';
+import '../widgets/focus_tooltip.dart';
 import '../widgets/searchable_dropdown.dart';
 
 class FrmAddEquipScreen extends StatefulWidget {
@@ -18,6 +21,7 @@ class FrmAddEquipScreen extends StatefulWidget {
 
 class _FrmAddEquipScreenState extends State<FrmAddEquipScreen>
     with TickerProviderStateMixin {
+  static final _numberInputFormatter = AppNumberInputFormatter();
   late TabController _mainTabController;
 
   final _formKey = GlobalKey<FormState>();
@@ -53,8 +57,10 @@ class _FrmAddEquipScreenState extends State<FrmAddEquipScreen>
   }
 
   void _calculateTotal() {
-    final quantity = int.tryParse(_quantityController.text) ?? 0;
-    final cost = double.tryParse(_costController.text) ?? 0.0;
+    final quantity =
+        int.tryParse(_quantityController.text.replaceAll(',', '')) ?? 0;
+    final cost =
+        double.tryParse(_costController.text.replaceAll(',', '')) ?? 0.0;
     _totalController.text = (cost * quantity).toStringAsFixed(2);
   }
 
@@ -115,9 +121,12 @@ class _FrmAddEquipScreenState extends State<FrmAddEquipScreen>
 
     _formKey.currentState!.save();
 
-    final quantity = int.tryParse(_quantityController.text) ?? 0;
-    final cost = double.tryParse(_costController.text) ?? 0.0;
-    final total = double.tryParse(_totalController.text) ?? 0.0;
+    final quantity =
+        int.tryParse(_quantityController.text.replaceAll(',', '')) ?? 0;
+    final cost =
+        double.tryParse(_costController.text.replaceAll(',', '')) ?? 0.0;
+    final total =
+        double.tryParse(_totalController.text.replaceAll(',', '')) ?? 0.0;
     final equipmentCategory = _typeController.text.trim().isEmpty
         ? 'Equipment'
         : _typeController.text.trim();
@@ -215,11 +224,14 @@ class _FrmAddEquipScreenState extends State<FrmAddEquipScreen>
                   onChanged: (val) => _onDefTypeChanged(val, defs),
                 ),
                 const SizedBox(height: 20),
-                TextFormField(
-                    stylusHandwritingEnabled: false,
-                    controller: _typeController,
-                    decoration:
-                        const InputDecoration(labelText: 'MANUAL TYPE ENTRY')),
+                FocusTooltip(
+                  message: 'Enter the equipment type.',
+                  child: TextFormField(
+                      stylusHandwritingEnabled: false,
+                      controller: _typeController,
+                      decoration: const InputDecoration(
+                          labelText: 'MANUAL TYPE ENTRY')),
+                ),
                 const SizedBox(height: 20),
                 SearchableDropdownFormField<String?>(
                   initialValue: _selectedDefName,
@@ -231,11 +243,14 @@ class _FrmAddEquipScreenState extends State<FrmAddEquipScreen>
                   onChanged: (val) => _onDefNameChanged(val, defs),
                 ),
                 const SizedBox(height: 20),
-                TextFormField(
-                    stylusHandwritingEnabled: false,
-                    controller: _nameController,
-                    decoration:
-                        const InputDecoration(labelText: 'MANUAL NAME ENTRY')),
+                FocusTooltip(
+                  message: 'Enter the equipment name.',
+                  child: TextFormField(
+                      stylusHandwritingEnabled: false,
+                      controller: _nameController,
+                      decoration: const InputDecoration(
+                          labelText: 'MANUAL NAME ENTRY')),
+                ),
               ]),
             ),
           ),
@@ -257,29 +272,45 @@ class _FrmAddEquipScreenState extends State<FrmAddEquipScreen>
                     Row(
                       children: [
                         Expanded(
-                          child: TextFormField(
-                              stylusHandwritingEnabled: false,
-                              controller: _quantityController,
-                              decoration:
-                                  const InputDecoration(labelText: 'QUANTITY'),
-                              keyboardType: TextInputType.number,
-                              validator: (v) => ValidationUtils.checkData(
-                                  value: v,
-                                  fieldName: 'Quantity',
-                                  isNumeric: true)),
+                          child: FocusTooltip(
+                            message: 'Enter the quantity.',
+                            child: TextFormField(
+                                stylusHandwritingEnabled: false,
+                                controller: _quantityController,
+                                decoration: const InputDecoration(
+                                    labelText: 'QUANTITY'),
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                        decimal: false),
+                                inputFormatters: <TextInputFormatter>[
+                                  AppNumberInputFormatter(allowDecimal: false),
+                                ],
+                                validator: (v) => ValidationUtils.checkData(
+                                    value: (v ?? '').replaceAll(',', ''),
+                                    fieldName: 'Quantity',
+                                    isNumeric: true)),
+                          ),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
-                          child: TextFormField(
-                              stylusHandwritingEnabled: false,
-                              controller: _costController,
-                              decoration:
-                                  const InputDecoration(labelText: 'UNIT COST'),
-                              keyboardType: TextInputType.number,
-                              validator: (v) => ValidationUtils.checkData(
-                                  value: v,
-                                  fieldName: 'Cost',
-                                  isNumeric: true)),
+                          child: FocusTooltip(
+                            message: 'Enter the unit cost.',
+                            child: TextFormField(
+                                stylusHandwritingEnabled: false,
+                                controller: _costController,
+                                decoration: const InputDecoration(
+                                    labelText: 'UNIT COST'),
+                                keyboardType:
+                                    const TextInputType.numberWithOptions(
+                                        decimal: true),
+                                inputFormatters: <TextInputFormatter>[
+                                  _numberInputFormatter,
+                                ],
+                                validator: (v) => ValidationUtils.checkData(
+                                    value: (v ?? '').replaceAll(',', ''),
+                                    fieldName: 'Cost',
+                                    isNumeric: true)),
+                          ),
                         ),
                       ],
                     ),
@@ -291,11 +322,14 @@ class _FrmAddEquipScreenState extends State<FrmAddEquipScreen>
                             labelText: 'TOTAL VALUATION', filled: true),
                         readOnly: true),
                     const SizedBox(height: 16),
-                    TextFormField(
-                        stylusHandwritingEnabled: false,
-                        controller: _noteController,
-                        decoration: const InputDecoration(labelText: 'NOTE'),
-                        maxLines: 2),
+                    FocusTooltip(
+                      message: 'Enter equipment notes.',
+                      child: TextFormField(
+                          stylusHandwritingEnabled: false,
+                          controller: _noteController,
+                          decoration: const InputDecoration(labelText: 'NOTE'),
+                          maxLines: 2),
+                    ),
                   ]),
                 ),
               ),
@@ -305,17 +339,23 @@ class _FrmAddEquipScreenState extends State<FrmAddEquipScreen>
           Row(
             children: [
               Expanded(
-                child: OutlinedButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    child: const Text('CANCEL')),
+                child: Tooltip(
+                  message: 'Close this form without saving changes.',
+                  child: OutlinedButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      child: const Text('CANCEL')),
+                ),
               ),
               const SizedBox(width: 16),
               Expanded(
-                child: ElevatedButton(
-                    onPressed: _saveEquipment,
-                    child: Text(widget.equipmentId != null
-                        ? 'UPDATE'
-                        : 'ADD TO INVENTORY')),
+                child: Tooltip(
+                  message: 'Save this equipment entry.',
+                  child: ElevatedButton(
+                      onPressed: _saveEquipment,
+                      child: Text(widget.equipmentId != null
+                          ? 'UPDATE'
+                          : 'ADD TO INVENTORY')),
+                ),
               ),
             ],
           ),
@@ -412,23 +452,53 @@ class _FrmAddEquipScreenState extends State<FrmAddEquipScreen>
                       decoration: const InputDecoration(labelText: 'Quantity'),
                       keyboardType: TextInputType.number),
                   const SizedBox(height: 16),
-                  SearchableDropdownFormField<String>(
-                    initialValue: ownership,
-                    decoration: const InputDecoration(labelText: 'Ownership'),
-                    items: ['Owned', 'Rental']
-                        .map((o) => DropdownMenuItem(value: o, child: Text(o)))
-                        .toList(),
-                    onChanged: (val) => setState(() => ownership = val!),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Ownership',
+                        style: Theme.of(context).textTheme.labelMedium,
+                      ),
+                      RadioGroup<String>(
+                        groupValue: ownership,
+                        onChanged: (value) =>
+                            setState(() => ownership = value!),
+                        child: Column(
+                          children: [
+                            RadioListTile<String>(
+                              value: 'Owned',
+                              title: const Text('Owned'),
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                            RadioListTile<String>(
+                              value: 'Rental',
+                              title: const Text('Rental'),
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                   if (ownership == 'Rental')
                     Padding(
                       padding: const EdgeInsets.only(top: 16),
-                      child: TextField(
+                      child: FocusTooltip(
+                        message: 'Enter the rent cost.',
+                        child: TextField(
                           stylusHandwritingEnabled: false,
                           controller: costController,
                           decoration:
                               const InputDecoration(labelText: 'Rent Cost'),
-                          keyboardType: TextInputType.number),
+                          keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true),
+                          inputFormatters: <TextInputFormatter>[
+                            _numberInputFormatter,
+                          ],
+                        ),
+                      ),
                     ),
                 ],
               ),

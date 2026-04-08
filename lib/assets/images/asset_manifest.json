@@ -1,0 +1,82 @@
+{
+  "rice": {
+    "growth": [
+      "assets/rice/growth/rice_stage_01.png",
+      "assets/rice/growth/rice_stage_02.png",
+      "assets/rice/growth/rice_stage_03.png",
+      "assets/rice/growth/rice_stage_04.png",
+      "assets/rice/growth/rice_stage_05.png",
+      "assets/rice/growth/rice_stage_06.png",
+      "assets/rice/growth/rice_stage_07.png",
+      "assets/rice/growth/rice_stage_08.png",
+      "assets/rice/growth/rice_stage_09.png",
+      "assets/rice/growth/rice_stage_10.png",
+      "assets/rice/growth/rice_stage_11.png",
+      "assets/rice/growth/rice_stage_12.png"
+    ],
+    "issues": {
+      "deficiency": [
+        "assets/rice/issues/deficiency/nitrogen_deficiency.png",
+        "assets/rice/issues/deficiency/phosphorus_deficiency.png",
+        "assets/rice/issues/deficiency/potassium_deficiency.png"
+      ],
+      "pests": [
+        "assets/rice/issues/pests/brown_planthopper.png",
+        "assets/rice/issues/pests/leaf_folder.png",
+        "assets/rice/issues/pests/stem_borer.png"
+      ],
+      "weather": [
+        "assets/rice/issues/weather/drought_stress.png",
+        "assets/rice/issues/weather/flood_stress.png",
+        "assets/rice/issues/weather/heat_stress.png"
+      ],
+      "diseases": [
+        "assets/rice/issues/diseases/bacterial_leaf_blight.png",
+        "assets/rice/issues/diseases/blast.png",
+        "assets/rice/issues/diseases/sheath_blight.png"
+      ]
+    }
+  },
+  "corn": {
+    "growth": [
+      "assets/corn/growth/corn_stage_01.png",
+      "assets/corn/growth/corn_stage_02.png",
+      "assets/corn/growth/corn_stage_03.png",
+      "assets/corn/growth/corn_stage_04.png",
+      "assets/corn/growth/corn_stage_05.png",
+      "assets/corn/growth/corn_stage_06.png",
+      "assets/corn/growth/corn_stage_07.png",
+      "assets/corn/growth/corn_stage_08.png",
+      "assets/corn/growth/corn_stage_09.png",
+      "assets/corn/growth/corn_stage_10.png",
+      "assets/corn/growth/corn_stage_11.png",
+      "assets/corn/growth/corn_stage_12.png"
+    ],
+    "issues": {
+      "deficiency": [
+        "assets/corn/issues/deficiency/nitrogen_deficiency.png",
+        "assets/corn/issues/deficiency/phosphorus_deficiency.png",
+        "assets/corn/issues/deficiency/potassium_deficiency.png"
+      ],
+      "pests": [
+        "assets/corn/issues/pests/aphids.png",
+        "assets/corn/issues/pests/fall_armyworm.png",
+        "assets/corn/issues/pests/stem_borer.png"
+      ],
+      "weather": [
+        "assets/corn/issues/weather/drought_stress.png",
+        "assets/corn/issues/weather/flood_stress.png",
+        "assets/corn/issues/weather/heat_stress.png"
+      ],
+      "diseases": [
+        "assets/corn/issues/diseases/downy_mildew.png",
+        "assets/corn/issues/diseases/leaf_blight.png",
+        "assets/corn/issues/diseases/rust.png"
+      ]
+    }
+  },
+  "ui": [
+    "assets/ui/corn_flutter_ui_preview.png",
+    "assets/ui/rice_flutter_ui_preview.png"
+  ]
+}

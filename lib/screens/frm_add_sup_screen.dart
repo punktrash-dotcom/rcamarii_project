@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../models/def_sup_model.dart';
@@ -9,7 +10,9 @@ import '../providers/ftracker_provider.dart';
 import '../services/database_helper.dart';
 import '../services/transaction_log_service.dart';
 import '../themes/app_visuals.dart';
+import '../utils/app_number_input_formatter.dart';
 import '../utils/validation_utils.dart';
+import '../widgets/focus_tooltip.dart';
 import '../widgets/searchable_dropdown.dart';
 
 class FrmAddSupScreen extends StatefulWidget {
@@ -22,6 +25,7 @@ class FrmAddSupScreen extends StatefulWidget {
 
 class _FrmAddSupScreenState extends State<FrmAddSupScreen>
     with TickerProviderStateMixin {
+  static final _numberInputFormatter = AppNumberInputFormatter();
   late TabController _mainTabController;
   TabController? _defSupTabController;
   int _defSupTabLength = 0;
@@ -46,8 +50,10 @@ class _FrmAddSupScreenState extends State<FrmAddSupScreen>
   }
 
   void _calculateTotal() {
-    final cost = double.tryParse(_costController.text) ?? 0.0;
-    final quantity = int.tryParse(_quantityController.text) ?? 0;
+    final cost =
+        double.tryParse(_costController.text.replaceAll(',', '')) ?? 0.0;
+    final quantity =
+        int.tryParse(_quantityController.text.replaceAll(',', '')) ?? 0;
     _totalController.text = (cost * quantity).toStringAsFixed(2);
   }
 
@@ -104,7 +110,7 @@ class _FrmAddSupScreenState extends State<FrmAddSupScreen>
     if (!_formKey.currentState!.validate()) return;
     _formKey.currentState!.save();
 
-    final totalCost = double.parse(_totalController.text);
+    final totalCost = double.parse(_totalController.text.replaceAll(',', ''));
     final supplyCategory = (_selectedType?.trim().isNotEmpty ?? false)
         ? _selectedType!.trim()
         : 'Supplies';
@@ -118,8 +124,8 @@ class _FrmAddSupScreenState extends State<FrmAddSupScreen>
       id: 'SUP-${DateTime.now().millisecondsSinceEpoch}',
       name: ValidationUtils.toTitleCase(_nameController.text),
       description: _descriptionController.text,
-      quantity: int.parse(_quantityController.text),
-      cost: double.parse(_costController.text),
+      quantity: int.parse(_quantityController.text.replaceAll(',', '')),
+      cost: double.parse(_costController.text.replaceAll(',', '')),
       total: totalCost,
     );
 
@@ -229,11 +235,14 @@ class _FrmAddSupScreenState extends State<FrmAddSupScreen>
                         .toList(),
                     onChanged: (val) => _onDefSupNameChanged(val, defSups)),
                 const SizedBox(height: 20),
-                TextFormField(
-                    stylusHandwritingEnabled: false,
-                    controller: _nameController,
-                    decoration:
-                        const InputDecoration(labelText: 'MANUAL NAME ENTRY')),
+                FocusTooltip(
+                  message: 'Enter the supply name.',
+                  child: TextFormField(
+                      stylusHandwritingEnabled: false,
+                      controller: _nameController,
+                      decoration: const InputDecoration(
+                          labelText: 'MANUAL NAME ENTRY')),
+                ),
               ]),
             ),
           ),
@@ -252,38 +261,58 @@ class _FrmAddSupScreenState extends State<FrmAddSupScreen>
                 child: Form(
                     key: _formKey,
                     child: Column(children: [
-                      TextFormField(
-                          stylusHandwritingEnabled: false,
-                          controller: _descriptionController,
-                          decoration:
-                              const InputDecoration(labelText: 'DESCRIPTION')),
+                      FocusTooltip(
+                        message: 'Enter the supply description.',
+                        child: TextFormField(
+                            stylusHandwritingEnabled: false,
+                            controller: _descriptionController,
+                            decoration: const InputDecoration(
+                                labelText: 'DESCRIPTION')),
+                      ),
                       const SizedBox(height: 16),
                       Row(
                         children: [
                           Expanded(
-                            child: TextFormField(
-                                stylusHandwritingEnabled: false,
-                                controller: _costController,
-                                decoration: const InputDecoration(
-                                    labelText: 'UNIT COST'),
-                                keyboardType: TextInputType.number,
-                                validator: (v) => ValidationUtils.checkData(
-                                    value: v,
-                                    fieldName: 'Cost',
-                                    isNumeric: true)),
+                            child: FocusTooltip(
+                              message: 'Enter the unit cost.',
+                              child: TextFormField(
+                                  stylusHandwritingEnabled: false,
+                                  controller: _costController,
+                                  decoration: const InputDecoration(
+                                      labelText: 'UNIT COST'),
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                          decimal: true),
+                                  inputFormatters: <TextInputFormatter>[
+                                    _numberInputFormatter,
+                                  ],
+                                  validator: (v) => ValidationUtils.checkData(
+                                      value: (v ?? '').replaceAll(',', ''),
+                                      fieldName: 'Cost',
+                                      isNumeric: true)),
+                            ),
                           ),
                           const SizedBox(width: 16),
                           Expanded(
-                            child: TextFormField(
-                                stylusHandwritingEnabled: false,
-                                controller: _quantityController,
-                                decoration: const InputDecoration(
-                                    labelText: 'QUANTITY'),
-                                keyboardType: TextInputType.number,
-                                validator: (v) => ValidationUtils.checkData(
-                                    value: v,
-                                    fieldName: 'Quantity',
-                                    isNumeric: true)),
+                            child: FocusTooltip(
+                              message: 'Enter the quantity.',
+                              child: TextFormField(
+                                  stylusHandwritingEnabled: false,
+                                  controller: _quantityController,
+                                  decoration: const InputDecoration(
+                                      labelText: 'QUANTITY'),
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                          decimal: false),
+                                  inputFormatters: <TextInputFormatter>[
+                                    AppNumberInputFormatter(
+                                        allowDecimal: false),
+                                  ],
+                                  validator: (v) => ValidationUtils.checkData(
+                                      value: (v ?? '').replaceAll(',', ''),
+                                      fieldName: 'Quantity',
+                                      isNumeric: true)),
+                            ),
                           ),
                         ],
                       ),
@@ -295,10 +324,13 @@ class _FrmAddSupScreenState extends State<FrmAddSupScreen>
                               labelText: 'TOTAL VALUATION', filled: true),
                           readOnly: true),
                       const SizedBox(height: 32),
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.add_task_rounded),
-                        label: const Text('CONFIRM ENTRY'),
-                        onPressed: _saveSupply,
+                      Tooltip(
+                        message: 'Save this supply entry.',
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.add_task_rounded),
+                          label: const Text('CONFIRM ENTRY'),
+                          onPressed: _saveSupply,
+                        ),
                       ),
                     ])),
               ),

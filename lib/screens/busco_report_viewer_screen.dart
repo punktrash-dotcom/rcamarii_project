@@ -17,7 +17,6 @@ class BuscoReportViewerScreen extends StatefulWidget {
 }
 
 class _BuscoReportViewerScreenState extends State<BuscoReportViewerScreen> {
-  static const _background = AppVisuals.deepGreen;
   static const _surface = AppVisuals.surfaceGreen;
   static const _accent = AppVisuals.primaryGold;
 
@@ -133,7 +132,7 @@ class _BuscoReportViewerScreenState extends State<BuscoReportViewerScreen> {
     final isLastPage = _pageIndex == _reportPages.length - 1;
 
     return Scaffold(
-      backgroundColor: _background,
+      backgroundColor: Colors.transparent,
       body: SafeArea(
         child: Column(
           children: [
@@ -437,7 +436,7 @@ class _FullScreenViewer extends StatelessWidget {
     final controller = PageController(initialPage: initialPage);
 
     return Scaffold(
-      backgroundColor: AppVisuals.deepGreen,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: AppVisuals.glass(AppVisuals.cloudGlass, alpha: 0.74),
         foregroundColor: AppVisuals.textForest,
@@ -480,7 +479,7 @@ class _WeeklyReportPrintPreviewScreen extends StatelessWidget {
     final scheme = theme.colorScheme;
 
     return Scaffold(
-      backgroundColor: scheme.surface.withValues(alpha: 0.74),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,

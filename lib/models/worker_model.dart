@@ -1,3 +1,5 @@
+import '../utils/app_text_normalizer.dart';
+
 class Worker {
   final int? id;
   final String name;
@@ -18,11 +20,11 @@ class Worker {
   Map<String, dynamic> toMap() {
     return {
       'EmployeeID': id,
-      'Name': name,
-      'Address': address,
-      'Position': position,
+      'Name': AppTextNormalizer.titleCase(name),
+      'Address': AppTextNormalizer.titleCase(address),
+      'Position': AppTextNormalizer.titleCase(position),
       'CellphoneNumber': cellphoneNumber,
-      'Note': note,
+      'Note': AppTextNormalizer.nullableSentenceCase(note),
     };
   }
 

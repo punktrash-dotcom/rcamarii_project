@@ -118,14 +118,19 @@ class AppVisuals {
             shadow: Color(0x140F172A),
           );
 
-    final panelColor = isDark ? glass(surfaceRaised, alpha: 0.9) : brandWhite;
+    final panelColor = isDark
+        ? glass(surfaceRaised, alpha: 0.76)
+        : glass(brandWhite, alpha: 0.78);
 
     return ThemeData(
       useMaterial3: true,
       brightness: scheme.brightness,
       colorScheme: scheme,
-      scaffoldBackgroundColor: isDark ? deepAnthracite : dawnMist,
-      canvasColor: scheme.surface,
+      scaffoldBackgroundColor: Colors.transparent,
+      canvasColor: glass(
+        scheme.surface,
+        alpha: isDark ? 0.72 : 0.7,
+      ),
       fontFamily: 'NotoSans',
       splashFactory: NoSplash.splashFactory,
       hoverColor: brandBlue.withValues(alpha: 0.16),
@@ -195,7 +200,7 @@ class AppVisuals {
         ),
       ),
       appBarTheme: AppBarTheme(
-        backgroundColor: scheme.primary,
+        backgroundColor: scheme.primary.withValues(alpha: 0.92),
         elevation: 0,
         foregroundColor: scheme.onPrimary,
         centerTitle: false,
@@ -207,7 +212,9 @@ class AppVisuals {
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: isDark ? surfaceInset.withValues(alpha: 0.92) : brandWhite,
+        fillColor: isDark
+            ? surfaceInset.withValues(alpha: 0.78)
+            : brandWhite.withValues(alpha: 0.76),
         labelStyle: TextStyle(color: scheme.onSurfaceVariant),
         floatingLabelStyle: const TextStyle(color: brandBlue),
         hintStyle:
@@ -250,8 +257,9 @@ class AppVisuals {
         ),
       ),
       dialogTheme: DialogThemeData(
-        backgroundColor:
-            isDark ? glass(surfaceRaised, alpha: 0.96) : brandWhite,
+        backgroundColor: isDark
+            ? glass(surfaceRaised, alpha: 0.88)
+            : glass(brandWhite, alpha: 0.82),
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(28),
@@ -269,8 +277,9 @@ class AppVisuals {
         ),
       ),
       bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor:
-            isDark ? glass(surfaceRaised, alpha: 0.96) : brandWhite,
+        backgroundColor: isDark
+            ? glass(surfaceRaised, alpha: 0.88)
+            : glass(brandWhite, alpha: 0.82),
         surfaceTintColor: Colors.transparent,
         dragHandleColor: scheme.outline.withValues(alpha: 0.45),
         shape: const RoundedRectangleBorder(
@@ -357,8 +366,9 @@ class AppVisuals {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: scheme.onSurface,
-          backgroundColor:
-              isDark ? surfaceGreen.withValues(alpha: 0.4) : brandWhite,
+          backgroundColor: isDark
+              ? surfaceGreen.withValues(alpha: 0.36)
+              : brandWhite.withValues(alpha: 0.68),
           side: BorderSide(color: scheme.outline.withValues(alpha: 0.8)),
           minimumSize: const Size(100, 52),
           shape: RoundedRectangleBorder(
@@ -489,7 +499,9 @@ class AppVisuals {
   }) {
     final isDark = scheme.brightness == Brightness.dark;
     final base = colorOverride ??
-        (isDark ? glass(surfaceRaised, alpha: 0.84) : brandWhite);
+        (isDark
+            ? glass(surfaceRaised, alpha: 0.74)
+            : glass(brandWhite, alpha: 0.78));
     final top = Color.alphaBlend(
       brandWhite.withValues(alpha: isDark ? 0.06 : 0.78),
       base,
@@ -508,9 +520,9 @@ class AppVisuals {
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
         colors: [
-          top.withValues(alpha: isDark ? 0.92 : 0.98),
-          mid.withValues(alpha: isDark ? 0.88 : 0.98),
-          bottom.withValues(alpha: isDark ? 0.9 : 0.98),
+          top.withValues(alpha: isDark ? 0.82 : 0.86),
+          mid.withValues(alpha: isDark ? 0.78 : 0.84),
+          bottom.withValues(alpha: isDark ? 0.8 : 0.84),
         ],
       ),
       borderRadius: BorderRadius.circular(radius),

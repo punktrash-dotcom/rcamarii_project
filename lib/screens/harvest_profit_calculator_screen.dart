@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../providers/app_settings_provider.dart';
+import '../services/app_localization_service.dart';
 import '../themes/app_visuals.dart';
 
 enum HarvestCrop { rice, corn }
@@ -38,6 +39,11 @@ class _HarvestProfitCalculatorScreenState
   final TextEditingController _kgPerBagController =
       TextEditingController(text: '50');
   final TextEditingController _pricePerKgController = TextEditingController();
+
+  String _cropLabel(HarvestCrop crop) {
+    return context.tr(crop == HarvestCrop.rice ? 'Rice' : 'Corn');
+  }
+
   final TextEditingController _deductionPercentController =
       TextEditingController();
   final TextEditingController _productionCostsController =
@@ -195,7 +201,7 @@ class _HarvestProfitCalculatorScreenState
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '${_selectedCrop.label.toUpperCase()} PER-HARVEST ESTIMATE',
+          '${_cropLabel(_selectedCrop).toUpperCase()} TRIAL HARVEST ESTIMATE',
           style: theme.textTheme.bodySmall?.copyWith(
             letterSpacing: 1.3,
             fontWeight: FontWeight.w800,
@@ -204,7 +210,7 @@ class _HarvestProfitCalculatorScreenState
         ),
         const SizedBox(height: 4),
         Text(
-          'Harvest Profit Calculator',
+          'Harvest Profit Simulator',
           style: theme.textTheme.headlineMedium?.copyWith(
             fontSize: 24,
             fontWeight: FontWeight.w900,
@@ -250,7 +256,7 @@ class _HarvestProfitCalculatorScreenState
           ),
         const SizedBox(height: 14),
         Text(
-          'Select crop',
+          'Select crop for trial simulation',
           style: theme.textTheme.bodySmall?.copyWith(
             letterSpacing: 1.1,
             fontWeight: FontWeight.w800,
@@ -264,7 +270,7 @@ class _HarvestProfitCalculatorScreenState
           children: [
             ChoiceChip(
               key: const ValueKey('harvestProfitCalculator.crop.sugarcane'),
-              label: const Text('Sugarcane'),
+              label: Text(context.tr('Sugarcane')),
               selected: false,
               onSelected: (_) {
                 if (Navigator.of(context).canPop()) {
@@ -274,7 +280,7 @@ class _HarvestProfitCalculatorScreenState
             ),
             ChoiceChip(
               key: const ValueKey('harvestProfitCalculator.crop.rice'),
-              label: const Text('Rice'),
+              label: Text(context.tr('Rice')),
               selected: _selectedCrop == HarvestCrop.rice,
               onSelected: (_) => setState(() {
                 _selectedCrop = HarvestCrop.rice;
@@ -282,7 +288,7 @@ class _HarvestProfitCalculatorScreenState
             ),
             ChoiceChip(
               key: const ValueKey('harvestProfitCalculator.crop.corn'),
-              label: const Text('Corn'),
+              label: Text(context.tr('Corn')),
               selected: _selectedCrop == HarvestCrop.corn,
               onSelected: (_) => setState(() {
                 _selectedCrop = HarvestCrop.corn;
@@ -337,7 +343,9 @@ class _HarvestProfitCalculatorScreenState
               borderRadius: BorderRadius.circular(16),
             ),
             child: Text(
-              isLoss ? 'Cost-heavy scenario' : 'Per-harvest return estimate',
+              isLoss
+                  ? 'Cost-heavy trial scenario'
+                  : 'Per-harvest trial estimate',
               style: theme.textTheme.labelMedium?.copyWith(
                 color: heroTextColor.withValues(alpha: 0.92),
                 fontWeight: FontWeight.w700,
@@ -346,7 +354,7 @@ class _HarvestProfitCalculatorScreenState
           ),
           const SizedBox(height: 18),
           Text(
-            '${_selectedCrop.label} Net Profit',
+            '${_cropLabel(_selectedCrop)} Net Profit',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: heroTextColor.withValues(alpha: 0.88),
               fontWeight: FontWeight.w700,
@@ -367,7 +375,7 @@ class _HarvestProfitCalculatorScreenState
           Text(
             breakdown.deductionPercent > 0
                 ? 'Revenue already reflects a ${breakdown.deductionPercent.toStringAsFixed(1)}% deduction.'
-                : 'Revenue uses the full harvest yield with no deductions applied.',
+                : 'Revenue uses the full harvest yield with no deductions applied. Use the Harvest Board for official farm recording.',
             style: theme.textTheme.bodyMedium?.copyWith(
               color: heroTextColor.withValues(alpha: 0.86),
             ),
@@ -489,7 +497,7 @@ class _HarvestProfitCalculatorScreenState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '${_selectedCrop.label} harvest inputs',
+            '${_cropLabel(_selectedCrop)} harvest inputs',
             style: theme.textTheme.titleLarge?.copyWith(
               fontSize: 18,
               fontWeight: FontWeight.w800,

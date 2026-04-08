@@ -35,7 +35,8 @@ import 'utils/app_layout_utils.dart';
 import 'providers/ftracker_provider.dart';
 import 'providers/theme_provider.dart';
 import 'providers/profile_provider.dart';
-import 'providers/voice_command_provider.dart';
+import 'widgets/app_alert_monitor.dart';
+import 'widgets/app_input_behavior_scope.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -80,7 +81,6 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => WorkerProvider()),
         ChangeNotifierProvider(create: (_) => DeliveryProvider()),
         ChangeNotifierProvider(create: (_) => SugarcaneProfitProvider()),
-        ChangeNotifierProvider(create: (_) => VoiceCommandProvider()),
         ChangeNotifierProvider(create: (_) => FtrackerProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(create: (_) => ProfileProvider()),
@@ -134,7 +134,9 @@ class MyApp extends StatelessWidget {
                   disableAnimations: reduceMotion,
                   textScaler: AppLayoutUtils.clampedTextScaler(mediaQuery),
                 ),
-                child: child,
+                child: AppInputBehaviorScope(
+                  child: AppAlertMonitor(child: child),
+                ),
               );
             },
             home: const SplashScreen(),

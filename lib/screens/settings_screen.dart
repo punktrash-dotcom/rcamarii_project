@@ -12,6 +12,7 @@ import '../providers/theme_provider.dart';
 import '../services/factory_reset_service.dart';
 import '../services/app_localization_service.dart';
 import '../services/app_route_observer.dart';
+import '../services/farm_alert_service.dart';
 import '../services/guideline_localization_service.dart';
 import '../themes/app_visuals.dart';
 import '../widgets/searchable_dropdown.dart';
@@ -198,6 +199,26 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
     }
   }
 
+  Future<void> _handleFarmAlertsChanged(
+    AppSettingsProvider appSettings,
+    bool value,
+  ) async {
+    await appSettings.setFarmAlertsEnabled(value);
+    if (!mounted) {
+      return;
+    }
+    if (value) {
+      await FarmAlertService.instance.syncFromContext(context, force: true);
+    }
+  }
+
+  Future<void> _handleInteractionModeChanged(
+    AppSettingsProvider appSettings,
+    AppInteractionMode value,
+  ) async {
+    await appSettings.setInteractionMode(value);
+  }
+
   Future<void> _editAccountAccess(AppSettingsProvider appSettings) async {
     if (appSettings.hasAppPassword) {
       final verified = await showPasswordVerificationDialog(
@@ -342,6 +363,7 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
     final languageProvider = Provider.of<GuidelineLanguageProvider>(context);
     final appSettings = Provider.of<AppSettingsProvider>(context);
     final isDark = themeProvider.darkTheme;
+    final showDetails = appSettings.showDetailedDescriptions;
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -384,50 +406,58 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
                 isDark: isDark,
               ),
               const SizedBox(height: 16),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(20),
-                  border:
-                      Border.all(color: scheme.outline.withValues(alpha: 0.35)),
-                  boxShadow: AppVisuals.neoShadows(scheme),
-                ),
-                child: Text(
-                  appSettings.userName.isEmpty
-                      ? context.tr('These preferences apply across RCAMARii.')
-                      : 'These preferences apply across ${appSettings.userName}\'s RCAMARii workspace.',
-                  style: TextStyle(
-                    color: scheme.onSurfaceVariant,
-                    height: 1.5,
+              if (showDetails) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color:
+                        scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: scheme.outline.withValues(alpha: 0.35),
+                    ),
+                    boxShadow: AppVisuals.neoShadows(scheme),
+                  ),
+                  child: Text(
+                    appSettings.userName.isEmpty
+                        ? context.tr('These preferences apply across RCAMARii.')
+                        : 'These preferences apply across ${appSettings.userName}\'s RCAMARii workspace.',
+                    style: TextStyle(
+                      color: scheme.onSurfaceVariant,
+                      height: 1.5,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 24),
+                const SizedBox(height: 24),
+              ],
               _buildSectionLabel(context.tr('Workspace Controls')),
               const SizedBox(height: 8),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
-                  borderRadius: BorderRadius.circular(20),
-                  border:
-                      Border.all(color: scheme.outline.withValues(alpha: 0.35)),
-                  boxShadow: AppVisuals.neoShadows(scheme),
-                ),
-                child: Text(
-                  context.tr(
-                    'Choose the preferred language for supply guidance before opening the field modules.',
+              if (showDetails) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color:
+                        scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: scheme.outline.withValues(alpha: 0.35),
+                    ),
+                    boxShadow: AppVisuals.neoShadows(scheme),
                   ),
-                  style: TextStyle(
-                    color: scheme.onSurfaceVariant,
-                    height: 1.5,
+                  child: Text(
+                    context.tr(
+                      'Choose the preferred language for supply guidance before opening the field modules.',
+                    ),
+                    style: TextStyle(
+                      color: scheme.onSurfaceVariant,
+                      height: 1.5,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(height: 8),
+                const SizedBox(height: 8),
+              ],
               _buildSettingsGroup(
                 [
                   _buildLanguageSelector(
@@ -464,6 +494,28 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
               const SizedBox(height: 8),
               _buildSettingsGroup(
                 [
+                  _buildDropdownTile<AppInteractionMode>(
+                    icon: Icons.tune_rounded,
+                    iconColor: AppVisuals.accentChartBlue,
+                    title: context.tr('Interaction Mode'),
+                    tooltip:
+                        'Detailed keeps the existing guidance and descriptive copy visible. Simple hides most screen and card explanations while preserving tooltips.',
+                    value: appSettings.interactionMode,
+                    isDark: isDark,
+                    items: AppInteractionMode.values
+                        .map(
+                          (mode) => DropdownMenuItem(
+                            value: mode,
+                            child: Text(context.tr(mode.label)),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        _handleInteractionModeChanged(appSettings, value);
+                      }
+                    },
+                  ),
                   _buildSettingsTile(
                     icon: Icons.folder_open,
                     iconColor: AppVisuals.primaryGoldDim,
@@ -534,29 +586,10 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
                 isDark,
               ),
               const SizedBox(height: 24),
-              _buildSectionLabel(context.tr('VOICE & ASSISTANCE')),
+              _buildSectionLabel(context.tr('AUDIO')),
               const SizedBox(height: 8),
               _buildSettingsGroup(
                 [
-                  _buildSwitchTile(
-                    icon: Icons.mic_rounded,
-                    iconColor: scheme.error,
-                    title: context.tr('Voice Assistant'),
-                    value: appSettings.voiceAssistantEnabled,
-                    isDark: isDark,
-                    onChanged: (value) =>
-                        appSettings.setVoiceAssistantEnabled(value),
-                  ),
-                  _buildSwitchTile(
-                    icon: Icons.volume_up_rounded,
-                    iconColor: AppVisuals.growthGreen,
-                    title: context.tr('Spoken Responses'),
-                    value: appSettings.voiceResponsesEnabled,
-                    isDark: isDark,
-                    onChanged: appSettings.voiceAssistantEnabled
-                        ? (value) => appSettings.setVoiceResponsesEnabled(value)
-                        : null,
-                  ),
                   _buildSwitchTile(
                     icon: Icons.music_note_rounded,
                     iconColor: AppVisuals.primaryGold,
@@ -584,6 +617,15 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
               const SizedBox(height: 8),
               _buildSettingsGroup(
                 [
+                  _buildSwitchTile(
+                    icon: Icons.notifications_active_rounded,
+                    iconColor: AppVisuals.primaryGold,
+                    title: 'Farm Alerts',
+                    value: appSettings.farmAlertsEnabled,
+                    isDark: isDark,
+                    onChanged: (value) =>
+                        _handleFarmAlertsChanged(appSettings, value),
+                  ),
                   _buildSwitchTile(
                     icon: Icons.cloud_sync_rounded,
                     iconColor: AppVisuals.accentChartBlue,
@@ -708,6 +750,7 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
     final accessLabel = appSettings.appLockEnabled
         ? 'Startup password enabled'
         : 'Startup password disabled';
+    final showDetails = appSettings.showDetailedDescriptions;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -805,17 +848,19 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
                         color: scheme.onSurface,
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      appSettings.hasAppPassword
-                          ? 'Ask for your saved password before opening the dashboard.'
-                          : 'Set a password in Edit to turn startup lock on.',
-                      style: TextStyle(
-                        color: scheme.onSurfaceVariant,
-                        fontSize: 12.5,
-                        height: 1.35,
+                    if (showDetails) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        appSettings.hasAppPassword
+                            ? 'Ask for your saved password before opening the dashboard.'
+                            : 'Set a password in Edit to turn startup lock on.',
+                        style: TextStyle(
+                          color: scheme.onSurfaceVariant,
+                          fontSize: 12.5,
+                          height: 1.35,
+                        ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -935,9 +980,10 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
     required bool isDark,
     required List<DropdownMenuItem<T>> items,
     required ValueChanged<T?> onChanged,
+    String? tooltip,
   }) {
     final scheme = Theme.of(context).colorScheme;
-    return Padding(
+    final child = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
@@ -967,6 +1013,10 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
         ],
       ),
     );
+    if (tooltip == null || tooltip.trim().isEmpty) {
+      return child;
+    }
+    return Tooltip(message: tooltip, child: child);
   }
 
   Widget _buildSwitchTile({
@@ -976,9 +1026,10 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
     required bool value,
     required bool isDark,
     required ValueChanged<bool>? onChanged,
+    String? tooltip,
   }) {
     final scheme = Theme.of(context).colorScheme;
-    return Padding(
+    final child = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
@@ -1012,6 +1063,10 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
         ],
       ),
     );
+    if (tooltip == null || tooltip.trim().isEmpty) {
+      return child;
+    }
+    return Tooltip(message: tooltip, child: child);
   }
 
   Widget _buildSettingsTile({
@@ -1021,9 +1076,10 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
     required bool isDark,
     Widget? trailing,
     VoidCallback? onTap,
+    String? tooltip,
   }) {
     final scheme = Theme.of(context).colorScheme;
-    return GestureDetector(
+    final child = GestureDetector(
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: Container(
@@ -1046,6 +1102,10 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
         ),
       ),
     );
+    if (tooltip == null || tooltip.trim().isEmpty) {
+      return child;
+    }
+    return Tooltip(message: tooltip, child: child);
   }
 
   Widget _buildVolumeTile({
@@ -1054,9 +1114,7 @@ class _SettingsScreenState extends State<SettingsScreen> with RouteAware {
     required bool isDark,
   }) {
     final scheme = Theme.of(context).colorScheme;
-    final enabled = appSettings.audioSoundsEnabled ||
-        (appSettings.voiceAssistantEnabled &&
-            appSettings.voiceResponsesEnabled);
+    final enabled = appSettings.audioSoundsEnabled;
 
     return Opacity(
       opacity: enabled ? 1.0 : 0.4,

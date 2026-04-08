@@ -120,6 +120,8 @@ class FarmProvider extends ChangeNotifier {
       province: farm.province,
       date: farm.date,
       owner: farm.owner,
+      ratoonCount: farm.ratoonCount,
+      seasonNumber: farm.seasonNumber,
     );
     _farms.add(newFarm);
     _selectedFarm = newFarm;
@@ -151,6 +153,22 @@ class FarmProvider extends ChangeNotifier {
       TransactionLogService.instance.log('Farm updated',
           details: '${farm.name} (${farm.type}) - id=${farm.id}');
     }
+  }
+
+  Future<void> advanceToNextSeason(
+    Farm farm, {
+    DateTime? restartDate,
+    bool incrementRatoon = false,
+  }) async {
+    final now = restartDate ?? DateTime.now();
+    final normalizedDate = DateTime(now.year, now.month, now.day);
+    await updateFarm(
+      farm.copyWith(
+        date: normalizedDate,
+        seasonNumber: farm.seasonNumber + 1,
+        ratoonCount: incrementRatoon ? farm.ratoonCount + 1 : farm.ratoonCount,
+      ),
+    );
   }
 
   Future<void> deleteFarm(String id) async {

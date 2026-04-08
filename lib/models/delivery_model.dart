@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import '../utils/app_text_normalizer.dart';
+
 @immutable
 class Delivery {
   final int? delId;
@@ -42,13 +44,13 @@ class Delivery {
     return {
       if (delId != null) 'DelID': delId,
       'Date': date.toIso8601String(),
-      'Type': type,
-      'Name': name,
+      'Type': AppTextNormalizer.titleCase(type),
+      'Name': AppTextNormalizer.titleCase(name),
       'TicketNo': ticketNo,
       'Cost': cost,
       'Quantity': quantity,
       'Total': total,
-      'Note': note,
+      'Note': AppTextNormalizer.nullableSentenceCase(note),
     };
   }
 }

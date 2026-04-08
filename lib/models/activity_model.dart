@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import '../utils/app_text_normalizer.dart';
+
 @immutable
 class Activity {
   final String jobId;
@@ -61,18 +63,18 @@ class Activity {
   Map<String, dynamic> toMap() {
     return {
       'jobId': jobId,
-      'tag': tag,
+      'tag': AppTextNormalizer.titleCase(tag),
       'date': date.toIso8601String(),
-      'farm': farm,
-      'name': name,
-      'labor': labor,
-      'assetUsed': assetUsed,
-      'costType': costType,
+      'farm': AppTextNormalizer.titleCase(farm),
+      'name': AppTextNormalizer.titleCase(name),
+      'labor': AppTextNormalizer.titleCase(labor),
+      'assetUsed': AppTextNormalizer.titleCase(assetUsed),
+      'costType': AppTextNormalizer.titleCase(costType),
       'duration': duration,
       'cost': cost,
       'total': total,
-      'worker': worker,
-      'note': note,
+      'worker': AppTextNormalizer.titleCase(worker),
+      'note': AppTextNormalizer.nullableSentenceCase(note),
     };
   }
 }

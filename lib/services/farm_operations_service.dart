@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../models/farm_model.dart';
 import '../models/schedule_alert_model.dart';
+import 'sugarcane_asset_service.dart';
 
 class CropTimelineProfile {
   const CropTimelineProfile({
@@ -114,6 +115,28 @@ class FarmOperationsService {
     return math.max(0, DateTime.now().difference(plantingDate).inDays);
   }
 
+  static int sugarcaneGrowthMonthForAge(int ageInDays) {
+    return SugarcaneAssetService.monthForAge(ageInDays);
+  }
+
+  static String sugarcaneGrowthAssetForAge(int ageInDays) {
+    return SugarcaneAssetService.growthAssetForAge(ageInDays);
+  }
+
+  static String cropBackdropAssetForAge(String cropType, int ageInDays) {
+    final normalized = cropType.trim().toLowerCase();
+    if (normalized.contains('sugar')) {
+      return sugarcaneGrowthAssetForAge(ageInDays);
+    }
+    if (normalized.contains('rice') || normalized.contains('palay')) {
+      return 'lib/assets/images/usda_rice.jpg';
+    }
+    if (normalized.contains('corn') || normalized.contains('maize')) {
+      return 'lib/assets/images/usda_corn.jpg';
+    }
+    return 'lib/assets/images/usda_sugarcane.jpg';
+  }
+
   static DateTime expectedHarvestDate(Farm farm) {
     final profile = profileForCrop(farm.type);
     if (profile == null) return farm.date;
@@ -127,6 +150,16 @@ class FarmOperationsService {
       start: farm.date.add(Duration(days: profile.minHarvestDays)),
       end: farm.date.add(Duration(days: profile.maxHarvestDays)),
     );
+  }
+
+  static bool isHarvestStatus(Farm farm, {DateTime? asOf}) {
+    final profile = profileForCrop(farm.type);
+    if (profile == null) {
+      return false;
+    }
+    final referenceDate = asOf ?? DateTime.now();
+    final ageInDays = math.max(0, referenceDate.difference(farm.date).inDays);
+    return ageInDays >= profile.minHarvestDays;
   }
 
   static int daysUntilHarvest(Farm farm) {

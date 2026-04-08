@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -24,6 +25,8 @@ class MarketPriceSyncService {
       'https://cagayandeoro.da.gov.ph/?page_id=88249';
 
   static const String _cacheFileName = 'market_price_cache.json';
+  static const Duration _requestTimeout = Duration(seconds: 8);
+  static const Duration _sourceTimeout = Duration(seconds: 10);
 
   Future<Map<String, dynamic>>? _inFlightSync;
 
@@ -110,9 +113,14 @@ class MarketPriceSyncService {
     required Future<Map<String, dynamic>> Function() fetcher,
   }) async {
     try {
-      return await fetcher();
+      return await fetcher().timeout(
+        _sourceTimeout,
+        onTimeout: () => throw TimeoutException(
+          '$id source timed out after ${_sourceTimeout.inSeconds}s',
+        ),
+      );
     } catch (error) {
-      debugPrint('MarketPriceSyncService.$id error: $error');
+      debugPrint(_sourceErrorMessage(id, error, existingSource != null));
       final fallback = <String, dynamic>{
         'id': id,
         'label': label,
@@ -154,8 +162,8 @@ class MarketPriceSyncService {
       RegExp(r"dbRegsMap = JSON\.parse\('(.+?)'\);", dotAll: true),
     );
 
-    final monthlyResponse = await http.post(
-      Uri.parse(ricelyticsMonthlyEndpoint),
+    final monthlyResponse = await _post(
+      ricelyticsMonthlyEndpoint,
       headers: _requestHeaders,
     );
     if (monthlyResponse.statusCode < 200 || monthlyResponse.statusCode >= 300) {
@@ -385,11 +393,36 @@ class MarketPriceSyncService {
   }
 
   Future<String> _getBody(String url) async {
-    final response = await http.get(Uri.parse(url), headers: _requestHeaders);
+    final response = await _get(url, headers: _requestHeaders);
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw HttpException('Request failed for $url (${response.statusCode})');
     }
     return response.body;
+  }
+
+  Future<http.Response> _get(
+    String url, {
+    Map<String, String>? headers,
+  }) {
+    return http.get(Uri.parse(url), headers: headers).timeout(
+          _requestTimeout,
+          onTimeout: () => throw TimeoutException(
+            'GET $url timed out after ${_requestTimeout.inSeconds}s',
+          ),
+        );
+  }
+
+  Future<http.Response> _post(
+    String url, {
+    Map<String, String>? headers,
+    Object? body,
+  }) {
+    return http.post(Uri.parse(url), headers: headers, body: body).timeout(
+          _requestTimeout,
+          onTimeout: () => throw TimeoutException(
+            'POST $url timed out after ${_requestTimeout.inSeconds}s',
+          ),
+        );
   }
 
   Map<String, String> get _requestHeaders => const <String, String>{
@@ -521,5 +554,17 @@ class MarketPriceSyncService {
       return value.toDouble();
     }
     return double.tryParse(value?.toString() ?? '') ?? 0.0;
+  }
+
+  String _sourceErrorMessage(
+    String id,
+    Object error,
+    bool hasCachedSource,
+  ) {
+    final fallbackLabel = hasCachedSource ? 'using cached data' : 'no cache';
+    if (error is TimeoutException) {
+      return 'MarketPriceSyncService.$id timeout: $fallbackLabel.';
+    }
+    return 'MarketPriceSyncService.$id error: $error ($fallbackLabel)';
   }
 }

@@ -107,8 +107,7 @@ class _AboutScreenState extends State<AboutScreen> with RouteAware {
         backgroundColor: Colors.transparent,
         body: AppBackdrop(
           isDark: isDark,
-          backgroundImageAsset:
-              'lib/assets/images/background2.jpg',
+          backgroundImageAsset: 'lib/assets/images/background.png',
           backgroundImageOpacity: isDark ? 0.16 : 0.26,
           imageScrimColor: isDark
               ? Colors.black.withValues(alpha: 0.26)

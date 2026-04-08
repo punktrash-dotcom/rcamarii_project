@@ -1,15 +1,19 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_audio_provider.dart';
 import '../providers/app_settings_provider.dart';
 import '../providers/farm_provider.dart';
+import '../services/app_localization_service.dart';
 import '../services/app_route_observer.dart';
 import '../models/farm_model.dart';
 import '../themes/app_visuals.dart';
+import '../utils/app_number_input_formatter.dart';
 import '../utils/validation_utils.dart';
+import '../widgets/focus_tooltip.dart';
 
 class AddFarmScreen extends StatefulWidget {
   final String? farmID;
@@ -26,11 +30,14 @@ class _AddFarmScreenState extends State<AddFarmScreen> with RouteAware {
   static const _scaffoldFieldFillColor = AppVisuals.cloudGlass;
   static const _dropdownMenuColor = AppVisuals.surfaceGreen;
   static const _dropdownMenuTextColor = AppVisuals.softWhite;
+  static final _numberInputFormatter = AppNumberInputFormatter();
 
   final _formKey = GlobalKey<FormState>();
   bool _isSaving = false;
+  final TextEditingController _ratoonController =
+      TextEditingController(text: '0');
 
-  // controllers will be used to keep track of values across Autocomplete fields
+  // Controllers keep field values stable across validation and edit mode.
   final Map<String, TextEditingController> _controllers = {
     'name': TextEditingController(),
     'area': TextEditingController(),
@@ -41,9 +48,14 @@ class _AddFarmScreenState extends State<AddFarmScreen> with RouteAware {
 
   final Map<String, FocusNode> _focusNodes = {
     'type': FocusNode(),
+    'name': FocusNode(),
+    'area': FocusNode(),
+    'city': FocusNode(),
+    'province': FocusNode(),
+    'owner': FocusNode(),
+    'ratoon': FocusNode(),
     'save': FocusNode(),
   };
-  final Map<String, FocusNode> _autocompleteFocusNodes = {};
 
   final Map<String, String?> _errorTexts = {
     'name': null,
@@ -58,9 +70,13 @@ class _AddFarmScreenState extends State<AddFarmScreen> with RouteAware {
   DateTime _selectedDate = DateTime.now();
   bool _isInit = true;
   bool _isRouteObserverSubscribed = false;
+  AppAudioProvider? _appAudio;
+  AppSettingsProvider? _appSettings;
 
   @override
   void didChangeDependencies() {
+    _appAudio ??= Provider.of<AppAudioProvider>(context, listen: false);
+    _appSettings ??= Provider.of<AppSettingsProvider>(context, listen: false);
     if (!_isRouteObserverSubscribed) {
       final route = ModalRoute.of(context);
       if (route is PageRoute<dynamic>) {
@@ -81,6 +97,7 @@ class _AddFarmScreenState extends State<AddFarmScreen> with RouteAware {
         _controllers['province']!.text = farm.province;
         _controllers['owner']!.text = farm.owner;
         _selectedDate = farm.date;
+        _ratoonController.text = farm.ratoonCount.toString();
       }
       _isInit = false;
     }
@@ -88,12 +105,15 @@ class _AddFarmScreenState extends State<AddFarmScreen> with RouteAware {
   }
 
   Future<void> _stopScreenOpenAudioIfNeeded() async {
-    final appSettings =
-        Provider.of<AppSettingsProvider>(context, listen: false);
-    await context.read<AppAudioProvider>().stopScreenOpenSound(
-          screenKey: 'add_farm',
-          style: appSettings.audioSoundStyle,
-        );
+    final appAudio = _appAudio;
+    final appSettings = _appSettings;
+    if (appAudio == null || appSettings == null) {
+      return;
+    }
+    await appAudio.stopScreenOpenSound(
+      screenKey: 'add_farm',
+      style: appSettings.audioSoundStyle,
+    );
   }
 
   @override
@@ -105,6 +125,7 @@ class _AddFarmScreenState extends State<AddFarmScreen> with RouteAware {
     for (var controller in _controllers.values) {
       controller.dispose();
     }
+    _ratoonController.dispose();
     for (var node in _focusNodes.values) {
       node.dispose();
     }
@@ -122,7 +143,7 @@ class _AddFarmScreenState extends State<AddFarmScreen> with RouteAware {
   }
 
   void _requestFieldFocus(String key) {
-    final targetNode = _autocompleteFocusNodes[key] ?? _focusNodes[key];
+    final targetNode = _focusNodes[key];
     if (targetNode == null || !mounted) return;
     FocusScope.of(context).requestFocus(targetNode);
   }
@@ -140,16 +161,28 @@ class _AddFarmScreenState extends State<AddFarmScreen> with RouteAware {
         hasError = true;
       }
 
+      if (!hasError && _selectedType == 'Sugarcane') {
+        final ratoonText = _ratoonController.text.trim();
+        if (ratoonText.isEmpty) {
+          _ratoonController.text = '0';
+        } else if (int.tryParse(ratoonText) == null) {
+          _showChip('Ratoon count must be a whole number');
+          _requestFieldFocus('ratoon');
+          hasError = true;
+        }
+      }
+
       if (!hasError) {
         // Validate fields sequentially to mimic setfocus back on error
         for (var key in _controllers.keys) {
           String fieldName = key.toUpperCase();
           bool isNumeric = key == 'area';
 
+          final fieldValue = isNumeric
+              ? _controllers[key]!.text.replaceAll(',', '')
+              : _controllers[key]!.text;
           String? error = ValidationUtils.checkData(
-              value: _controllers[key]!.text,
-              fieldName: fieldName,
-              isNumeric: isNumeric);
+              value: fieldValue, fieldName: fieldName, isNumeric: isNumeric);
 
           if (error != null) {
             _errorTexts[key] = 'Wrong format';
@@ -191,11 +224,21 @@ class _AddFarmScreenState extends State<AddFarmScreen> with RouteAware {
       id: widget.farmID,
       name: _controllers['name']!.text,
       type: _selectedType!,
-      area: double.tryParse(_controllers['area']!.text) ?? 0.0,
+      area: double.tryParse(_controllers['area']!.text.replaceAll(',', '')) ??
+          0.0,
       city: _controllers['city']!.text,
       province: _controllers['province']!.text,
       date: _selectedDate,
       owner: _controllers['owner']!.text,
+      ratoonCount: _selectedType == 'Sugarcane'
+          ? int.tryParse(_ratoonController.text.trim()) ?? 0
+          : 0,
+      seasonNumber: widget.farmID == null
+          ? 1
+          : Provider.of<FarmProvider>(context, listen: false)
+              .farms
+              .firstWhere((f) => f.id == widget.farmID)
+              .seasonNumber,
     );
 
     try {
@@ -314,7 +357,7 @@ class _AddFarmScreenState extends State<AddFarmScreen> with RouteAware {
                                     (type) => Align(
                                       alignment: Alignment.centerLeft,
                                       child: Text(
-                                        type,
+                                        context.tr(type),
                                         style: const TextStyle(
                                           color: _scaffoldFieldTextColor,
                                         ),
@@ -327,7 +370,7 @@ class _AddFarmScreenState extends State<AddFarmScreen> with RouteAware {
                                 .map((type) => DropdownMenuItem(
                                       value: type,
                                       child: Text(
-                                        type,
+                                        context.tr(type),
                                         style: const TextStyle(
                                           color: _dropdownMenuTextColor,
                                         ),
@@ -335,7 +378,12 @@ class _AddFarmScreenState extends State<AddFarmScreen> with RouteAware {
                                     ))
                                 .toList(),
                             onChanged: (val) {
-                              setState(() => _selectedType = val);
+                              setState(() {
+                                _selectedType = val;
+                                if (val != 'Sugarcane') {
+                                  _ratoonController.text = '0';
+                                }
+                              });
                               _requestFieldFocus('name');
                             },
                           ),
@@ -377,19 +425,31 @@ class _AddFarmScreenState extends State<AddFarmScreen> with RouteAware {
                           ),
                         ),
 
-                        // 3. TEXT FIELDS (Wrapped in Autocomplete per requirement)
-                        _buildAutocompleteRow(
-                            'Farm Name', 'name', (f) => f.name,
+                        // 3. TEXT FIELDS
+                        _buildTextFieldRow('Farm Name', 'name',
                             nextFieldKey: 'area'),
-                        _buildAutocompleteRow(
-                            'Area (Ha)', 'area', (f) => f.area.toString(),
+                        _buildTextFieldRow('Area (Ha)', 'area',
                             isNumeric: true, nextFieldKey: 'city'),
-                        _buildAutocompleteRow('City', 'city', (f) => f.city,
+                        if (_selectedType == 'Sugarcane')
+                          _buildRow(
+                            label: 'RATOON',
+                            child: TextFormField(
+                              controller: _ratoonController,
+                              focusNode: _focusNodes['ratoon'],
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(
+                                hintText: 'Existing ratoon count',
+                                isDense: true,
+                              ),
+                              onFieldSubmitted: (_) =>
+                                  _requestFieldFocus('city'),
+                            ),
+                          ),
+                        _buildTextFieldRow('City', 'city',
                             nextFieldKey: 'province'),
-                        _buildAutocompleteRow(
-                            'Province', 'province', (f) => f.province,
+                        _buildTextFieldRow('Province', 'province',
                             nextFieldKey: 'owner'),
-                        _buildAutocompleteRow('Owner', 'owner', (f) => f.owner,
+                        _buildTextFieldRow('Owner', 'owner',
                             nextFieldKey: 'save'),
 
                         const SizedBox(height: 40),
@@ -496,105 +556,68 @@ class _AddFarmScreenState extends State<AddFarmScreen> with RouteAware {
     );
   }
 
-  Widget _buildAutocompleteRow(
-      String label, String key, String Function(Farm) fieldExtractor,
-      {bool isNumeric = false, String? nextFieldKey}) {
-    final farmProvider = Provider.of<FarmProvider>(context, listen: false);
-
+  Widget _buildTextFieldRow(
+    String label,
+    String key, {
+    bool isNumeric = false,
+    String? nextFieldKey,
+  }) {
     return _buildRow(
       label: label.toUpperCase(),
-      child: Autocomplete<String>(
-        initialValue: TextEditingValue(text: _controllers[key]!.text),
-        optionsBuilder: (TextEditingValue textEditingValue) async {
-          if (textEditingValue.text.isEmpty) {
-            return const Iterable<String>.empty();
-          }
-          // Asynchronous fetch from database field
-          return farmProvider.farms.map(fieldExtractor).toSet().where(
-              (option) => option
-                  .toLowerCase()
-                  .contains(textEditingValue.text.toLowerCase()));
-        },
-        onSelected: (String selection) {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted) {
+      child: FocusTooltip(
+        message: 'Enter $label.',
+        child: TextFormField(
+          stylusHandwritingEnabled: false,
+          controller: _controllers[key],
+          focusNode: _focusNodes[key],
+          style: const TextStyle(color: _scaffoldFieldTextColor),
+          cursorColor: _scaffoldFieldTextColor,
+          keyboardType: isNumeric
+              ? const TextInputType.numberWithOptions(decimal: true)
+              : TextInputType.text,
+          inputFormatters:
+              isNumeric ? <TextInputFormatter>[_numberInputFormatter] : null,
+          textInputAction: nextFieldKey == null || nextFieldKey == 'save'
+              ? TextInputAction.done
+              : TextInputAction.next,
+          decoration: InputDecoration(
+            isDense: true,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            errorText: _errorTexts[key],
+          ),
+          onChanged: (_) {
+            if (_errorTexts[key] != null && mounted) {
+              setState(() => _errorTexts[key] = null);
+            }
+          },
+          onFieldSubmitted: (value) {
+            final sanitizedValue =
+                isNumeric ? value.replaceAll(',', '') : value;
+            final error = ValidationUtils.checkData(
+              value: sanitizedValue,
+              fieldName: label,
+              isNumeric: isNumeric,
+            );
+            if (error == null) {
               setState(() {
-                _controllers[key]!.text = selection;
                 _errorTexts[key] = null;
+                if (!isNumeric) {
+                  _controllers[key]!.text = ValidationUtils.toTitleCase(value);
+                }
               });
               if (nextFieldKey != null) {
                 _requestFieldFocus(nextFieldKey);
-              }
-            }
-          });
-        },
-        fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-          _autocompleteFocusNodes[key] = focusNode;
-
-          // Link internal autocomplete controller with main state controller safely
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (mounted &&
-                controller.text != _controllers[key]!.text &&
-                _controllers[key]!.text.isNotEmpty &&
-                controller.text.isEmpty) {
-              controller.text = _controllers[key]!.text;
-            }
-          });
-
-          return TextFormField(
-            stylusHandwritingEnabled: false,
-            controller: controller,
-            focusNode: focusNode,
-            style: const TextStyle(color: _scaffoldFieldTextColor),
-            cursorColor: _scaffoldFieldTextColor,
-            keyboardType: isNumeric
-                ? const TextInputType.numberWithOptions(decimal: true)
-                : TextInputType.text,
-            textInputAction: nextFieldKey == null || nextFieldKey == 'save'
-                ? TextInputAction.done
-                : TextInputAction.next,
-            decoration: InputDecoration(
-              isDense: true,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-              errorText: _errorTexts[key],
-            ),
-            onChanged: (value) {
-              _controllers[key]!.text = value;
-            },
-            onFieldSubmitted: (value) {
-              // Implementation of logical CHECKDATA focus navigation
-              String? error = ValidationUtils.checkData(
-                  value: value, fieldName: label, isNumeric: isNumeric);
-              if (error == null) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted) {
-                    setState(() {
-                      _errorTexts[key] = null;
-                      if (!isNumeric) {
-                        _controllers[key]!.text =
-                            ValidationUtils.toTitleCase(value);
-                        controller.text = _controllers[key]!.text;
-                      }
-                    });
-                    if (nextFieldKey != null) {
-                      _requestFieldFocus(nextFieldKey);
-                    } else {
-                      _saveFarm();
-                    }
-                  }
-                });
               } else {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (mounted) {
-                    setState(() => _errorTexts[key] = 'Wrong format');
-                    _requestFieldFocus(key);
-                  }
-                });
+                _saveFarm();
               }
-            },
-          );
-        },
+              return;
+            }
+
+            setState(() => _errorTexts[key] = 'Wrong format');
+            _requestFieldFocus(key);
+          },
+        ),
       ),
     );
   }
@@ -611,4 +634,3 @@ class _AddFarmScreenState extends State<AddFarmScreen> with RouteAware {
     }
   }
 }
-

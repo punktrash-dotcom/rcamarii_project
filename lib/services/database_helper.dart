@@ -6,7 +6,7 @@ import 'package:path_provider/path_provider.dart';
 
 class DatabaseHelper {
   static const _databaseName = 'RcamariiFarm.db';
-  static const _databaseVersion = 47; // Incremented for farm income tracking
+  static const _databaseVersion = 49; // Crop inspector scan history
 
   // Table Names Constants
   static const tableFarms = 'Farms';
@@ -17,6 +17,8 @@ class DatabaseHelper {
   static const tableProduceDeliveries = 'ProduceDeliveries';
   static const tableFarmIncome = 'FarmIncome';
   static const tableSugarcaneProfits = 'SugarcaneProfits';
+  static const tableFarmHarvestSessions = 'FarmHarvestSessions';
+  static const tableFarmHarvestEntries = 'FarmHarvestEntries';
   static const tableEquipment = 'Equipment';
   static const tableWorkers = 'Employees';
   static const tableEquipmentDefs = 'EquipmentDefs';
@@ -26,6 +28,7 @@ class DatabaseHelper {
   static const tableQaTable = 'qa_table';
   static const tableQaCategoryIcons = 'qa_category_icons';
   static const tableAppProperties = 'AppProperties';
+  static const tableCropInspectorScans = 'CropInspectorScans';
 
   DatabaseHelper._privateConstructor();
   static final DatabaseHelper instance = DatabaseHelper._privateConstructor();
@@ -106,18 +109,32 @@ class DatabaseHelper {
     if (oldVersion < 47) {
       await _createFarmIncomeTable(db);
     }
+
+    if (oldVersion < 48) {
+      await _ensureFarmsSchema(db);
+      await _createFarmHarvestSessionsTable(db);
+      await _createFarmHarvestEntriesTable(db);
+    }
+
+    if (oldVersion < 49) {
+      await _createCropInspectorScansTable(db);
+    }
   }
 
   Future _onOpen(Database db) async {
     // Migration safety check for Ftracker
+    await _ensureFarmsSchema(db);
     await _ensureFtrackerSchema(db);
     await _ensureActivitiesSchema(db);
     await _createSugarcaneProfitsTable(db);
     await _createProduceDeliveriesTable(db);
     await _createFarmIncomeTable(db);
+    await _createFarmHarvestSessionsTable(db);
+    await _createFarmHarvestEntriesTable(db);
     await _createQaTable(db);
     await _createQaCategoryIconsTable(db);
     await _createAppPropertiesTable(db);
+    await _createCropInspectorScansTable(db);
     await _ensureEmployeesSchema(db);
   }
 
@@ -141,6 +158,9 @@ class DatabaseHelper {
       tableDeliveries,
       tableProduceDeliveries,
       tableFarmIncome,
+      tableFarmHarvestSessions,
+      tableFarmHarvestEntries,
+      tableCropInspectorScans,
       tableWorkers,
       'WorkersDB',
     ];
@@ -165,10 +185,36 @@ class DatabaseHelper {
         city TEXT NOT NULL,
         province TEXT NOT NULL,
         date TEXT NOT NULL,
-        owner TEXT NOT NULL
+        owner TEXT NOT NULL,
+        RatoonCount INTEGER NOT NULL DEFAULT 0,
+        SeasonNumber INTEGER NOT NULL DEFAULT 1
       );
     ''');
     print("   -> Table '$tableFarms' created.");
+  }
+
+  Future<void> _ensureFarmsSchema(Database db) async {
+    final columns = await db.rawQuery('PRAGMA table_info($tableFarms)');
+    if (columns.isEmpty) return;
+
+    final hasRatoonCount = columns.any(
+      (column) => (column['name'] ?? '').toString() == 'RatoonCount',
+    );
+    final hasSeasonNumber = columns.any(
+      (column) => (column['name'] ?? '').toString() == 'SeasonNumber',
+    );
+
+    if (!hasRatoonCount) {
+      await db.execute(
+        'ALTER TABLE $tableFarms ADD COLUMN RatoonCount INTEGER NOT NULL DEFAULT 0',
+      );
+    }
+
+    if (!hasSeasonNumber) {
+      await db.execute(
+        'ALTER TABLE $tableFarms ADD COLUMN SeasonNumber INTEGER NOT NULL DEFAULT 1',
+      );
+    }
   }
 
   Future<void> _createActivitiesTable(DatabaseExecutor db) async {
@@ -532,6 +578,45 @@ class DatabaseHelper {
     print("   -> Table '$tableFarmIncome' created.");
   }
 
+  Future<void> _createFarmHarvestSessionsTable(DatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $tableFarmHarvestSessions(
+        HarvestSessionID INTEGER PRIMARY KEY AUTOINCREMENT,
+        FarmID TEXT NOT NULL,
+        FarmName TEXT NOT NULL,
+        CropType TEXT NOT NULL,
+        SeasonNumber INTEGER NOT NULL DEFAULT 1,
+        RatoonCount INTEGER NOT NULL DEFAULT 0,
+        Status TEXT NOT NULL,
+        IsEarlyStart INTEGER NOT NULL DEFAULT 0,
+        StartedAt TEXT NOT NULL,
+        CompletedAt TEXT,
+        Note TEXT
+      )
+    ''');
+    print("   -> Table '$tableFarmHarvestSessions' created.");
+  }
+
+  Future<void> _createFarmHarvestEntriesTable(DatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $tableFarmHarvestEntries(
+        HarvestEntryID INTEGER PRIMARY KEY AUTOINCREMENT,
+        SessionID INTEGER NOT NULL,
+        EntryType TEXT NOT NULL,
+        Label TEXT NOT NULL,
+        QuantityTons REAL NOT NULL DEFAULT 0,
+        Amount REAL NOT NULL DEFAULT 0,
+        EntryDate TEXT NOT NULL,
+        Note TEXT,
+        IsActive INTEGER NOT NULL DEFAULT 1,
+        CreatedAt TEXT NOT NULL,
+        UpdatedAt TEXT,
+        FOREIGN KEY(SessionID) REFERENCES $tableFarmHarvestSessions(HarvestSessionID)
+      )
+    ''');
+    print("   -> Table '$tableFarmHarvestEntries' created.");
+  }
+
   Future<void> _recreateProduceDeliveriesTableWithExpenseBreakdown(
       Database db) async {
     final columns =
@@ -779,6 +864,29 @@ class DatabaseHelper {
     print("   -> Table '$tableAppProperties' created.");
   }
 
+  Future<void> _createCropInspectorScansTable(DatabaseExecutor db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS $tableCropInspectorScans (
+        ScanID INTEGER PRIMARY KEY AUTOINCREMENT,
+        FarmName TEXT,
+        CropType TEXT NOT NULL,
+        ImagePath TEXT NOT NULL,
+        Engine TEXT NOT NULL,
+        PrimaryLabel TEXT NOT NULL,
+        PrimaryCategory TEXT NOT NULL,
+        Confidence REAL NOT NULL,
+        ConfidenceLabel TEXT NOT NULL,
+        Summary TEXT NOT NULL,
+        DiagnosisJson TEXT NOT NULL,
+        SyncStatus TEXT NOT NULL DEFAULT 'local_only',
+        SyncError TEXT,
+        CreatedAt TEXT NOT NULL,
+        SyncedAt TEXT
+      )
+    ''');
+    print("   -> Table '$tableCropInspectorScans' created.");
+  }
+
   Future<void> _createTables(
     DatabaseExecutor db, {
     bool includeAppProperties = true,
@@ -791,6 +899,8 @@ class DatabaseHelper {
     await _createProduceDeliveriesTable(db);
     await _createFarmIncomeTable(db);
     await _createSugarcaneProfitsTable(db);
+    await _createFarmHarvestSessionsTable(db);
+    await _createFarmHarvestEntriesTable(db);
     await _createEquipmentTable(db);
     await _createEmployeesTable(db);
     await _createEquipmentDefsTable(db);
@@ -799,6 +909,7 @@ class DatabaseHelper {
     await _createCategoriesTable(db);
     await _createQaTable(db);
     await _createQaCategoryIconsTable(db);
+    await _createCropInspectorScansTable(db);
     if (includeAppProperties) {
       await _createAppPropertiesTable(db);
     }

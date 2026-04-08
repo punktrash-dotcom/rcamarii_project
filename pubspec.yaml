@@ -18,7 +18,8 @@ dependencies:
   csv: ^6.0.0
   shared_preferences: ^2.2.3
   sqflite: ^2.3.3+1
-  sqflite_common_ffi: ^2.3.3
+  sqflite_common_ffi: ">=2.3.7 <2.4.0"
+  sqlite3: ^2.9.4
   path_provider: ^2.1.3
   path: ^1.9.0
   webview_flutter: ^4.7.0
@@ -28,6 +29,7 @@ dependencies:
   http: ^1.6.0
   html: ^0.15.5
   image_picker: ^1.1.2
+  tflite_flutter: ^0.12.1
   url_launcher: ^6.3.0
   open_filex: ^4.7.0
   two_dimensional_scrollables: ^0.2.0
@@ -38,14 +40,13 @@ dependencies:
   pdf: ^3.11.1
   pdfrx: ^2.2.24
   flutter_native_splash: ^2.3.0  # Add dependency here
-  speech_to_text: ^7.3.0
-  flutter_tts: ^4.2.5
   audio_session: ^0.2.2
   just_audio: ^0.10.5
   just_audio_platform_interface: ^4.3.0
   just_audio_media_kit: ^2.1.0
   media_kit_libs_windows_audio: ^1.0.9
   flutter_svg: ^2.0.17
+  flutter_local_notifications: ^19.5.0
 
 dev_dependencies:
   flutter_lints: ^5.0.0
@@ -78,6 +79,29 @@ flutter:
     - lib/assets/audio/
     - lib/assets/handbooks/
     - lib/assets/images/
+    - lib/assets/images/effects/
+    - lib/assets/sugarcane/month1/
+    - lib/assets/sugarcane/month2/
+    - lib/assets/sugarcane/month3/
+    - lib/assets/sugarcane/month4/
+    - lib/assets/sugarcane/month5/
+    - lib/assets/sugarcane/month6/
+    - lib/assets/sugarcane/month7/
+    - lib/assets/sugarcane/month8/
+    - lib/assets/sugarcane/month9/
+    - lib/assets/sugarcane/month10/
+    - lib/assets/sugarcane/month11/
+    - lib/assets/sugarcane/month12/
+    - lib/assets/sugarcane/problems/
+    - lib/assets/sugarcane/scan_deseases/aphids/
+    - lib/assets/sugarcane/scan_deseases/drought/
+    - lib/assets/sugarcane/scan_deseases/flooding/
+    - lib/assets/sugarcane/scan_deseases/mosaic_virus/
+    - lib/assets/sugarcane/scan_deseases/nitrogen_deficiency/
+    - lib/assets/sugarcane/scan_deseases/potassium_deficiency/
+    - lib/assets/sugarcane/scan_deseases/red_rot/
+    - lib/assets/sugarcane/scan_deseases/stem_borer/
+    - lib/assets/models/
     - lib/assets/icons/iconic.png
     - lib/assets/rcamarii_logo.png
     - lib/assets/fonts/

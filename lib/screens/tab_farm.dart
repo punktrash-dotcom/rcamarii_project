@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
@@ -8,9 +9,12 @@ import '../providers/app_audio_provider.dart';
 import '../providers/app_settings_provider.dart';
 import '../providers/farm_provider.dart';
 import '../services/app_localization_service.dart';
+import '../services/farm_operations_service.dart';
 import '../services/app_route_observer.dart';
 import '../themes/app_visuals.dart';
+import 'farm_harvest_board_screen.dart';
 import 'add_farm_screen.dart';
+import 'crop_simulation_screen.dart';
 import 'frm_add_job2.dart';
 
 class TabFarm extends StatefulWidget {
@@ -27,6 +31,9 @@ class _TabFarmState extends State<TabFarm>
   bool _playedScreenOpenAudio = false;
   bool _isRouteObserverSubscribed = false;
   String? _expandedFarmId;
+  String? _focusedFarmId;
+  bool _didRequestInitialCardFocus = false;
+  final Map<String, FocusNode> _farmCardFocusNodes = {};
 
   AppAudioProvider? _appAudio;
   AppSettingsProvider? _appSettings;
@@ -45,10 +52,50 @@ class _TabFarmState extends State<TabFarm>
     final farmProvider = Provider.of<FarmProvider>(context, listen: false);
     await farmProvider.refreshFarms();
     if (!mounted) return;
+    _syncFarmCardFocusNodes(farmProvider.farms);
+    final selectedFarm = farmProvider.selectedFarm;
     setState(() {
-      _expandedFarmId ??= farmProvider.selectedFarm?.id;
+      _expandedFarmId = selectedFarm?.id;
+      _focusedFarmId = selectedFarm?.id ??
+          (farmProvider.farms.isEmpty ? null : farmProvider.farms.first.id);
+      _didRequestInitialCardFocus = false;
     });
+    _requestInitialCardFocus();
     _syncTabController();
+    _selectTabForFarmType(selectedFarm?.type);
+  }
+
+  void _syncFarmCardFocusNodes(List<Farm> farms) {
+    final validIds = farms.map((farm) => farm.id).whereType<String>().toSet();
+    final removedIds = _farmCardFocusNodes.keys
+        .where((id) => !validIds.contains(id))
+        .toList(growable: false);
+    for (final id in removedIds) {
+      _farmCardFocusNodes.remove(id)?.dispose();
+    }
+    for (final id in validIds) {
+      _farmCardFocusNodes.putIfAbsent(id, FocusNode.new);
+    }
+    if (_focusedFarmId != null && !validIds.contains(_focusedFarmId)) {
+      _focusedFarmId = null;
+    }
+  }
+
+  void _requestInitialCardFocus() {
+    if (_didRequestInitialCardFocus || !mounted) {
+      return;
+    }
+    final focusedFarmId = _focusedFarmId;
+    if (focusedFarmId == null) {
+      return;
+    }
+    _didRequestInitialCardFocus = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      _farmCardFocusNodes[focusedFarmId]?.requestFocus();
+    });
   }
 
   Future<void> _playScreenOpenAudioIfNeeded() async {
@@ -105,11 +152,30 @@ class _TabFarmState extends State<TabFarm>
     }
   }
 
+  void _selectTabForFarmType(String? farmType) {
+    final tabController = _tabController;
+    if (!mounted || tabController == null || farmType == null) {
+      return;
+    }
+    final farmProvider = Provider.of<FarmProvider>(context, listen: false);
+    final types = farmProvider.uniqueFarmTypes;
+    final targetIndex = types.indexOf(farmType);
+    if (targetIndex < 0 || targetIndex >= tabController.length) {
+      return;
+    }
+    if (tabController.index != targetIndex) {
+      tabController.index = targetIndex;
+    }
+  }
+
   @override
   void dispose() {
     if (_isRouteObserverSubscribed) appRouteObserver.unsubscribe(this);
     unawaited(_stopScreenOpenAudioIfNeeded());
     _tabController?.dispose();
+    for (final node in _farmCardFocusNodes.values) {
+      node.dispose();
+    }
     super.dispose();
   }
 
@@ -117,6 +183,11 @@ class _TabFarmState extends State<TabFarm>
   void didPushNext() => unawaited(_stopScreenOpenAudioIfNeeded());
   @override
   void didPop() => unawaited(_stopScreenOpenAudioIfNeeded());
+  @override
+  void didPopNext() {
+    unawaited(_initData());
+    unawaited(_playScreenOpenAudioIfNeeded());
+  }
 
   void _toggleFarmCard(FarmProvider farmProvider, Farm farm) {
     final isExpanded = _expandedFarmId == farm.id;
@@ -132,6 +203,7 @@ class _TabFarmState extends State<TabFarm>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final farmProvider = Provider.of<FarmProvider>(context);
+    _syncFarmCardFocusNodes(farmProvider.farms);
     final farmTypes = farmProvider.uniqueFarmTypes;
     final expectedCount = farmTypes.isEmpty ? 1 : farmTypes.length;
 
@@ -164,7 +236,7 @@ class _TabFarmState extends State<TabFarm>
             ),
           ),
         ),
-        SingleChildScrollView(
+        Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           child: FrostedPanel(
             radius: 32,
@@ -172,21 +244,18 @@ class _TabFarmState extends State<TabFarm>
             color: theme.colorScheme.surface.withValues(alpha: 0.46),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
               children: [
                 if (farmTypes.isNotEmpty) ...[
                   _buildTabBar(theme, farmTypes),
                   const SizedBox(height: 12),
                 ],
-                farmTypes.isEmpty
-                    ? _buildEmptyState(theme)
-                    : SizedBox(
-                        height: 600, // Adjusted height for TabBarView
-                        child: TabBarView(
+                Expanded(
+                  child: farmTypes.isEmpty
+                      ? _buildEmptyState(theme)
+                      : TabBarView(
                           controller: _tabController!,
                           children: farmTypes.map((type) {
-                            final farms =
-                                farmProvider.groupedFarms[type] ?? [];
+                            final farms = farmProvider.groupedFarms[type] ?? [];
                             return _buildCardList(
                               theme,
                               farms,
@@ -194,7 +263,7 @@ class _TabFarmState extends State<TabFarm>
                             );
                           }).toList(),
                         ),
-                      ),
+                ),
               ],
             ),
           ),
@@ -255,176 +324,312 @@ class _TabFarmState extends State<TabFarm>
   Widget _buildCardList(
       ThemeData theme, List<Farm> farms, FarmProvider farmProvider) {
     return ListView.builder(
-      physics: const NeverScrollableScrollPhysics(),
-      shrinkWrap: true,
       padding: const EdgeInsets.only(top: 8, bottom: 20),
       itemCount: farms.length,
       itemBuilder: (context, index) {
         final farm = farms[index];
+        final farmId = farm.id;
         final isSelected = _expandedFarmId == farm.id;
+        final isFocused = _focusedFarmId == farm.id;
         final cropAge =
             DateTime.now().difference(farm.date).inDays.clamp(0, 9999);
+        final backgroundAsset = FarmOperationsService.cropBackdropAssetForAge(
+          farm.type,
+          cropAge,
+        );
+        final growthStage =
+            FarmOperationsService.growthStage(farm.type, cropAge);
+        final focusNode = farmId == null
+            ? null
+            : _farmCardFocusNodes.putIfAbsent(farmId, FocusNode.new);
 
-        return GestureDetector(
-          onTap: () => _toggleFarmCard(farmProvider, farm),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 300),
-            margin: const EdgeInsets.only(bottom: 16),
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: isSelected
-                  ? AppVisuals.surfaceGreen
-                  : AppVisuals.surfaceGreen.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(28),
-              border: Border.all(
-                color: isSelected
-                    ? AppVisuals.primaryGold
-                    : AppVisuals.textForest.withValues(alpha: 0.05),
-                width: 1.5,
-              ),
-              boxShadow: isSelected
-                  ? [
-                      BoxShadow(
-                        color: AppVisuals.primaryGold.withValues(alpha: 0.15),
-                        blurRadius: 20,
-                        offset: const Offset(0, 8),
-                      )
-                    ]
-                  : null,
+        return FocusableActionDetector(
+          focusNode: focusNode,
+          autofocus: index == 0 && !_didRequestInitialCardFocus,
+          onFocusChange: (hasFocus) {
+            if (!mounted || farmId == null) return;
+            setState(() {
+              if (hasFocus) {
+                _focusedFarmId = farmId;
+              } else if (_focusedFarmId == farmId) {
+                _focusedFarmId = null;
+              }
+            });
+          },
+          shortcuts: <ShortcutActivator, Intent>{
+            SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+            SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
+          },
+          actions: <Type, Action<Intent>>{
+            ActivateIntent: CallbackAction<ActivateIntent>(
+              onInvoke: (_) {
+                _toggleFarmCard(farmProvider, farm);
+                return null;
+              },
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
+          },
+          child: GestureDetector(
+            onTap: () {
+              focusNode?.requestFocus();
+              _toggleFarmCard(farmProvider, farm);
+            },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 300),
+              margin: const EdgeInsets.only(bottom: 16),
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(28),
+                border: Border.all(
+                  color: isSelected || isFocused
+                      ? AppVisuals.primaryGold
+                      : AppVisuals.textForest.withValues(alpha: 0.05),
+                  width: isFocused ? 2 : 1.5,
+                ),
+                boxShadow: isSelected || isFocused
+                    ? [
+                        BoxShadow(
+                          color: AppVisuals.primaryGold.withValues(
+                            alpha: isSelected ? 0.15 : 0.1,
+                          ),
+                          blurRadius: isSelected ? 20 : 14,
+                          offset: const Offset(0, 8),
+                        )
+                      ]
+                    : null,
+              ),
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: Image.asset(
+                      backgroundAsset,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  Positioned.fill(
+                    child: DecoratedBox(
                       decoration: BoxDecoration(
-                        color: isSelected
-                            ? AppVisuals.primaryGold
-                            : AppVisuals.textForest.withValues(alpha: 0.05),
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                      child: Icon(
-                        farm.type.toLowerCase().contains('sugar')
-                            ? Icons.bakery_dining_rounded
-                            : Icons.grass_rounded,
-                        color: isSelected
-                            ? AppVisuals.deepGreen
-                            : AppVisuals.primaryGold,
-                        size: 28,
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [
+                            Colors.black.withValues(
+                              alpha: isSelected ? 0.26 : 0.34,
+                            ),
+                            const Color(0xFF102516).withValues(
+                              alpha: isSelected ? 0.58 : 0.72,
+                            ),
+                            const Color(0xFF07130C).withValues(
+                              alpha: isSelected ? 0.82 : 0.88,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    const SizedBox(width: 20),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            farm.name,
-                            style: theme.textTheme.titleLarge?.copyWith(
-                              color: Colors.black,
-                              fontWeight: FontWeight.w900,
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(
+                                  alpha: isSelected || isFocused ? 0.22 : 0.12,
+                                ),
+                                borderRadius: BorderRadius.circular(18),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.12),
+                                ),
+                              ),
+                              child: Icon(
+                                farm.type.toLowerCase().contains('sugar')
+                                    ? Icons.bakery_dining_rounded
+                                    : Icons.grass_rounded,
+                                color: AppVisuals.primaryGold,
+                                size: 28,
+                              ),
                             ),
+                            const SizedBox(width: 20),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    farm.name,
+                                    style: theme.textTheme.titleLarge?.copyWith(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${farm.city}, ${farm.province}',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color:
+                                          Colors.white.withValues(alpha: 0.78),
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: [
+                                      _FarmCardBadge(
+                                        label: growthStage,
+                                        color: AppVisuals.brandGreen,
+                                      ),
+                                      _FarmCardBadge(
+                                        label: context.tr(
+                                          '{days} Days',
+                                          {'days': '$cropAge'},
+                                        ),
+                                        color: AppVisuals.primaryGold,
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  '${farm.area.toStringAsFixed(1)} ha',
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    color: AppVisuals.primaryGold,
+                                    fontWeight: FontWeight.w900,
+                                  ),
+                                ),
+                                Text(
+                                  FarmOperationsService.seasonLabel(farm.date),
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: Colors.white.withValues(alpha: 0.72),
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                        if (isSelected) ...[
+                          const SizedBox(height: 18),
+                          _FarmFieldRow(
+                            label: context.tr('Name'),
+                            value: farm.name,
+                            lightText: true,
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '${farm.city}, ${farm.province}',
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant
-                                  .withValues(alpha: 0.75),
-                              fontWeight: FontWeight.w700,
+                          _FarmFieldRow(
+                            label: context.tr('Type'),
+                            value: farm.type,
+                            lightText: true,
+                          ),
+                          _FarmFieldRow(
+                            label: context.tr('Area'),
+                            value: '${farm.area.toStringAsFixed(1)} ha',
+                            lightText: true,
+                          ),
+                          _FarmFieldRow(
+                            label: context.tr('City'),
+                            value: farm.city,
+                            lightText: true,
+                          ),
+                          _FarmFieldRow(
+                            label: context.tr('Province'),
+                            value: farm.province,
+                            lightText: true,
+                          ),
+                          _FarmFieldRow(
+                            label: context.tr('Date'),
+                            value: DateFormat('MMM d, y').format(farm.date),
+                            lightText: true,
+                          ),
+                          _FarmFieldRow(
+                            label: context.tr('Owner'),
+                            value: farm.owner,
+                            lightText: true,
+                          ),
+                          _FarmFieldRow(
+                            label: context.tr('Season'),
+                            value: 'Season ${farm.seasonNumber}',
+                            lightText: true,
+                          ),
+                          _FarmFieldRow(
+                            label: context.tr('Harvest'),
+                            value: FarmOperationsService.isHarvestStatus(farm)
+                                ? 'Harvest Status'
+                                : 'Pre-Harvest',
+                            lightText: true,
+                          ),
+                          if (farm.type.toLowerCase().contains('sugar'))
+                            _FarmFieldRow(
+                              label: context.tr('Ratoon'),
+                              value: '${farm.ratoonCount}',
+                              lightText: true,
                             ),
+                          const SizedBox(height: 14),
+                          Wrap(
+                            alignment: WrapAlignment.end,
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              _FarmActionIconButton(
+                                tooltip: 'Crop simulator',
+                                icon: Icons.view_in_ar_rounded,
+                                onTap: () => _openCropSimulation(farm),
+                                backgroundColor: theme.colorScheme.tertiary
+                                    .withValues(alpha: 0.24),
+                                foregroundColor: Colors.white,
+                              ),
+                              _FarmActionIconButton(
+                                tooltip: FarmOperationsService.isHarvestStatus(
+                                        farm)
+                                    ? context.tr('Harvest Board')
+                                    : 'Harvest Board is view-only until harvest status or early harvest is enabled.',
+                                icon: Icons.ssid_chart_rounded,
+                                onTap: () => _openHarvestBoard(farm),
+                                backgroundColor: AppVisuals.primaryGold
+                                    .withValues(alpha: 0.24),
+                                foregroundColor: Colors.white,
+                              ),
+                              _FarmActionIconButton(
+                                tooltip: context.tr('Add Job'),
+                                icon: Icons.add_task_rounded,
+                                onTap: () => _addJob(farm),
+                                backgroundColor: theme.colorScheme.secondary
+                                    .withValues(alpha: 0.2),
+                                foregroundColor: Colors.white,
+                              ),
+                              const SizedBox(width: 8),
+                              _FarmActionIconButton(
+                                tooltip: context.tr('Edit'),
+                                icon: Icons.edit_rounded,
+                                onTap: () => _editFarm(farm),
+                                backgroundColor: Colors.white.withValues(
+                                  alpha: 0.16,
+                                ),
+                                foregroundColor: Colors.white,
+                              ),
+                              const SizedBox(width: 8),
+                              _FarmActionIconButton(
+                                tooltip: context.tr('Delete'),
+                                icon: Icons.delete_rounded,
+                                onTap: () => _deleteFarm(farm),
+                                backgroundColor: theme.colorScheme.primary
+                                    .withValues(alpha: 0.24),
+                                foregroundColor: Colors.white,
+                              ),
+                            ],
                           ),
                         ],
-                      ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          '${farm.area.toStringAsFixed(1)} ha',
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            color: AppVisuals.primaryGold,
-                            fontWeight: FontWeight.w900,
-                          ),
-                        ),
-                        Text(
-                          context.tr('{days} Days', {'days': '$cropAge'}),
-                          style: theme.textTheme.labelSmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant
-                                .withValues(alpha: 0.6),
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
                       ],
                     ),
-                  ],
-                ),
-                if (isSelected) ...[
-                  const SizedBox(height: 18),
-                  _FarmFieldRow(
-                    label: context.tr('Name'),
-                    value: farm.name,
-                  ),
-                  _FarmFieldRow(
-                    label: context.tr('Type'),
-                    value: farm.type,
-                  ),
-                  _FarmFieldRow(
-                    label: context.tr('Area'),
-                    value: '${farm.area.toStringAsFixed(1)} ha',
-                  ),
-                  _FarmFieldRow(
-                    label: context.tr('City'),
-                    value: farm.city,
-                  ),
-                  _FarmFieldRow(
-                    label: context.tr('Province'),
-                    value: farm.province,
-                  ),
-                  _FarmFieldRow(
-                    label: context.tr('Date'),
-                    value: DateFormat('MMM d, y').format(farm.date),
-                  ),
-                  _FarmFieldRow(
-                    label: context.tr('Owner'),
-                    value: farm.owner,
-                  ),
-                  const SizedBox(height: 14),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      _FarmActionIconButton(
-                        tooltip: context.tr('Add Job'),
-                        icon: Icons.add_task_rounded,
-                        onTap: () => _addJob(farm),
-                        backgroundColor:
-                            theme.colorScheme.secondary.withValues(alpha: 0.14),
-                        foregroundColor: theme.colorScheme.secondary,
-                      ),
-                      const SizedBox(width: 8),
-                      _FarmActionIconButton(
-                        tooltip: context.tr('Edit'),
-                        icon: Icons.edit_rounded,
-                        onTap: () => _editFarm(farm),
-                        backgroundColor:
-                            theme.colorScheme.tertiary.withValues(alpha: 0.18),
-                        foregroundColor: theme.colorScheme.onSurface,
-                      ),
-                      const SizedBox(width: 8),
-                      _FarmActionIconButton(
-                        tooltip: context.tr('Delete'),
-                        icon: Icons.delete_rounded,
-                        onTap: () => _deleteFarm(farm),
-                        backgroundColor:
-                            theme.colorScheme.primary.withValues(alpha: 0.14),
-                        foregroundColor: theme.colorScheme.primary,
-                      ),
-                    ],
                   ),
                 ],
-              ],
+              ),
             ),
           ),
         );
@@ -468,6 +673,35 @@ class _TabFarmState extends State<TabFarm>
     );
   }
 
+  void _openHarvestBoard(Farm farm) {
+    if (!FarmOperationsService.isHarvestStatus(farm)) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text(
+              'This farm is not yet in harvest status. Harvest Board inputs stay locked until harvest status or Early Harvest is enabled.',
+            ),
+          ),
+        );
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => FarmHarvestBoardScreen(farm: farm),
+      ),
+    );
+  }
+
+  void _openCropSimulation(Farm farm) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CropSimulationScreen(farm: farm),
+      ),
+    );
+  }
+
   Future<void> _deleteFarm(Farm farm) async {
     final farmId = farm.id;
     if (farmId == null) return;
@@ -503,13 +737,44 @@ class _TabFarmState extends State<TabFarm>
   }
 }
 
+class _FarmCardBadge extends StatelessWidget {
+  const _FarmCardBadge({
+    required this.label,
+    required this.color,
+  });
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.28)),
+      ),
+      child: Text(
+        label,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+            ),
+      ),
+    );
+  }
+}
+
 class _FarmFieldRow extends StatelessWidget {
   final String label;
   final String value;
+  final bool lightText;
 
   const _FarmFieldRow({
     required this.label,
     required this.value,
+    this.lightText = false,
   });
 
   @override
@@ -526,7 +791,9 @@ class _FarmFieldRow extends StatelessWidget {
             child: Text(
               label,
               style: theme.textTheme.labelMedium?.copyWith(
-                color: AppVisuals.textForestMuted,
+                color: lightText
+                    ? Colors.white.withValues(alpha: 0.74)
+                    : AppVisuals.textForestMuted,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -535,7 +802,7 @@ class _FarmFieldRow extends StatelessWidget {
             child: Text(
               value,
               style: theme.textTheme.bodyMedium?.copyWith(
-                color: AppVisuals.textForest,
+                color: lightText ? Colors.white : AppVisuals.textForest,
                 fontWeight: FontWeight.w700,
               ),
             ),

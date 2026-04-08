@@ -1,0 +1,13 @@
+flutter:
+  assets:
+    - assets/rice/growth/
+    - assets/rice/issues/deficiency/
+    - assets/rice/issues/pests/
+    - assets/rice/issues/weather/
+    - assets/rice/issues/diseases/
+    - assets/corn/growth/
+    - assets/corn/issues/deficiency/
+    - assets/corn/issues/pests/
+    - assets/corn/issues/weather/
+    - assets/corn/issues/diseases/
+    - assets/ui/

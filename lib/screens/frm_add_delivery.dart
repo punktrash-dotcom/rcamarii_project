@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/delivery_model.dart';
 import '../providers/delivery_provider.dart';
 import '../providers/ftracker_provider.dart';
+import '../services/app_localization_service.dart';
 import '../themes/custom_themes.dart';
+import '../utils/app_number_input_formatter.dart';
+import '../widgets/focus_tooltip.dart';
 import '../widgets/searchable_dropdown.dart';
 
 class FrmAddDelivery extends StatefulWidget {
@@ -14,6 +18,7 @@ class FrmAddDelivery extends StatefulWidget {
 }
 
 class _FrmAddDeliveryState extends State<FrmAddDelivery> {
+  static final _numberInputFormatter = AppNumberInputFormatter();
   final _formKey = GlobalKey<FormState>();
   bool _isSaving = false;
 
@@ -47,8 +52,10 @@ class _FrmAddDeliveryState extends State<FrmAddDelivery> {
   }
 
   void _updateTotal() {
-    final double cost = double.tryParse(_costController.text) ?? 0.0;
-    final double qty = double.tryParse(_quantityController.text) ?? 0.0;
+    final double cost =
+        double.tryParse(_costController.text.replaceAll(',', '')) ?? 0.0;
+    final double qty =
+        double.tryParse(_quantityController.text.replaceAll(',', '')) ?? 0.0;
     setState(() {
       _totalController.text = (cost * qty).toStringAsFixed(2);
     });
@@ -66,9 +73,12 @@ class _FrmAddDeliveryState extends State<FrmAddDelivery> {
         type: _selectedType,
         name: _nameController.text,
         ticketNo: _ticketNoController.text,
-        cost: double.tryParse(_costController.text),
-        quantity: double.tryParse(_quantityController.text) ?? 0.0,
-        total: double.tryParse(_totalController.text) ?? 0.0,
+        cost: double.tryParse(_costController.text.replaceAll(',', '')),
+        quantity:
+            double.tryParse(_quantityController.text.replaceAll(',', '')) ??
+                0.0,
+        total:
+            double.tryParse(_totalController.text.replaceAll(',', '')) ?? 0.0,
         note: deliveryNote.isNotEmpty ? deliveryNote : null,
       );
 
@@ -121,49 +131,81 @@ class _FrmAddDeliveryState extends State<FrmAddDelivery> {
                       decoration: const InputDecoration(labelText: 'CROP TYPE'),
                       items: _types
                           .map(
-                              (t) => DropdownMenuItem(value: t, child: Text(t)))
+                            (t) => DropdownMenuItem(
+                              value: t,
+                              child: Text(context.tr(t)),
+                            ),
+                          )
                           .toList(),
                       onChanged: (v) => setState(() => _selectedType = v!),
                     ),
                     const SizedBox(height: 16),
-                    TextFormField(
-                      stylusHandwritingEnabled: false,
-                      controller: _nameController,
-                      decoration:
-                          const InputDecoration(labelText: 'FARM / BATCH NAME'),
-                      validator: (v) => v!.isEmpty ? 'Required' : null,
+                    FocusTooltip(
+                      message: 'Enter the farm or batch name.',
+                      child: TextFormField(
+                        stylusHandwritingEnabled: false,
+                        controller: _nameController,
+                        decoration: const InputDecoration(
+                          labelText: 'FARM / BATCH NAME',
+                        ),
+                        validator: (v) => v!.isEmpty ? 'Required' : null,
+                      ),
                     ),
                     const SizedBox(height: 16),
-                    TextFormField(
-                      stylusHandwritingEnabled: false,
-                      controller: _ticketNoController,
-                      decoration:
-                          const InputDecoration(labelText: 'TICKET / REF NO.'),
+                    FocusTooltip(
+                      message: 'Enter the ticket or reference number.',
+                      child: TextFormField(
+                        stylusHandwritingEnabled: false,
+                        controller: _ticketNoController,
+                        decoration: const InputDecoration(
+                          labelText: 'TICKET / REF NO.',
+                        ),
+                      ),
                     ),
                     const SizedBox(height: 24),
                     _buildSectionTitle('QUANTITY & VALUATION'),
                     Row(
                       children: [
                         Expanded(
-                          child: TextFormField(
-                            stylusHandwritingEnabled: false,
-                            controller: _quantityController,
-                            decoration:
-                                const InputDecoration(labelText: 'QUANTITY'),
-                            keyboardType: TextInputType.number,
-                            validator: (v) => double.tryParse(v ?? '') == null
-                                ? 'Invalid'
-                                : null,
+                          child: FocusTooltip(
+                            message: 'Enter the delivery quantity.',
+                            child: TextFormField(
+                              stylusHandwritingEnabled: false,
+                              controller: _quantityController,
+                              decoration:
+                                  const InputDecoration(labelText: 'QUANTITY'),
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                decimal: true,
+                              ),
+                              inputFormatters: <TextInputFormatter>[
+                                _numberInputFormatter,
+                              ],
+                              validator: (v) => double.tryParse(
+                                          (v ?? '').replaceAll(',', '')) ==
+                                      null
+                                  ? 'Invalid'
+                                  : null,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
-                          child: TextFormField(
-                            stylusHandwritingEnabled: false,
-                            controller: _costController,
-                            decoration:
-                                const InputDecoration(labelText: 'UNIT COST'),
-                            keyboardType: TextInputType.number,
+                          child: FocusTooltip(
+                            message: 'Enter the unit cost.',
+                            child: TextFormField(
+                              stylusHandwritingEnabled: false,
+                              controller: _costController,
+                              decoration:
+                                  const InputDecoration(labelText: 'UNIT COST'),
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                decimal: true,
+                              ),
+                              inputFormatters: <TextInputFormatter>[
+                                _numberInputFormatter,
+                              ],
+                            ),
                           ),
                         ),
                       ],
@@ -180,17 +222,23 @@ class _FrmAddDeliveryState extends State<FrmAddDelivery> {
                           color: Theme.of(context).colorScheme.primary),
                     ),
                     const SizedBox(height: 16),
-                    TextFormField(
-                      stylusHandwritingEnabled: false,
-                      controller: _noteController,
-                      decoration: const InputDecoration(labelText: 'REMARKS'),
-                      maxLines: 2,
+                    FocusTooltip(
+                      message: 'Enter delivery remarks.',
+                      child: TextFormField(
+                        stylusHandwritingEnabled: false,
+                        controller: _noteController,
+                        decoration: const InputDecoration(labelText: 'REMARKS'),
+                        maxLines: 2,
+                      ),
                     ),
                     const SizedBox(height: 32),
-                    ElevatedButton(
-                      onPressed: _isSaving ? null : _saveDelivery,
-                      child: const Text('RECORD DELIVERY',
-                          style: TextStyle(fontWeight: FontWeight.bold)),
+                    Tooltip(
+                      message: 'Save this delivery record.',
+                      child: ElevatedButton(
+                        onPressed: _isSaving ? null : _saveDelivery,
+                        child: const Text('RECORD DELIVERY',
+                            style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
                     ),
                   ],
                 ),

@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
-import '../providers/app_settings_provider.dart';
 import '../services/app_localization_service.dart';
-import '../services/voice_command_interpreter.dart';
 import '../themes/app_visuals.dart';
 import '../widgets/modern_screen_shell.dart';
 
@@ -14,7 +11,6 @@ class HelpScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final appSettings = context.watch<AppSettingsProvider>();
 
     return Scaffold(
       backgroundColor: Colors.transparent,
@@ -35,30 +31,6 @@ class HelpScreen extends StatelessWidget {
           ),
         ),
         bodyPadding: EdgeInsets.zero,
-        headerTopContent: Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            _StatusChip(
-              label: appSettings.voiceAssistantEnabled
-                  ? context.tr('Voice ready')
-                  : context.tr('Voice is off'),
-              color: appSettings.voiceAssistantEnabled
-                  ? AppVisuals.growthGreen
-                  : scheme.outline,
-              background: appSettings.voiceAssistantEnabled
-                  ? AppVisuals.growthGreen.withValues(alpha: 0.16)
-                  : scheme.surfaceContainerHighest.withValues(alpha: 0.9),
-            ),
-            _StatusChip(
-              label: appSettings.voiceResponsesEnabled
-                  ? context.tr('Spoken replies on')
-                  : context.tr('Spoken replies off'),
-              color: AppVisuals.accentChartBlue,
-              background: AppVisuals.accentChartBlue.withValues(alpha: 0.14),
-            ),
-          ],
-        ),
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
@@ -70,8 +42,6 @@ class HelpScreen extends StatelessWidget {
               _buildQuickStart(context),
               const SizedBox(height: 14),
               _buildModuleGuide(context),
-              const SizedBox(height: 14),
-              _buildVoiceGuide(context, appSettings),
               const SizedBox(height: 14),
               _buildTips(context),
             ],
@@ -141,7 +111,7 @@ class HelpScreen extends StatelessWidget {
           const SizedBox(height: 12),
           Text(
             context.tr(
-              'Use the hub for shortcuts, the field workspace for detailed records, and the voice assistant when your hands are busy.',
+              'Use the hub for shortcuts, the field workspace for detailed records, and the library when you need field guidance.',
             ),
             style: theme.textTheme.bodyLarge?.copyWith(
               color: AppVisuals.warmOffWhite.withValues(alpha: 0.86),
@@ -262,7 +232,7 @@ class HelpScreen extends StatelessWidget {
         icon: Icons.account_balance_wallet_rounded,
         title: context.tr('Finance'),
         body: context.tr(
-          'Tracker and profit tools for understanding income, expenses, and return estimates.',
+          'Tracker plus trial profit tools for simulations and estimates. Use Harvest Board for official harvest calculation and recording.',
         ),
         accent: AppVisuals.lightGold,
       ),
@@ -292,92 +262,6 @@ class HelpScreen extends StatelessWidget {
                 .toList(),
           );
         },
-      ),
-    );
-  }
-
-  Widget _buildVoiceGuide(
-    BuildContext context,
-    AppSettingsProvider appSettings,
-  ) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-
-    return _SectionCard(
-      title: context.tr('Voice Assistant'),
-      subtitle: context.tr(
-        'Speak short commands when you want fast navigation or hands-free help.',
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: scheme.surfaceContainerHighest.withValues(alpha: 0.72),
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(
-                color: scheme.outline.withValues(alpha: 0.35),
-              ),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: scheme.primary.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(
-                    Icons.mic_rounded,
-                    color: scheme.primary,
-                    size: 22,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        appSettings.voiceAssistantEnabled
-                            ? context.tr('Voice navigation is enabled.')
-                            : context.tr('Voice navigation is disabled.'),
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: scheme.onSurface,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        appSettings.voiceAssistantEnabled
-                            ? context.tr(VoiceCommandInterpreter.helpMessage)
-                            : context.tr(
-                                'Turn on Voice Assistant in Settings if you want spoken navigation help and quick command entry.',
-                              ),
-                        style: theme.textTheme.bodyMedium?.copyWith(
-                          color: scheme.onSurfaceVariant,
-                          height: 1.55,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: VoiceCommandInterpreter.sampleCommands
-                .map((command) => _CommandChip(label: command))
-                .toList(),
-          ),
-        ],
       ),
     );
   }
@@ -636,64 +520,6 @@ class _TipRow extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _StatusChip extends StatelessWidget {
-  final String label;
-  final Color color;
-  final Color background;
-
-  const _StatusChip({
-    required this.label,
-    required this.color,
-    required this.background,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Text(
-        label,
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: color,
-              fontWeight: FontWeight.w800,
-            ),
-      ),
-    );
-  }
-}
-
-class _CommandChip extends StatelessWidget {
-  final String label;
-
-  const _CommandChip({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppVisuals.brandBlue.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: AppVisuals.brandBlue.withValues(alpha: 0.18),
-        ),
-      ),
-      child: Text(
-        context.tr(label),
-        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: AppVisuals.textForest,
-              fontWeight: FontWeight.w700,
-            ),
-      ),
     );
   }
 }

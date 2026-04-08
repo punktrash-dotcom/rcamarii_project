@@ -10,7 +10,7 @@ class GuidelineLocalizationService {
       case GuidelineLanguage.tagalog:
         return 'Tagalog';
       case GuidelineLanguage.visayan:
-        return 'Visayan';
+        return 'Bisaya (Cebuano)';
     }
   }
 

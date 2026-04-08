@@ -302,7 +302,7 @@ class _ChartsScreenState extends State<ChartsScreen> {
           final currencySymbol = appSettings.currencySymbol;
 
           return Scaffold(
-            backgroundColor: scheme.surface.withValues(alpha: 0.74),
+            backgroundColor: Colors.transparent,
             appBar: AppBar(
               backgroundColor: Colors.transparent,
               elevation: 0,
@@ -1596,7 +1596,7 @@ class _ReportPrintPreviewScreen extends StatelessWidget {
     return Theme(
       data: theme,
       child: Scaffold(
-        backgroundColor: scheme.surface.withValues(alpha: 0.74),
+        backgroundColor: Colors.transparent,
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
@@ -1643,4 +1643,3 @@ class _ReportPrintPreviewScreen extends StatelessWidget {
     );
   }
 }
-

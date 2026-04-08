@@ -26,6 +26,10 @@
 		<true/>
 		<key>NSMicrophoneUsageDescription</key>
 		<string>RCAMARii uses the microphone to capture voice commands.</string>
+		<key>NSCameraUsageDescription</key>
+		<string>RCAMARii uses the camera so you can capture an actual crop photo for visual assessment.</string>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>RCAMARii uses your photo library so you can select an actual crop photo for visual assessment.</string>
 		<key>NSSpeechRecognitionUsageDescription</key>
 		<string>RCAMARii uses speech recognition so you can control the app by voice.</string>
 		<key>UILaunchStoryboardName</key>

@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import '../utils/app_text_normalizer.dart';
+
 @immutable
 class WorkDef {
   final String id;
@@ -30,9 +32,9 @@ class WorkDef {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
-      'name': name,
-      'type': type,
-      'ModeOfWork': modeOfWork,
+      'name': AppTextNormalizer.titleCase(name),
+      'type': AppTextNormalizer.titleCase(type),
+      'ModeOfWork': AppTextNormalizer.titleCase(modeOfWork),
       'Cost': cost,
     };
   }

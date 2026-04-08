@@ -19,6 +19,7 @@ import '../providers/ftracker_provider.dart';
 import '../providers/guideline_language_provider.dart';
 import '../providers/supplies_provider.dart';
 import '../providers/weather_provider.dart';
+import '../services/app_localization_service.dart';
 import '../services/farm_operations_service.dart';
 import '../services/farming_advice_service.dart';
 import '../services/guideline_localization_service.dart';
@@ -1414,9 +1415,9 @@ class _FarmReportDashboardScreenState extends State<FarmReportDashboardScreen> {
           theme: theme,
           title: 'Yield Over Time',
           subtitle: 'Projected harvest tons over the next six months',
-          legend: const [
-            _LegendItemData('Sugarcane', _kSugarcaneChartColor),
-            _LegendItemData('Rice', _kRiceChartColor),
+          legend: [
+            _LegendItemData(context.tr('Sugarcane'), _kSugarcaneChartColor),
+            _LegendItemData(context.tr('Rice'), _kRiceChartColor),
           ],
           child: _YieldChart(
             theme: theme,
@@ -2991,7 +2992,7 @@ class _FarmReportPrintPreviewScreen extends StatelessWidget {
     final scheme = theme.colorScheme;
 
     return Scaffold(
-      backgroundColor: scheme.surface.withValues(alpha: 0.74),
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,

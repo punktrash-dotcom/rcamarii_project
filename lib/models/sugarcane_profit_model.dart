@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import '../utils/app_text_normalizer.dart';
+
 @immutable
 class SugarcaneProfit {
   final int? profitId;
@@ -75,10 +77,10 @@ class SugarcaneProfit {
     return {
       if (profitId != null) 'ProfitID': profitId,
       'DeliveryID': deliveryId,
-      'SourceType': sourceType,
-      'SourceLabel': sourceLabel,
-      'SourceStatus': sourceStatus,
-      'FarmName': farmName,
+      'SourceType': AppTextNormalizer.titleCase(sourceType),
+      'SourceLabel': AppTextNormalizer.titleCase(sourceLabel),
+      'SourceStatus': AppTextNormalizer.titleCase(sourceStatus),
+      'FarmName': AppTextNormalizer.titleCase(farmName),
       'DeliveryDate': deliveryDate.toIso8601String(),
       'NetTonsCane': netTonsCane,
       'LkgPerTc': lkgPerTc,
@@ -91,7 +93,7 @@ class SugarcaneProfit {
       'MolassesProceeds': molassesProceeds,
       'TotalRevenue': totalRevenue,
       'NetProfit': netProfit,
-      'Note': note,
+      'Note': AppTextNormalizer.nullableSentenceCase(note),
       'CreatedAt': createdAt.toIso8601String(),
     };
   }

@@ -119,7 +119,7 @@ class _TabActivitiesState extends State<TabActivities>
               theme.brightness == Brightness.dark,
             ),
             child: Image.asset(
-              'lib/assets/images/images (1).jfif',
+              'lib/assets/images/1.jpg',
               fit: BoxFit.cover,
             ),
           ),
@@ -651,6 +651,8 @@ class _TabActivitiesState extends State<TabActivities>
       builder: (context) {
         final theme = Theme.of(context);
         final scheme = theme.colorScheme;
+        final showDetails =
+            Provider.of<AppSettingsProvider>(context).showDetailedDescriptions;
 
         return StatefulBuilder(
           builder: (context, setModalState) {
@@ -672,17 +674,20 @@ class _TabActivitiesState extends State<TabActivities>
                       color: scheme.onSurface,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    context.tr(
-                      'Search by farm or job name, then choose how the ledger should be ordered.',
+                  if (showDetails) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      context.tr(
+                        'Search by farm or job name, then choose how the ledger should be ordered.',
+                      ),
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                        height: 1.5,
+                      ),
                     ),
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                      height: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
+                    const SizedBox(height: 16),
+                  ] else
+                    const SizedBox(height: 12),
                   TextField(
                     controller: searchController,
                     decoration: InputDecoration(

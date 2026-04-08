@@ -26,9 +26,22 @@ class _ScrWorkersState extends State<ScrWorkers> with RouteAware {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<WorkerProvider>(context, listen: false).loadWorkers();
-      _playScreenOpenAudioIfNeeded();
+      unawaited(_initializeScreen());
     });
+  }
+
+  Future<void> _initializeScreen() async {
+    try {
+      await Provider.of<WorkerProvider>(context, listen: false).loadWorkers();
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to load workers: $error')),
+      );
+    }
+    await _playScreenOpenAudioIfNeeded();
   }
 
   Future<void> _playScreenOpenAudioIfNeeded() async {
@@ -116,7 +129,7 @@ class _ScrWorkersState extends State<ScrWorkers> with RouteAware {
       ),
       body: AppBackdrop(
         isDark: isDark,
-        backgroundImageAsset: 'lib/assets/images/green5.jfif',
+        backgroundImageAsset: 'lib/assets/images/background.png',
         backgroundImageOpacity: isDark ? 0.26 : 0.38,
         imageScrimColor: isDark
             ? Colors.black.withValues(alpha: 0.2)
@@ -517,7 +530,7 @@ class _FrmAddEditWorkerState extends State<FrmAddEditWorker> {
       ),
       body: AppBackdrop(
         isDark: isDark,
-        backgroundImageAsset: 'lib/assets/images/green5.jfif',
+        backgroundImageAsset: 'lib/assets/images/background.png',
         backgroundImageOpacity: isDark ? 0.18 : 0.28,
         imageScrimColor: isDark
             ? Colors.black.withValues(alpha: 0.2)

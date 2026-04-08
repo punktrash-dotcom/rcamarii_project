@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../services/app_properties_store.dart';
+import '../utils/app_text_normalizer.dart';
 
 enum AppCurrency { php, usd, eur }
 
 enum LaunchDestination { hub, workspace }
 
 enum AudioSoundStyle { serious, funny }
+
+enum AppInteractionMode { detailed, simple }
 
 AudioSoundStyle selectedGlobalAudioSoundStyle = AudioSoundStyle.serious;
 
@@ -129,6 +132,36 @@ extension AudioSoundStyleX on AudioSoundStyle {
   }
 }
 
+extension AppInteractionModeX on AppInteractionMode {
+  String get code {
+    switch (this) {
+      case AppInteractionMode.detailed:
+        return 'detailed';
+      case AppInteractionMode.simple:
+        return 'simple';
+    }
+  }
+
+  String get label {
+    switch (this) {
+      case AppInteractionMode.detailed:
+        return 'Detailed';
+      case AppInteractionMode.simple:
+        return 'Simple';
+    }
+  }
+
+  static AppInteractionMode fromCode(String? code) {
+    switch (code) {
+      case 'simple':
+        return AppInteractionMode.simple;
+      case 'detailed':
+      default:
+        return AppInteractionMode.detailed;
+    }
+  }
+}
+
 class AppSettingsProvider with ChangeNotifier {
   static const _currencyKey = 'app_settings.currency';
   static const _launchDestinationKey = 'app_settings.launch_destination';
@@ -136,15 +169,13 @@ class AppSettingsProvider with ChangeNotifier {
   static const _userSetupCompleteKey = 'app_settings.user_setup_complete';
   static const _appLockEnabledKey = 'app_settings.app_lock_enabled';
   static const _appPasswordKey = 'app_settings.app_password';
-  static const _voiceAssistantEnabledKey =
-      'app_settings.voice_assistant_enabled';
-  static const _voiceResponsesEnabledKey =
-      'app_settings.voice_responses_enabled';
   static const _audioSoundsEnabledKey = 'app_settings.audio_sounds_enabled';
   static const _audioSoundsVolumeKey = 'app_settings.audio_sounds_volume';
   static const _audioSoundStyleKey = 'app_settings.audio_sound_style';
+  static const _farmAlertsEnabledKey = 'app_settings.farm_alerts_enabled';
   static const _weatherAutoRefreshKey = 'app_settings.weather_auto_refresh';
   static const _reducedMotionKey = 'app_settings.reduced_motion';
+  static const _interactionModeKey = 'app_settings.interaction_mode';
 
   late final Future<void> _ready;
   final AppPropertiesStore _store = AppPropertiesStore.instance;
@@ -155,13 +186,13 @@ class AppSettingsProvider with ChangeNotifier {
   bool _userSetupComplete = false;
   bool _appLockEnabled = false;
   String _appPassword = '';
-  bool _voiceAssistantEnabled = true;
-  bool _voiceResponsesEnabled = true;
   bool _audioSoundsEnabled = false;
   double _audioSoundsVolume = 0.75;
   AudioSoundStyle _audioSoundStyle = AudioSoundStyle.serious;
+  bool _farmAlertsEnabled = true;
   bool _weatherAutoRefresh = true;
   bool _reducedMotion = false;
+  AppInteractionMode _interactionMode = AppInteractionMode.detailed;
 
   Future<void> get ready => _ready;
 
@@ -173,13 +204,15 @@ class AppSettingsProvider with ChangeNotifier {
   String get appPassword => _appPassword;
   bool get hasAppPassword => _appPassword.isNotEmpty;
   bool get requiresAppPassword => _appLockEnabled && hasAppPassword;
-  bool get voiceAssistantEnabled => _voiceAssistantEnabled;
-  bool get voiceResponsesEnabled => _voiceResponsesEnabled;
   bool get audioSoundsEnabled => _audioSoundsEnabled;
   double get audioSoundsVolume => _audioSoundsVolume;
   AudioSoundStyle get audioSoundStyle => _audioSoundStyle;
+  bool get farmAlertsEnabled => _farmAlertsEnabled;
   bool get weatherAutoRefresh => _weatherAutoRefresh;
   bool get reducedMotion => _reducedMotion;
+  AppInteractionMode get interactionMode => _interactionMode;
+  bool get showDetailedDescriptions =>
+      _interactionMode == AppInteractionMode.detailed;
 
   String get currencyLabel => _currency.label;
   String get currencySymbol => _currency.symbol;
@@ -209,7 +242,7 @@ class AppSettingsProvider with ChangeNotifier {
     String password = '',
     bool markSetupComplete = true,
   }) async {
-    final trimmedName = userName.trim();
+    final trimmedName = AppTextNormalizer.titleCase(userName);
     final trimmedPassword = password.trim();
 
     _userName = trimmedName;
@@ -229,7 +262,7 @@ class AppSettingsProvider with ChangeNotifier {
   }
 
   Future<void> setUserName(String value) async {
-    final trimmedValue = value.trim();
+    final trimmedValue = AppTextNormalizer.titleCase(value);
     if (trimmedValue.isEmpty || _userName == trimmedValue) return;
 
     _userName = trimmedValue;
@@ -271,22 +304,6 @@ class AppSettingsProvider with ChangeNotifier {
     await _store.setBool(_appLockEnabledKey, value);
   }
 
-  Future<void> setVoiceAssistantEnabled(bool value) async {
-    if (_voiceAssistantEnabled == value) return;
-    _voiceAssistantEnabled = value;
-    notifyListeners();
-
-    await _store.setBool(_voiceAssistantEnabledKey, value);
-  }
-
-  Future<void> setVoiceResponsesEnabled(bool value) async {
-    if (_voiceResponsesEnabled == value) return;
-    _voiceResponsesEnabled = value;
-    notifyListeners();
-
-    await _store.setBool(_voiceResponsesEnabledKey, value);
-  }
-
   Future<void> setAudioSoundsEnabled(bool value) async {
     if (_audioSoundsEnabled == value) return;
     _audioSoundsEnabled = value;
@@ -312,6 +329,14 @@ class AppSettingsProvider with ChangeNotifier {
     await _store.setString(_audioSoundStyleKey, value.code);
   }
 
+  Future<void> setFarmAlertsEnabled(bool value) async {
+    if (_farmAlertsEnabled == value) return;
+    _farmAlertsEnabled = value;
+    notifyListeners();
+
+    await _store.setBool(_farmAlertsEnabledKey, value);
+  }
+
   Future<void> setWeatherAutoRefresh(bool value) async {
     if (_weatherAutoRefresh == value) return;
     _weatherAutoRefresh = value;
@@ -328,6 +353,14 @@ class AppSettingsProvider with ChangeNotifier {
     await _store.setBool(_reducedMotionKey, value);
   }
 
+  Future<void> setInteractionMode(AppInteractionMode value) async {
+    if (_interactionMode == value) return;
+    _interactionMode = value;
+    notifyListeners();
+
+    await _store.setString(_interactionModeKey, value.code);
+  }
+
   Future<void> reload() async {
     await _load(notify: true);
   }
@@ -339,21 +372,21 @@ class AppSettingsProvider with ChangeNotifier {
     _launchDestination = LaunchDestinationX.fromCode(
       await _store.getString(_launchDestinationKey),
     );
-    _userName = (await _store.getString(_userNameKey))?.trim() ?? '';
+    _userName =
+        AppTextNormalizer.titleCase(await _store.getString(_userNameKey) ?? '');
     _userSetupComplete = await _store.getBool(_userSetupCompleteKey) ?? false;
     _appLockEnabled = await _store.getBool(_appLockEnabledKey) ?? false;
     _appPassword = await _store.getString(_appPasswordKey) ?? '';
-    _voiceAssistantEnabled =
-        await _store.getBool(_voiceAssistantEnabledKey) ?? true;
-    _voiceResponsesEnabled =
-        await _store.getBool(_voiceResponsesEnabledKey) ?? true;
     _audioSoundsEnabled = await _store.getBool(_audioSoundsEnabledKey) ?? false;
     _audioSoundsVolume = await _store.getDouble(_audioSoundsVolumeKey) ?? 0.75;
     _audioSoundStyle =
         AudioSoundStyleX.fromCode(await _store.getString(_audioSoundStyleKey));
     selectedGlobalAudioSoundStyle = _audioSoundStyle;
+    _farmAlertsEnabled = await _store.getBool(_farmAlertsEnabledKey) ?? true;
     _weatherAutoRefresh = await _store.getBool(_weatherAutoRefreshKey) ?? true;
     _reducedMotion = await _store.getBool(_reducedMotionKey) ?? false;
+    _interactionMode = AppInteractionModeX.fromCode(
+        await _store.getString(_interactionModeKey));
 
     if (notify) {
       notifyListeners();

@@ -22,17 +22,6 @@ void main() {
     );
   });
 
-  test('speech volume is normalized before talkback playback', () {
-    expect(
-      AppAudioProvider.effectiveSpeechVolume(0.75),
-      closeTo(0.42, 0.02),
-    );
-    expect(
-      AppAudioProvider.effectiveSpeechVolume(1.0),
-      lessThan(1.0),
-    );
-  });
-
   test('android session matches transient UI sonification playback', () {
     final configuration = AppAudioProvider.sessionConfigurationForPlatform(
       TargetPlatform.android,

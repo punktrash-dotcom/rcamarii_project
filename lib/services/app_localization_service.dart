@@ -16,7 +16,7 @@ class AppLocalizationService {
   }
 
   static String text(GuidelineLanguage language, String key) {
-    return _copy[language]?[key] ?? key;
+    return localizeLooseText(language, _copy[language]?[key] ?? key);
   }
 
   static String format(
@@ -26,9 +26,53 @@ class AppLocalizationService {
   ]) {
     var output = text(language, key);
     values.forEach((name, value) {
-      output = output.replaceAll('{$name}', value);
+      output = output.replaceAll(
+        '{$name}',
+        localizeLooseText(language, value),
+      );
     });
-    return output;
+    return localizeLooseText(language, output);
+  }
+
+  static String localizeLooseText(GuidelineLanguage language, String value) {
+    if (language != GuidelineLanguage.visayan || value.isEmpty) {
+      return value;
+    }
+
+    const replacements = <String, String>{
+      'Profit Tools': 'Kalkulasyon sa Ganansya',
+      'Panalapi': 'Pagsubay sa Gasto',
+      'Finance': 'Pagsubay sa Gasto',
+      'Farm Hub': 'Kaumahan',
+      'Operations': 'Mga Trabaho',
+      'Inventory': 'Gamit sa Uma',
+      'Library': 'Tabang Basahon',
+      'Mga Delivery': 'Pagbaligya sa Produkto',
+      'Deliveries': 'Pagbaligya sa Produkto',
+      'Employees': 'Mga Trabahante',
+      'Yuta': 'Mga Uma',
+      'Estate': 'Mga Uma',
+      'Sugarcane and Rice': 'Tubo ug Humay',
+      'sugarcane and rice': 'tubo ug humay',
+      'Sugarcane': 'Tubo',
+      'sugarcane': 'tubo',
+      'Rice': 'Humay',
+      'rice': 'humay',
+      'Corn': 'Mais',
+      'corn': 'mais',
+    };
+
+    final orderedEntries = replacements.entries.toList()
+      ..sort((left, right) => right.key.length.compareTo(left.key.length));
+
+    var localized = value;
+    for (final entry in orderedEntries) {
+      localized = localized.replaceAllMapped(
+        RegExp('(?<!\\w)${RegExp.escape(entry.key)}(?!\\w)'),
+        (_) => entry.value,
+      );
+    }
+    return localized;
   }
 
   static final Map<GuidelineLanguage, Map<String, String>> _copy = {
@@ -493,5 +537,13 @@ extension AppLocalizationBuildContext on BuildContext {
 
   String trRead(String key, [Map<String, String> values = const {}]) {
     return AppLocalizationService.format(appLanguageRead, key, values);
+  }
+
+  String localizeText(String value) {
+    return AppLocalizationService.localizeLooseText(appLanguage, value);
+  }
+
+  String localizeTextRead(String value) {
+    return AppLocalizationService.localizeLooseText(appLanguageRead, value);
   }
 }

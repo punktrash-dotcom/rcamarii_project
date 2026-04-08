@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 
+import '../utils/app_text_normalizer.dart';
+
 @immutable
 class DefSup {
   final String id;
@@ -30,9 +32,9 @@ class DefSup {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
-      'type': type,
-      'name': name,
-      'description': description,
+      'type': AppTextNormalizer.titleCase(type),
+      'name': AppTextNormalizer.titleCase(name),
+      'description': AppTextNormalizer.sentenceCase(description),
       'Cost': cost,
     };
   }

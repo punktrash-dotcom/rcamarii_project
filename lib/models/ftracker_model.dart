@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
 
+import '../utils/app_text_normalizer.dart';
+
 @immutable
 class Ftracker {
   final int? transid;
@@ -69,11 +71,11 @@ class Ftracker {
     return {
       'TransID': transid,
       'Date': date.toIso8601String(),
-      'Type': type,
-      'Category': category,
-      'Name': name,
+      'Type': AppTextNormalizer.titleCase(type),
+      'Category': AppTextNormalizer.titleCase(category),
+      'Name': AppTextNormalizer.titleCase(name),
       'Amount': amount,
-      'Note': note,
+      'Note': AppTextNormalizer.nullableSentenceCase(note),
     };
   }
 }

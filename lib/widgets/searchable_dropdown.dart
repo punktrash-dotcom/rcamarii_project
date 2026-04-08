@@ -282,10 +282,17 @@ class _SearchableDropdownSheetState<T>
                         itemBuilder: (context, index) {
                           final item = filteredItems[index];
                           final selected = item.value == widget.currentValue;
+                          final enabled = item.enabled;
                           return ListTile(
                             title: Text(
                               _itemLabel(item),
                               overflow: TextOverflow.ellipsis,
+                              style: enabled
+                                  ? null
+                                  : TextStyle(
+                                      color: theme.colorScheme.onSurface
+                                          .withValues(alpha: 0.45),
+                                    ),
                             ),
                             trailing: selected
                                 ? Icon(
@@ -293,7 +300,9 @@ class _SearchableDropdownSheetState<T>
                                     color: theme.colorScheme.primary,
                                   )
                                 : null,
-                            onTap: () => Navigator.of(context).pop(item.value),
+                            onTap: enabled
+                                ? () => Navigator.of(context).pop(item.value)
+                                : null,
                           );
                         },
                       ),

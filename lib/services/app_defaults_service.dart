@@ -8,7 +8,6 @@ class AppDefaultsService {
   static const String selectedFarmIdKey = 'farm_provider.selected_farm_id';
   static const String farmDetailsVisibleKey =
       'farm_provider.is_showing_activities';
-  static const String hubAutopilotEnabledKey = 'ui.scr_msoft.autopilot_enabled';
   static const String trackerSelectedTabKey = 'ui.scr_tracker.selected_tab';
   static const String knowledgeSelectedCategoryKey =
       'ui.tab_knowledge.selected_category';
@@ -22,18 +21,17 @@ class AppDefaultsService {
     'app_settings.user_name': '',
     'app_settings.user_setup_complete': false,
     'app_settings.app_lock_enabled': false,
-    'app_settings.voice_assistant_enabled': true,
-    'app_settings.voice_responses_enabled': true,
     'app_settings.audio_sounds_enabled': false,
     'app_settings.audio_sounds_volume': 0.75,
     'app_settings.audio_sound_style': 'serious',
+    'app_settings.farm_alerts_enabled': true,
     'app_settings.weather_auto_refresh': true,
     'app_settings.reduced_motion': false,
+    'app_settings.interaction_mode': 'detailed',
     ThemeProvider.themeStatusKey: false,
     ProfileProvider.nameKey: 'My Wallet',
     selectedFarmIdKey: '',
     farmDetailsVisibleKey: false,
-    hubAutopilotEnabledKey: true,
     trackerSelectedTabKey: 0,
     knowledgeSelectedCategoryKey: '',
     marketPriceFilterKey: 'all',

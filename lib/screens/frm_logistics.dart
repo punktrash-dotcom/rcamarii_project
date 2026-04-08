@@ -1,27 +1,38 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../models/delivery_model.dart';
 import '../models/farm_income_model.dart';
 import '../models/produce_delivery_model.dart';
 import '../providers/activity_provider.dart';
+import '../providers/app_settings_provider.dart';
 import '../providers/delivery_provider.dart';
 import '../providers/farm_income_provider.dart';
 import '../providers/farm_provider.dart';
 import '../providers/ftracker_provider.dart';
-import '../providers/voice_command_provider.dart';
 import '../models/activity_model.dart';
 import '../services/app_properties_store.dart';
+import '../services/app_localization_service.dart';
 import '../services/database_helper.dart';
 import '../services/transaction_log_service.dart';
 import '../themes/app_visuals.dart';
 import '../themes/custom_themes.dart';
+import '../utils/app_number_input_formatter.dart';
 import '../utils/validation_utils.dart';
+import '../widgets/focus_tooltip.dart';
 import '../widgets/searchable_dropdown.dart';
 import '../models/farm_model.dart';
 
 class FrmLogistics extends StatefulWidget {
-  const FrmLogistics({super.key});
+  const FrmLogistics({
+    super.key,
+    this.initialFarmName,
+    this.sugarcaneOnlyMode = false,
+  });
+
+  final String? initialFarmName;
+  final bool sugarcaneOnlyMode;
 
   @override
   State<FrmLogistics> createState() => _FrmLogisticsState();
@@ -32,6 +43,8 @@ enum _LogisticsFlow { sugarcane, produce, farmIncome }
 enum _FarmIncomeType { equipmentRental, itemSale, otherIncome }
 
 enum _RiceFarmResetAction { zero, prePlanting }
+
+enum _TruckingOwnership { owned, rental }
 
 class _FrmLogisticsState extends State<FrmLogistics> {
   static const _lastTruckingIdKey = 'last_trucking_id';
@@ -64,6 +77,7 @@ class _FrmLogisticsState extends State<FrmLogistics> {
   final _truckingNumController = TextEditingController();
   final _companyController = TextEditingController();
   final _costController = TextEditingController();
+  final _rentalCostController = TextEditingController();
   final _deliveryNameController = TextEditingController();
   final _noteController = TextEditingController();
   final _produceDeliveryNoController = TextEditingController();
@@ -78,10 +92,16 @@ class _FrmLogisticsState extends State<FrmLogistics> {
   final _incomeAssetController = TextEditingController();
   final _incomeClientController = TextEditingController();
   final _incomeAmountController = TextEditingController();
+  static final _numberInputFormatter = AppNumberInputFormatter();
 
   String? _selectedFarmName;
   _SavedProduceSummary? _savedProduceSummary;
   _FarmIncomeType _selectedFarmIncomeType = _FarmIncomeType.equipmentRental;
+  _TruckingOwnership _truckingOwnership = _TruckingOwnership.owned;
+
+  bool get _showInteractionDetails =>
+      Provider.of<AppSettingsProvider>(context, listen: false)
+          .showDetailedDescriptions;
 
   @override
   void initState() {
@@ -104,6 +124,7 @@ class _FrmLogisticsState extends State<FrmLogistics> {
     _truckingNumController.dispose();
     _companyController.dispose();
     _costController.dispose();
+    _rentalCostController.dispose();
     _deliveryNameController.dispose();
     _noteController.dispose();
     _produceDeliveryNoController.dispose();
@@ -146,6 +167,7 @@ class _FrmLogisticsState extends State<FrmLogistics> {
           (await _store.getString(_lastSugarcaneDeliveryNameKey))?.trim() ?? '';
       final savedFarmName =
           (await _store.getString(_lastSugarcaneFarmNameKey))?.trim() ?? '';
+      final initialFarmName = widget.initialFarmName?.trim() ?? '';
 
       setState(() {
         _historicalCompanies = historicalCompanies;
@@ -165,6 +187,10 @@ class _FrmLogisticsState extends State<FrmLogistics> {
             _deliveryNameController.text = savedDeliveryName;
           }
           _selectedFarmName = savedFarmName.isEmpty ? null : savedFarmName;
+          if (initialFarmName.isNotEmpty) {
+            _selectedFarmName = initialFarmName;
+            _deliveryNameController.text = initialFarmName;
+          }
         }
       });
     }
@@ -366,7 +392,14 @@ class _FrmLogisticsState extends State<FrmLogistics> {
     if (!_formKey.currentState!.validate()) return;
 
     final String company = ValidationUtils.toTitleCase(_companyController.text);
-    final double cost = double.tryParse(_costController.text) ?? 0.0;
+    final double allowance =
+        double.tryParse(_costController.text.replaceAll(',', '').trim()) ?? 0.0;
+    final double rentalCost = _truckingOwnership == _TruckingOwnership.rental
+        ? (double.tryParse(
+                _rentalCostController.text.replaceAll(',', '').trim()) ??
+            0.0)
+        : 0.0;
+    final double totalTruckingExpense = allowance + rentalCost;
     final bool isSugarcaneDelivery =
         (_selectedCrop ?? '').toLowerCase().trim() == 'sugarcane';
     final String deliveryName = _deliveryNameController.text.trim();
@@ -383,10 +416,22 @@ class _FrmLogisticsState extends State<FrmLogistics> {
             company: company,
             deliveryName: deliveryName,
             note: logisticsNote,
+            allowance: allowance,
+            rentalCost: rentalCost,
+            ownership: _truckingOwnership,
           )
         : logisticsNote;
     final String? persistedLogisticsNote =
         enrichedLogisticsNote.isNotEmpty ? enrichedLogisticsNote : null;
+
+    if (isSugarcaneDelivery && allowance <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Trucking allowance must be greater than zero.'),
+        ),
+      );
+      return;
+    }
 
     final activity = Activity(
       jobId: 'TRK-${_truckingNumController.text}',
@@ -398,8 +443,8 @@ class _FrmLogisticsState extends State<FrmLogistics> {
       assetUsed: _truckingNumController.text,
       costType: 'Expense',
       duration: 1.0,
-      cost: cost,
-      total: cost,
+      cost: totalTruckingExpense,
+      total: totalTruckingExpense,
       worker: company,
       note: persistedLogisticsNote,
     );
@@ -415,7 +460,7 @@ class _FrmLogisticsState extends State<FrmLogistics> {
         : ftrackerProvider.buildRecord(
             dDate: DateFormat('yyyy-MM-dd').format(_selectedDate),
             dType: 'Expenses',
-            dAmount: cost,
+            dAmount: totalTruckingExpense,
             category: logisticsCategory,
             name: activity.name,
             note: logisticsNote.isNotEmpty ? logisticsNote : null,
@@ -466,7 +511,7 @@ class _FrmLogisticsState extends State<FrmLogistics> {
         content: Text(_isAdvanceScheduling
             ? 'Transaction scheduled and sugarcane delivery queued.'
             : isSugarcaneDelivery
-                ? 'Logistics saved and sugarcane delivery sent to the profit calculator queue.'
+                ? 'Logistics saved and sugarcane delivery is available for trial profit simulation. Use Harvest Board for official recording.'
                 : 'Logistics Record Saved & Financials Updated!')));
     Navigator.pop(context);
   }
@@ -475,11 +520,18 @@ class _FrmLogisticsState extends State<FrmLogistics> {
     required String company,
     required String deliveryName,
     required String note,
+    required double allowance,
+    required double rentalCost,
+    required _TruckingOwnership ownership,
   }) {
     final parts = <String>[
       'Created from Logistics',
-      'Company: $company',
+      if (company.isNotEmpty) 'Company: $company',
       'Farm/Batch: $deliveryName',
+      'Trucking Type: ${ownership == _TruckingOwnership.owned ? 'Owned' : 'Rental'}',
+      'Trucking Allowance: ${allowance.toStringAsFixed(2)}',
+      if (ownership == _TruckingOwnership.rental)
+        'Trucking Rental: ${rentalCost.toStringAsFixed(2)}',
     ];
 
     final trackingNumber = _truckingNumController.text.trim();
@@ -669,6 +721,8 @@ class _FrmLogisticsState extends State<FrmLogistics> {
         province: farm.province,
         date: resetDate,
         owner: farm.owner,
+        ratoonCount: farm.ratoonCount,
+        seasonNumber: farm.seasonNumber + 1,
       ),
     );
   }
@@ -952,8 +1006,6 @@ class _FrmLogisticsState extends State<FrmLogistics> {
     return Theme(
       data: deliveryTheme,
       child: Builder(builder: (context) {
-        final voiceProvider =
-            Provider.of<VoiceCommandProvider>(context, listen: false);
         final farmProvider = Provider.of<FarmProvider>(context);
         final sugarcaneFarmNames = farmProvider.farms
             .where((farm) => farm.type.toLowerCase().trim() == 'sugarcane')
@@ -1007,7 +1059,6 @@ class _FrmLogisticsState extends State<FrmLogistics> {
                     MediaQuery.of(context).viewInsets.bottom + 16,
                   ),
                   child: _buildFlowContent(
-                    voiceProvider: voiceProvider,
                     deliveryTheme: deliveryTheme,
                     sugarcaneFarmNames: sugarcaneFarmNames,
                     produceFarmNames: produceFarmNames,
@@ -1023,7 +1074,6 @@ class _FrmLogisticsState extends State<FrmLogistics> {
   }
 
   Widget _buildFlowContent({
-    required VoiceCommandProvider voiceProvider,
     required ThemeData deliveryTheme,
     required List<String> sugarcaneFarmNames,
     required List<String> produceFarmNames,
@@ -1035,16 +1085,21 @@ class _FrmLogisticsState extends State<FrmLogistics> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             _buildHeaderRow(
-              voiceProvider,
-              title: 'Logistics & Trucking',
-              subtitle: 'Deliveries, haulage and freight intelligence',
+              title: widget.sugarcaneOnlyMode
+                  ? 'Sell Cane'
+                  : 'Logistics & Trucking',
+              subtitle: widget.sugarcaneOnlyMode
+                  ? 'Record one sugarcane truckload for pending payment'
+                  : 'Deliveries, haulage and freight intelligence',
               onBack: () => Navigator.pop(context),
             ),
             const SizedBox(height: 14),
-            _buildIncomeGenerationSection(deliveryTheme),
-            const SizedBox(height: 18),
-            _buildLogisticsChips(),
-            const SizedBox(height: 18),
+            if (!widget.sugarcaneOnlyMode) ...[
+              _buildIncomeGenerationSection(deliveryTheme),
+              const SizedBox(height: 18),
+              _buildLogisticsChips(),
+              const SizedBox(height: 18),
+            ],
             _buildSugarcaneFormCard(deliveryTheme, sugarcaneFarmNames),
           ],
         );
@@ -1053,7 +1108,6 @@ class _FrmLogisticsState extends State<FrmLogistics> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             _buildHeaderRow(
-              voiceProvider,
               title: '${_selectedCrop ?? 'Produce'} Delivery',
               subtitle:
                   'Capture sacks, weight, deductions, and farm-level profit',
@@ -1075,7 +1129,6 @@ class _FrmLogisticsState extends State<FrmLogistics> {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             _buildHeaderRow(
-              voiceProvider,
               title: 'Farm Income Generation',
               subtitle:
                   'Track rental income, item sales, and other farm-generated revenue',
@@ -1094,6 +1147,7 @@ class _FrmLogisticsState extends State<FrmLogistics> {
   }
 
   Widget _buildIncomeGenerationSection(ThemeData theme) {
+    final showDetails = _showInteractionDetails;
     final scheme = theme.colorScheme;
     return Material(
       elevation: 10,
@@ -1110,21 +1164,24 @@ class _FrmLogisticsState extends State<FrmLogistics> {
                 fontWeight: FontWeight.w900,
               ),
             ),
-            const SizedBox(height: 6),
-            Text(
-              'Produce sales still go through the delivery workflow first. Use the farm income form for equipment rentals, item sales, and other direct income.',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: scheme.onSurfaceVariant,
-                height: 1.45,
+            if (showDetails) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Produce sales still go through the delivery workflow first. Use the farm income form for equipment rentals, item sales, and other direct income.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                  height: 1.45,
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
+            ] else
+              const SizedBox(height: 12),
             LayoutBuilder(
               builder: (context, constraints) {
                 final buttons = [
                   _buildIncomeActionButton(
                     icon: Icons.local_shipping_rounded,
-                    label: 'Sugarcane Delivery',
+                    label: context.localizeText('Sugarcane Delivery'),
                     description: 'Use the trucking and dispatch flow.',
                     selected: _flow == _LogisticsFlow.sugarcane,
                     onPressed: _startSugarcaneFlow,
@@ -1183,6 +1240,7 @@ class _FrmLogisticsState extends State<FrmLogistics> {
     required bool selected,
     required VoidCallback onPressed,
   }) {
+    final showDetails = _showInteractionDetails;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     return OutlinedButton(
@@ -1225,14 +1283,16 @@ class _FrmLogisticsState extends State<FrmLogistics> {
                     color: scheme.onSurface,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  description,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                    height: 1.35,
+                if (showDetails) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    description,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                      height: 1.35,
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
@@ -1241,12 +1301,12 @@ class _FrmLogisticsState extends State<FrmLogistics> {
     );
   }
 
-  Widget _buildHeaderRow(
-    VoiceCommandProvider voiceProvider, {
+  Widget _buildHeaderRow({
     required String title,
     required String subtitle,
     VoidCallback? onBack,
   }) {
+    final showDetails = _showInteractionDetails;
     final theme = Theme.of(context);
     return Row(
       children: [
@@ -1262,17 +1322,14 @@ class _FrmLogisticsState extends State<FrmLogistics> {
               Text(title,
                   style: theme.textTheme.titleLarge
                       ?.copyWith(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 4),
-              Text(subtitle,
-                  style: theme.textTheme.bodyMedium
-                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+              if (showDetails) ...[
+                const SizedBox(height: 4),
+                Text(subtitle,
+                    style: theme.textTheme.bodyMedium
+                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+              ],
             ],
           ),
-        ),
-        IconButton(
-          icon: Icon(Icons.mic, color: theme.colorScheme.primary),
-          onPressed: () => voiceProvider.requestCommand(context,
-              hint: 'Summarize this delivery'),
         ),
       ],
     );
@@ -1285,7 +1342,7 @@ class _FrmLogisticsState extends State<FrmLogistics> {
       runSpacing: 6,
       children: [
         ChoiceChip(
-          label: const Text('Sugarcane Dispatch'),
+          label: Text(context.localizeText('Sugarcane Dispatch')),
           selected: _flow == _LogisticsFlow.sugarcane,
           onSelected: (_) {
             if (_flow != _LogisticsFlow.sugarcane) {
@@ -1296,7 +1353,7 @@ class _FrmLogisticsState extends State<FrmLogistics> {
           backgroundColor: scheme.surface,
         ),
         ChoiceChip(
-          label: const Text('Rice Sale'),
+          label: Text(context.localizeText('Rice Sale')),
           selected: _flow == _LogisticsFlow.produce && _selectedCrop == 'Rice',
           onSelected: (_) {
             if (!(_flow == _LogisticsFlow.produce && _selectedCrop == 'Rice')) {
@@ -1307,7 +1364,7 @@ class _FrmLogisticsState extends State<FrmLogistics> {
           backgroundColor: scheme.surface,
         ),
         ChoiceChip(
-          label: const Text('Corn Sale'),
+          label: Text(context.localizeText('Corn Sale')),
           selected: _flow == _LogisticsFlow.produce && _selectedCrop == 'Corn',
           onSelected: (_) {
             if (!(_flow == _LogisticsFlow.produce && _selectedCrop == 'Corn')) {
@@ -1392,6 +1449,9 @@ class _FrmLogisticsState extends State<FrmLogistics> {
     ThemeData deliveryTheme,
     List<String> sugarcaneFarmNames,
   ) {
+    final showDetails = _showInteractionDetails;
+    final lockFarmToInitial = widget.sugarcaneOnlyMode &&
+        (widget.initialFarmName?.trim().isNotEmpty ?? false);
     return Material(
       elevation: 16,
       borderRadius: BorderRadius.circular(28),
@@ -1403,9 +1463,61 @@ class _FrmLogisticsState extends State<FrmLogistics> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Text(
+                'Income per Truckload',
+                style: deliveryTheme.textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              if (showDetails) ...[
+                const SizedBox(height: 6),
+                Text(
+                  widget.sugarcaneOnlyMode
+                      ? 'Record the sugarcane truckload for this farm. Pending Payment will compute the harvest income and finalize trucking expenses.'
+                      : 'Sugarcane deliveries saved here will appear in the profit tools as trial sources. Use the farm Harvest Board for the official profit record and season tally.',
+                  style: deliveryTheme.textTheme.bodySmall?.copyWith(
+                    color: deliveryTheme.colorScheme.onSurfaceVariant,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 18),
+              ] else
+                const SizedBox(height: 12),
               _buildDateRow(),
               const SizedBox(height: 18),
-              if (sugarcaneFarmNames.isNotEmpty)
+              if (lockFarmToInitial)
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                  decoration: BoxDecoration(
+                    color: deliveryTheme.colorScheme.surfaceContainerHighest
+                        .withValues(alpha: 0.74),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: deliveryTheme.colorScheme.primary
+                          .withValues(alpha: 0.2),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Farm',
+                          style: Theme.of(context).textTheme.labelSmall),
+                      const SizedBox(height: 4),
+                      Text(
+                        widget.initialFarmName!.trim(),
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                      ),
+                    ],
+                  ),
+                )
+              else if (sugarcaneFarmNames.isNotEmpty)
                 SearchableDropdownFormField<String>(
                   initialValue: sugarcaneFarmNames.contains(_selectedFarmName)
                       ? _selectedFarmName
@@ -1428,7 +1540,8 @@ class _FrmLogisticsState extends State<FrmLogistics> {
                     });
                   },
                 ),
-              if (sugarcaneFarmNames.isNotEmpty) const SizedBox(height: 18),
+              if (lockFarmToInitial || sugarcaneFarmNames.isNotEmpty)
+                const SizedBox(height: 18),
               TextFormField(
                 stylusHandwritingEnabled: false,
                 controller: _deliveryNameController,
@@ -1443,14 +1556,6 @@ class _FrmLogisticsState extends State<FrmLogistics> {
                   }
                   return null;
                 },
-              ),
-              const SizedBox(height: 10),
-              Text(
-                'Sugarcane deliveries saved here will appear in the profit calculator as recent or pending delivery sources. Enter the actual weight later when the weekly report arrives.',
-                style: deliveryTheme.textTheme.bodySmall?.copyWith(
-                  color: deliveryTheme.colorScheme.onSurfaceVariant,
-                  height: 1.5,
-                ),
               ),
               const SizedBox(height: 18),
               _buildTruckingRow(),
@@ -1475,7 +1580,8 @@ class _FrmLogisticsState extends State<FrmLogistics> {
               ),
               const SizedBox(height: 18),
               _buildAutocompleteField(
-                label: 'Total Cost (Fuel, Allowance, etc.)',
+                label:
+                    'Trucking Allowance (Fuel, Backing, Driver\'s share, etc.)',
                 controller: _costController,
                 hintText: _lastCostHint,
                 keyboardType: TextInputType.number,
@@ -1494,16 +1600,181 @@ class _FrmLogisticsState extends State<FrmLogistics> {
                 },
               ),
               const SizedBox(height: 18),
+              _buildTruckingOwnershipCard(),
+              if (_truckingOwnership == _TruckingOwnership.rental) ...[
+                const SizedBox(height: 18),
+                FocusTooltip(
+                  message: 'Enter the trucking rental cost.',
+                  child: TextFormField(
+                    stylusHandwritingEnabled: false,
+                    controller: _rentalCostController,
+                    keyboardType:
+                        const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: <TextInputFormatter>[
+                      _numberInputFormatter
+                    ],
+                    decoration: const InputDecoration(
+                      labelText: 'Trucking Rental Cost',
+                      hintText: 'Enter trucking rental cost',
+                    ),
+                    validator: (value) {
+                      if (_truckingOwnership != _TruckingOwnership.rental) {
+                        return null;
+                      }
+                      final amount = double.tryParse(
+                          (value ?? '').replaceAll(',', '').trim());
+                      if (amount == null || amount <= 0) {
+                        return 'Enter a valid trucking rental cost';
+                      }
+                      return null;
+                    },
+                  ),
+                ),
+              ],
+              const SizedBox(height: 18),
               _buildNotesField(),
               const SizedBox(height: 24),
               _buildFormActions(
                 onSave: _saveLogistics,
-                saveLabel: 'Save & Log',
+                saveLabel:
+                    widget.sugarcaneOnlyMode ? 'Save Truckload' : 'Save & Log',
                 onCancel: () => Navigator.pop(context),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildTruckingOwnershipCard() {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+
+    void selectOwnership(_TruckingOwnership? value) {
+      if (value == null) {
+        return;
+      }
+      setState(() {
+        _truckingOwnership = value;
+        if (value == _TruckingOwnership.owned) {
+          _rentalCostController.clear();
+        }
+      });
+    }
+
+    Widget buildOption(
+      _TruckingOwnership value,
+      String label,
+      String description,
+    ) {
+      final selected = _truckingOwnership == value;
+      return InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: () => selectOwnership(value),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: selected
+                ? scheme.primary.withValues(alpha: 0.08)
+                : scheme.surface.withValues(alpha: 0.65),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: selected
+                  ? scheme.primary.withValues(alpha: 0.55)
+                  : scheme.outline.withValues(alpha: 0.28),
+            ),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Radio<_TruckingOwnership>(value: value),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        color: scheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      description,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: scheme.onSurfaceVariant,
+                        height: 1.35,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return RadioGroup<_TruckingOwnership>(
+      groupValue: _truckingOwnership,
+      onChanged: selectOwnership,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Trucking',
+            style: theme.textTheme.labelMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: scheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: 8),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              if (constraints.maxWidth < 520) {
+                return Column(
+                  children: [
+                    buildOption(
+                      _TruckingOwnership.owned,
+                      'Owned',
+                      'No rental cost will be added.',
+                    ),
+                    const SizedBox(height: 12),
+                    buildOption(
+                      _TruckingOwnership.rental,
+                      'Rental',
+                      'Add the trucking rental cost for this load.',
+                    ),
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  Expanded(
+                    child: buildOption(
+                      _TruckingOwnership.owned,
+                      'Owned',
+                      'No rental cost will be added.',
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: buildOption(
+                      _TruckingOwnership.rental,
+                      'Rental',
+                      'Add the trucking rental cost for this load.',
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
       ),
     );
   }
@@ -1639,6 +1910,7 @@ class _FrmLogisticsState extends State<FrmLogistics> {
   }
 
   Widget _buildComputedExpenseCard() {
+    final showDetails = _showInteractionDetails;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final hasFarm = !(_selectedFarmName?.trim().isEmpty ?? true);
@@ -1661,17 +1933,20 @@ class _FrmLogisticsState extends State<FrmLogistics> {
               color: scheme.onSurface,
             ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            hasFarm
-                ? 'This is auto-computed from recorded farm expenses up to the delivery date. You can adjust the total recorded expenses field below before saving.'
-                : 'Select a farm to load the pre-planting and post-planting expense totals.',
-            style: theme.textTheme.bodySmall?.copyWith(
-              color: scheme.onSurfaceVariant,
-              height: 1.45,
+          if (showDetails) ...[
+            const SizedBox(height: 6),
+            Text(
+              hasFarm
+                  ? 'This is auto-computed from recorded farm expenses up to the delivery date. You can adjust the total recorded expenses field below before saving.'
+                  : 'Select a farm to load the pre-planting and post-planting expense totals.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+                height: 1.45,
+              ),
             ),
-          ),
-          const SizedBox(height: 14),
+            const SizedBox(height: 14),
+          ] else
+            const SizedBox(height: 10),
           LayoutBuilder(
             builder: (context, constraints) {
               final cards = [
@@ -1714,20 +1989,23 @@ class _FrmLogisticsState extends State<FrmLogistics> {
   }
 
   Widget _buildOverallExpensesField() {
+    final showDetails = _showInteractionDetails;
     return TextFormField(
       stylusHandwritingEnabled: false,
       controller: _overallExpensesController,
+      inputFormatters: <TextInputFormatter>[_numberInputFormatter],
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      decoration: const InputDecoration(
+      decoration: InputDecoration(
         labelText: 'Total Recorded Expenses',
-        helperText:
-            'Auto-filled from recorded supplies and jobs for this farm. You can edit it.',
+        helperText: showDetails
+            ? 'Auto-filled from recorded supplies and jobs for this farm. You can edit it.'
+            : null,
       ),
       validator: (value) {
         if (value == null || value.trim().isEmpty) {
           return null;
         }
-        if (double.tryParse(value.trim()) == null) {
+        if (double.tryParse(value.replaceAll(',', '').trim()) == null) {
           return 'Enter a valid number';
         }
         return null;
@@ -2176,13 +2454,15 @@ class _FrmLogisticsState extends State<FrmLogistics> {
   }
 
   Widget _buildProduceDeliveryNumberField() {
+    final showDetails = _showInteractionDetails;
     return TextFormField(
       stylusHandwritingEnabled: false,
       controller: _produceDeliveryNoController,
-      decoration: const InputDecoration(
+      decoration: InputDecoration(
         labelText: 'Delivery No.',
-        helperText:
-            'Editable. The next entry auto-increments from the last saved value.',
+        helperText: showDetails
+            ? 'Editable. The next entry auto-increments from the last saved value.'
+            : null,
       ),
       style: const TextStyle(fontWeight: FontWeight.w700),
       validator: (value) {
@@ -2195,6 +2475,7 @@ class _FrmLogisticsState extends State<FrmLogistics> {
   }
 
   Widget _buildTruckingRow() {
+    final showDetails = _showInteractionDetails;
     final autoIdControl = Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2219,9 +2500,11 @@ class _FrmLogisticsState extends State<FrmLogistics> {
           controller: _truckingNumController,
           decoration: InputDecoration(
             labelText: 'Trucking / Tracking Number',
-            helperText: _autoIncrement
-                ? 'Editable. Auto-increment uses the last digits in this value.'
-                : 'Manual entry mode.',
+            helperText: showDetails
+                ? (_autoIncrement
+                    ? 'Editable. Auto-increment uses the last digits in this value.'
+                    : 'Manual entry mode.')
+                : null,
           ),
           style: const TextStyle(fontWeight: FontWeight.w700),
           validator: (value) {
@@ -2260,16 +2543,22 @@ class _FrmLogisticsState extends State<FrmLogistics> {
     required String saveLabel,
     VoidCallback? onCancel,
   }) {
-    final cancelButton = OutlinedButton(
-      onPressed: onCancel ?? () => Navigator.pop(context),
-      child: const Text('Cancel'),
+    final cancelButton = Tooltip(
+      message: 'Close this form without saving changes.',
+      child: OutlinedButton(
+        onPressed: onCancel ?? () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
     );
-    final saveButton = ElevatedButton.icon(
-      onPressed: onSave,
-      icon: const Icon(Icons.save),
-      label: Text(saveLabel),
-      style: ElevatedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(vertical: 14),
+    final saveButton = Tooltip(
+      message: 'Save this form entry.',
+      child: ElevatedButton.icon(
+        onPressed: onSave,
+        icon: const Icon(Icons.save),
+        label: Text(saveLabel),
+        style: ElevatedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 14),
+        ),
       ),
     );
 
@@ -2318,30 +2607,36 @@ class _FrmLogisticsState extends State<FrmLogistics> {
             fieldController.text = controller.text;
           }
         });
-        return TextFormField(
-          stylusHandwritingEnabled: false,
-          controller: fieldController,
-          focusNode: focusNode,
-          keyboardType: keyboardType,
-          decoration: InputDecoration(
-            labelText: label,
-            hintText: hintText,
+        return FocusTooltip(
+          message: 'Enter $label.',
+          child: TextFormField(
+            stylusHandwritingEnabled: false,
+            controller: fieldController,
+            focusNode: focusNode,
+            keyboardType: keyboardType,
+            inputFormatters: keyboardType == TextInputType.number
+                ? <TextInputFormatter>[_numberInputFormatter]
+                : null,
+            decoration: InputDecoration(
+              labelText: label,
+              hintText: hintText,
+            ),
+            onChanged: (value) {
+              controller.text = value;
+            },
+            onFieldSubmitted: (value) {
+              final normalizedHint = hintText?.trim() ?? '';
+              if (value.trim().isEmpty && normalizedHint.isNotEmpty) {
+                fieldController.value = TextEditingValue(
+                  text: normalizedHint,
+                  selection:
+                      TextSelection.collapsed(offset: normalizedHint.length),
+                );
+                controller.text = normalizedHint;
+              }
+              onFieldSubmitted();
+            },
           ),
-          onChanged: (value) {
-            controller.text = value;
-          },
-          onFieldSubmitted: (value) {
-            final normalizedHint = hintText?.trim() ?? '';
-            if (value.trim().isEmpty && normalizedHint.isNotEmpty) {
-              fieldController.value = TextEditingValue(
-                text: normalizedHint,
-                selection:
-                    TextSelection.collapsed(offset: normalizedHint.length),
-              );
-              controller.text = normalizedHint;
-            }
-            onFieldSubmitted();
-          },
         );
       },
     );
@@ -2351,13 +2646,16 @@ class _FrmLogisticsState extends State<FrmLogistics> {
     String label = 'Notes / Comments',
     String? hint,
   }) {
-    return TextFormField(
-      stylusHandwritingEnabled: false,
-      controller: _noteController,
-      maxLines: 3,
-      decoration: InputDecoration(
-        labelText: label,
-        hintText: hint,
+    return FocusTooltip(
+      message: 'Enter $label.',
+      child: TextFormField(
+        stylusHandwritingEnabled: false,
+        controller: _noteController,
+        maxLines: 3,
+        decoration: InputDecoration(
+          labelText: label,
+          hintText: hint,
+        ),
       ),
     );
   }
@@ -2367,24 +2665,28 @@ class _FrmLogisticsState extends State<FrmLogistics> {
     required String label,
     String? suffixText,
   }) {
-    return TextFormField(
-      stylusHandwritingEnabled: false,
-      controller: controller,
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      decoration: InputDecoration(
-        labelText: label,
-        suffixText: suffixText,
+    return FocusTooltip(
+      message: 'Enter $label.',
+      child: TextFormField(
+        stylusHandwritingEnabled: false,
+        controller: controller,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        inputFormatters: <TextInputFormatter>[_numberInputFormatter],
+        decoration: InputDecoration(
+          labelText: label,
+          suffixText: suffixText,
+        ),
+        validator: (value) {
+          if (value == null || value.trim().isEmpty) {
+            return 'Required';
+          }
+          if (double.tryParse(value.replaceAll(',', '').trim()) == null) {
+            return 'Enter a valid number';
+          }
+          return null;
+        },
+        onChanged: (_) => setState(() {}),
       ),
-      validator: (value) {
-        if (value == null || value.trim().isEmpty) {
-          return 'Required';
-        }
-        if (double.tryParse(value.trim()) == null) {
-          return 'Enter a valid number';
-        }
-        return null;
-      },
-      onChanged: (_) => setState(() {}),
     );
   }
 }

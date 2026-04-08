@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
-import '../providers/app_settings_provider.dart';
-import '../providers/voice_command_provider.dart';
 import '../themes/app_visuals.dart';
 import '../utils/app_layout_utils.dart';
 
@@ -10,9 +7,7 @@ class ModernScreenShell extends StatelessWidget {
   final String title;
   final String subtitle;
   final Widget child;
-  final VoidCallback? onVoiceCommand;
   final Widget? actionBadge;
-  final bool showVoiceButton;
   final EdgeInsetsGeometry outerPadding;
   final EdgeInsetsGeometry headerPadding;
   final EdgeInsetsGeometry bodyPadding;
@@ -26,9 +21,7 @@ class ModernScreenShell extends StatelessWidget {
     required this.title,
     required this.subtitle,
     required this.child,
-    this.onVoiceCommand,
     this.actionBadge,
-    this.showVoiceButton = false,
     this.subtitleStyleOverride,
     this.titleStyleOverride,
     this.outerPadding = const EdgeInsets.fromLTRB(16, 14, 16, 12),
@@ -48,7 +41,6 @@ class ModernScreenShell extends StatelessWidget {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final scheme = theme.colorScheme;
-    final appSettings = Provider.of<AppSettingsProvider>(context);
 
     return AppBackdrop(
       isDark: isDark,
@@ -73,8 +65,6 @@ class ModernScreenShell extends StatelessWidget {
                         constraints.maxWidth < 520;
                     final headerActions = <Widget>[
                       if (actionBadge != null) actionBadge!,
-                      if (showVoiceButton && appSettings.voiceAssistantEnabled)
-                        _buildVoiceAction(context, theme),
                     ];
 
                     if (shouldStack) {
@@ -172,22 +162,6 @@ class ModernScreenShell extends StatelessWidget {
           style: _buildTitleStyle(theme),
         ),
       ],
-    );
-  }
-
-  Widget _buildVoiceAction(BuildContext context, ThemeData theme) {
-    final voiceProvider =
-        Provider.of<VoiceCommandProvider>(context, listen: false);
-    return FilledButton.tonalIcon(
-      onPressed: onVoiceCommand ?? () => voiceProvider.requestCommand(context),
-      icon: const Icon(Icons.mic, size: 18),
-      label: const Text('Voice'),
-      style: FilledButton.styleFrom(
-        foregroundColor: theme.colorScheme.onSecondary,
-        backgroundColor: theme.colorScheme.secondary.withValues(alpha: 0.88),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      ),
     );
   }
 

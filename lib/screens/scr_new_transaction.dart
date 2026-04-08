@@ -203,7 +203,7 @@ class _ScrNewTransactionState extends State<ScrNewTransaction> {
     };
 
     return Scaffold(
-      backgroundColor: AppVisuals.fieldMist,
+      backgroundColor: Colors.transparent,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -237,7 +237,8 @@ class _ScrNewTransactionState extends State<ScrNewTransaction> {
                       Container(
                         margin: const EdgeInsets.symmetric(horizontal: 24),
                         decoration: BoxDecoration(
-                          color: AppVisuals.glass(AppVisuals.cloudGlass, alpha: 0.74),
+                          color: AppVisuals.glass(AppVisuals.cloudGlass,
+                              alpha: 0.74),
                           borderRadius: BorderRadius.circular(24),
                           border: Border.all(
                               color: AppVisuals.textForest
@@ -530,4 +531,3 @@ class _ScrNewTransactionState extends State<ScrNewTransaction> {
     );
   }
 }
-

@@ -12,13 +12,13 @@ import '../providers/ftracker_provider.dart';
 import '../providers/navigation_provider.dart';
 import '../providers/search_provider.dart';
 import '../providers/supplies_provider.dart';
-import '../providers/voice_command_provider.dart';
 import '../providers/worker_provider.dart';
 import '../providers/sugarcane_profit_provider.dart';
 import '../providers/theme_provider.dart';
 import '../services/app_localization_service.dart';
 import '../themes/app_visuals.dart';
 import 'add_farm_screen.dart';
+import 'crop_inspector_screen.dart';
 import 'frm_add_delivery.dart';
 import 'frm_add_job2.dart';
 import 'frm_logistics.dart';
@@ -42,6 +42,8 @@ class FrmMain extends StatefulWidget {
 }
 
 class _FrmMainState extends State<FrmMain> {
+  static const double _landscapeScrollableBodyHeight = 720;
+
   int _selectedIndex = 0;
   bool _showSearch = false;
   final TextEditingController _searchAutocompleteController =
@@ -157,45 +159,69 @@ class _FrmMainState extends State<FrmMain> {
       bottomNavigationBar: _buildBottomAppBar(theme),
       body: AppBackdrop(
         isDark: isDarkMode,
-        child: Column(
-          children: [
-            if (_showSearch)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
-                child: _buildSearchAutocomplete(theme),
-              ),
-            Expanded(
-              child: ClipRect(
-                child: AnimatedSwitcher(
-                  duration: reduceMotion
-                      ? Duration.zero
-                      : const Duration(milliseconds: 400),
-                  transitionBuilder: (child, animation) {
-                    return FadeTransition(
-                      opacity: animation,
-                      child: SlideTransition(
-                        position: Tween<Offset>(
-                          begin: const Offset(0, 0.05),
-                          end: Offset.zero,
-                        ).animate(CurvedAnimation(
-                            parent: animation, curve: Curves.easeOutCubic)),
-                        child: child,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final orientation = MediaQuery.orientationOf(context);
+            final shouldEnableScreenScroll =
+                orientation == Orientation.landscape &&
+                    constraints.maxHeight < _landscapeScrollableBodyHeight;
+            final contentHeight = shouldEnableScreenScroll
+                ? _landscapeScrollableBodyHeight
+                : constraints.maxHeight;
+
+            return SingleChildScrollView(
+              physics: shouldEnableScreenScroll
+                  ? const BouncingScrollPhysics()
+                  : const ClampingScrollPhysics(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: SizedBox(
+                  height: contentHeight,
+                  child: Column(
+                    children: [
+                      if (_showSearch)
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+                          child: _buildSearchAutocomplete(theme),
+                        ),
+                      Expanded(
+                        child: ClipRect(
+                          child: AnimatedSwitcher(
+                            duration: reduceMotion
+                                ? Duration.zero
+                                : const Duration(milliseconds: 400),
+                            transitionBuilder: (child, animation) {
+                              return FadeTransition(
+                                opacity: animation,
+                                child: SlideTransition(
+                                  position: Tween<Offset>(
+                                    begin: const Offset(0, 0.05),
+                                    end: Offset.zero,
+                                  ).animate(CurvedAnimation(
+                                      parent: animation,
+                                      curve: Curves.easeOutCubic)),
+                                  child: child,
+                                ),
+                              );
+                            },
+                            child: SizedBox.expand(
+                              child: Padding(
+                                padding: const EdgeInsets.fromLTRB(0, 8, 0, 20),
+                                child: KeyedSubtree(
+                                  key: ValueKey<int>(_selectedIndex),
+                                  child: _tabs[_selectedIndex],
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
-                    );
-                  },
-                  child: SizedBox.expand(
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(0, 8, 0, 20),
-                      child: KeyedSubtree(
-                        key: ValueKey<int>(_selectedIndex),
-                        child: _tabs[_selectedIndex],
-                      ),
-                    ),
+                    ],
                   ),
                 ),
               ),
-            ),
-          ],
+            );
+          },
         ),
       ),
     );
@@ -203,7 +229,6 @@ class _FrmMainState extends State<FrmMain> {
 
   PreferredSizeWidget _buildTopAppBar(ThemeData theme) {
     final scheme = theme.colorScheme;
-    final appSettings = Provider.of<AppSettingsProvider>(context);
     final sections = [
       (context.tr('Estate'), context.tr('Farm Hub')),
       (context.tr('Ledger'), context.tr('Operations')),
@@ -222,6 +247,14 @@ class _FrmMainState extends State<FrmMain> {
       titleSpacing: 20,
       title: _buildHeaderSection(theme, scheme, section),
       actions: [
+        IconButton(
+          tooltip: 'Crop inspector',
+          onPressed: _openCropInspector,
+          icon: Icon(
+            Icons.camera_enhance_rounded,
+            color: scheme.onPrimary,
+          ),
+        ),
         PopupMenuButton<_FrmMainOverflowAction>(
           tooltip: context.tr('More'),
           icon: Icon(
@@ -234,11 +267,6 @@ class _FrmMainState extends State<FrmMain> {
               value: _FrmMainOverflowAction.refresh,
               child: Text(context.tr('Refresh')),
             ),
-            if (appSettings.voiceAssistantEnabled)
-              PopupMenuItem(
-                value: _FrmMainOverflowAction.voice,
-                child: Text(context.tr('Voice')),
-              ),
           ],
         ),
         const SizedBox(width: 8),
@@ -513,6 +541,17 @@ class _FrmMainState extends State<FrmMain> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 ListTile(
+                  leading: const Icon(Icons.camera_enhance_rounded),
+                  title: const Text('Crop inspector'),
+                  subtitle: Text(
+                    selectedFarm == null ? 'General scan' : selectedFarm.name,
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _openCropInspector();
+                  },
+                ),
+                ListTile(
                   leading: const Icon(Icons.tips_and_updates_rounded),
                   title: Text(
                     context.tr('Recommendations and Tips'),
@@ -559,6 +598,17 @@ class _FrmMainState extends State<FrmMain> {
     );
   }
 
+  Future<void> _openCropInspector() async {
+    final selectedFarm =
+        Provider.of<FarmProvider>(context, listen: false).selectedFarm;
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CropInspectorScreen(initialFarm: selectedFarm),
+      ),
+    );
+  }
+
   void _saveChanges() {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -595,15 +645,11 @@ class _FrmMainState extends State<FrmMain> {
       case _FrmMainOverflowAction.refresh:
         _refreshAll();
         break;
-      case _FrmMainOverflowAction.voice:
-        Provider.of<VoiceCommandProvider>(context, listen: false)
-            .requestCommand(context);
-        break;
     }
   }
 }
 
-enum _FrmMainOverflowAction { refresh, voice }
+enum _FrmMainOverflowAction { refresh }
 
 class _TopTabButton extends StatelessWidget {
   final IconData icon;

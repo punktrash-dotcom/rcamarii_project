@@ -143,7 +143,7 @@ class _TabKnowledgeState extends State<TabKnowledge> with RouteAware {
               theme.brightness == Brightness.dark,
             ),
             child: Image.asset(
-              'lib/assets/images/images (1).jfif',
+              'lib/assets/images/7.webp',
               fit: BoxFit.cover,
             ),
           ),

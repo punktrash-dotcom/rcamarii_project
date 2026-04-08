@@ -9,9 +9,7 @@ import 'package:just_audio/just_audio.dart';
 import 'app_settings_provider.dart';
 
 class AppAudioProvider with ChangeNotifier {
-  static const _audioTimeout = Duration(seconds: 4);
   static const _targetMeanVolumeDb = -15.0;
-  static const _estimatedSpeechMeanVolumeDb = -10.0;
   static const _screenOpenAudioMap =
       <String, ({String funnyAssetPath, String seriousAssetPath})>{
     'tab_farm': (
@@ -136,13 +134,6 @@ class AppAudioProvider with ChangeNotifier {
     return math.pow(10, attenuationDb / 20).toDouble();
   }
 
-  static double effectiveSpeechVolume(double baseVolume) {
-    return (baseVolume *
-            normalizationMultiplierForMeanVolumeDb(
-                _estimatedSpeechMeanVolumeDb))
-        .clamp(0.0, 1.0);
-  }
-
   double normalizationMultiplierForAsset(String assetPath) {
     final meanVolumeDb = _measuredMeanVolumeDb[assetPath];
     if (meanVolumeDb == null || meanVolumeDb <= _targetMeanVolumeDb) {
@@ -206,25 +197,27 @@ class AppAudioProvider with ChangeNotifier {
       await _ensureInitialized();
       final player = _player ??= AudioPlayer();
 
-      // If already playing the same asset, just ensure it's playing and return
+      // Reuse the already loaded source when possible to avoid unnecessary
+      // decoder teardown/recreation on Android.
       if (_currentAssetPath == assetPath && player.playing) {
-        return;
-      }
-
-      await player.stop();
-      if (requestId != _requestId) {
-        return;
-      }
-
-      await player.setAsset(assetPath);
-      _currentAssetPath = assetPath;
-      if (requestId != _requestId) {
         return;
       }
 
       await player.setLoopMode(loop ? LoopMode.one : LoopMode.off);
       await player.setVolume(_effectiveVolumeForAsset(assetPath));
-      await player.seek(Duration.zero);
+      if (requestId != _requestId) {
+        return;
+      }
+
+      if (_currentAssetPath != assetPath) {
+        await player.setAsset(assetPath);
+        _currentAssetPath = assetPath;
+        if (requestId != _requestId) {
+          return;
+        }
+      } else {
+        await player.seek(Duration.zero);
+      }
       if (requestId != _requestId) {
         return;
       }
@@ -293,6 +286,7 @@ class AppAudioProvider with ChangeNotifier {
     _requestId++;
     try {
       await player.stop();
+      _currentAssetPath = null;
     } catch (error, stackTrace) {
       developer.log(
         'Shared audio stop failed',
@@ -336,6 +330,7 @@ class AppAudioProvider with ChangeNotifier {
 
     try {
       await player.stop();
+      _currentAssetPath = null;
     } catch (error, stackTrace) {
       developer.log(
         'Shared audio stop failed',
@@ -349,6 +344,7 @@ class AppAudioProvider with ChangeNotifier {
   @override
   void dispose() {
     _requestId++;
+    _currentAssetPath = null;
     final player = _player;
     if (player != null) {
       unawaited(player.stop());
